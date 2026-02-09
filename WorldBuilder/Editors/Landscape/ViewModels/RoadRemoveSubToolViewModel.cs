@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -26,6 +26,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
         public override void OnActivated() {
             Context.ActiveVertices.Clear();
+            Context.BrushActive = true;
+            Context.BrushRadius = 0.5f; // Single vertex highlight
             _isErasing = false;
             _lastHitPosition = _currentHitPosition = new TerrainRaycast.TerrainRaycastHit();
             _pendingChanges.Clear();
@@ -33,20 +35,15 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         }
 
         public override void OnDeactivated() {
+            Context.BrushActive = false;
+            Context.ActiveVertices.Clear();
             if (_isErasing) {
                 FinalizeErasing();
             }
         }
 
         public override void Update(double deltaTime) {
-            if (Vector3.Distance(_currentHitPosition.NearestVertice, _lastHitPosition.NearestVertice) < 0.01f) return;
-
-            Context.ActiveVertices.Clear();
-
-            if (!_currentHitPosition.Hit) return;
-
-            Context.ActiveVertices.Add(new Vector2(_currentHitPosition.NearestVertice.X, _currentHitPosition.NearestVertice.Y));
-
+            Context.BrushCenter = new Vector2(_currentHitPosition.NearestVertice.X, _currentHitPosition.NearestVertice.Y);
             _lastHitPosition = _currentHitPosition;
         }
 

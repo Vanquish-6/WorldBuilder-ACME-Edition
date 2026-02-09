@@ -60,16 +60,6 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         public override void Update(double deltaTime) {
             Context.BrushCenter = new Vector2(_currentHitPosition.NearestVertice.X, _currentHitPosition.NearestVertice.Y);
             Context.BrushRadius = BrushRadius;
-
-            if (Vector3.Distance(_currentHitPosition.NearestVertice, _lastHitPosition.NearestVertice) < 0.01f) return;
-
-            Context.ActiveVertices.Clear();
-            var affected = PaintCommand.GetAffectedVertices(_currentHitPosition.NearestVertice, BrushRadius, Context);
-
-            foreach (var (_, _, pos) in affected) {
-                Context.ActiveVertices.Add(new Vector2(pos.X, pos.Y));
-            }
-
             _lastHitPosition = _currentHitPosition;
         }
 

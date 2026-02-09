@@ -839,9 +839,8 @@ namespace WorldBuilder.Editors.Landscape {
             // Render terrain (with brush preview)
             RenderTerrain(renderableChunks, model, camera, cameraDistance, width, height, editingContext);
 
-            // Render active vertex spheres only when brush preview is NOT active
-            // (brush tools use shader-based preview instead)
-            if (!editingContext.BrushActive && editingContext.ActiveVertices.Count > 0) {
+            // Render active vertex spheres (used by road line preview and non-brush tools)
+            if (editingContext.ActiveVertices.Count > 0) {
                 RenderActiveSpheres(editingContext, camera, model, viewProjection);
             }
 

@@ -27,8 +27,13 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         [ObservableProperty] private float _positionY;
         [ObservableProperty] private float _positionZ;
 
-        // Editable rotation (degrees around Z axis)
-        [ObservableProperty] private float _rotationDeg;
+        // Editable rotation (Euler angles in degrees)
+        [ObservableProperty] private float _rotationX;
+        [ObservableProperty] private float _rotationY;
+        [ObservableProperty] private float _rotationZ;
+
+        // Landcell display
+        [ObservableProperty] private string _landcellText = "";
 
 
         private bool _suppressPropertyUpdates;
@@ -52,9 +57,10 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 var nonSceneryCount = sel.SelectedEntries.Count(e => !e.IsScenery);
                 SelectedObjectId = "";
                 SelectedObjectInfo = $"{sel.SelectionCount} objects selected ({nonSceneryCount} editable)";
-                HasEditableSelection = false; // Disable per-object editing for multi-select
+                HasEditableSelection = false;
                 PositionX = 0; PositionY = 0; PositionZ = 0;
-                RotationDeg = 0;
+                RotationX = 0; RotationY = 0; RotationZ = 0;
+                LandcellText = "";
             }
             else if (sel.HasSelection && sel.SelectedObject.HasValue) {
                 // Single selection: show full details
@@ -67,18 +73,29 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 PositionY = obj.Origin.Y;
                 PositionZ = obj.Origin.Z;
 
-                // Extract Z rotation from quaternion (yaw in degrees)
-                var q = obj.Orientation;
-                float siny_cosp = 2.0f * (q.W * q.Z + q.X * q.Y);
-                float cosy_cosp = 1.0f - 2.0f * (q.Y * q.Y + q.Z * q.Z);
-                RotationDeg = MathF.Atan2(siny_cosp, cosy_cosp) * 180f / MathF.PI;
+                // Extract Euler angles (X, Y, Z) from quaternion
+                QuaternionToEuler(obj.Orientation, out float ex, out float ey, out float ez);
+                RotationX = ex;
+                RotationY = ey;
+                RotationZ = ez;
+
+                // Compute landcell from world position
+                int lbX = (int)MathF.Floor(obj.Origin.X / 192f);
+                int lbY = (int)MathF.Floor(obj.Origin.Y / 192f);
+                int cellX = (int)MathF.Floor((obj.Origin.X - lbX * 192f) / 24f);
+                int cellY = (int)MathF.Floor((obj.Origin.Y - lbY * 192f) / 24f);
+                cellX = Math.Clamp(cellX, 0, 7);
+                cellY = Math.Clamp(cellY, 0, 7);
+                uint landcell = (uint)((lbX << 24) | (lbY << 16) | (cellX << 3 | cellY));
+                LandcellText = $"0x{landcell:X8}";
             }
             else {
                 SelectedObjectId = "";
                 SelectedObjectInfo = "No selection";
                 HasEditableSelection = false;
                 PositionX = 0; PositionY = 0; PositionZ = 0;
-                RotationDeg = 0;
+                RotationX = 0; RotationY = 0; RotationZ = 0;
+                LandcellText = "";
             }
             _suppressPropertyUpdates = false;
         }
@@ -114,13 +131,75 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
             var obj = doc.GetStaticObject(sel.SelectedObjectIndex);
             var oldRot = obj.Orientation;
-            var newRot = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, RotationDeg * MathF.PI / 180f);
+            var newRot = EulerToQuaternion(RotationX, RotationY, RotationZ);
             if (Quaternion.Dot(oldRot, newRot) > 0.9999f) return;
 
             var cmd = new RotateObjectCommand(Context, sel.SelectedLandblockKey, sel.SelectedObjectIndex, oldRot, newRot);
             _commandHistory.ExecuteCommand(cmd);
             sel.RefreshFromDocument(doc);
             Context.TerrainSystem.Scene.InvalidateStaticObjectsCache();
+        }
+
+        [RelayCommand]
+        private void SnapToTerrain() {
+            if (_suppressPropertyUpdates || !HasEditableSelection) return;
+            var sel = Context.ObjectSelection;
+            if (!sel.HasSelection || sel.IsScenery || sel.SelectedObjectIndex < 0) return;
+
+            var doc = GetDocument();
+            if (doc == null) return;
+
+            var obj = doc.GetStaticObject(sel.SelectedObjectIndex);
+            float terrainZ = Context.GetHeightAtPosition(obj.Origin.X, obj.Origin.Y);
+            if (MathF.Abs(obj.Origin.Z - terrainZ) < 0.001f) return;
+
+            var oldPos = obj.Origin;
+            var newPos = new Vector3(obj.Origin.X, obj.Origin.Y, terrainZ);
+
+            var cmd = new MoveObjectCommand(Context, sel.SelectedLandblockKey, sel.SelectedObjectIndex, oldPos, newPos);
+            _commandHistory.ExecuteCommand(cmd);
+            sel.RefreshFromDocument(doc);
+            Context.TerrainSystem.Scene.InvalidateStaticObjectsCache();
+        }
+
+        /// <summary>
+        /// Converts a quaternion to Euler angles (degrees) in XYZ order.
+        /// </summary>
+        private static void QuaternionToEuler(Quaternion q, out float xDeg, out float yDeg, out float zDeg) {
+            // Roll (X)
+            float sinr_cosp = 2.0f * (q.W * q.X + q.Y * q.Z);
+            float cosr_cosp = 1.0f - 2.0f * (q.X * q.X + q.Y * q.Y);
+            float roll = MathF.Atan2(sinr_cosp, cosr_cosp);
+
+            // Pitch (Y)
+            float sinp = 2.0f * (q.W * q.Y - q.Z * q.X);
+            float pitch = MathF.Abs(sinp) >= 1.0f
+                ? MathF.CopySign(MathF.PI / 2f, sinp)
+                : MathF.Asin(sinp);
+
+            // Yaw (Z)
+            float siny_cosp = 2.0f * (q.W * q.Z + q.X * q.Y);
+            float cosy_cosp = 1.0f - 2.0f * (q.Y * q.Y + q.Z * q.Z);
+            float yaw = MathF.Atan2(siny_cosp, cosy_cosp);
+
+            xDeg = roll * 180f / MathF.PI;
+            yDeg = pitch * 180f / MathF.PI;
+            zDeg = yaw * 180f / MathF.PI;
+        }
+
+        /// <summary>
+        /// Converts Euler angles (degrees) in XYZ order to a quaternion.
+        /// </summary>
+        private static Quaternion EulerToQuaternion(float xDeg, float yDeg, float zDeg) {
+            float xRad = xDeg * MathF.PI / 180f;
+            float yRad = yDeg * MathF.PI / 180f;
+            float zRad = zDeg * MathF.PI / 180f;
+
+            var qx = Quaternion.CreateFromAxisAngle(Vector3.UnitX, xRad);
+            var qy = Quaternion.CreateFromAxisAngle(Vector3.UnitY, yRad);
+            var qz = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, zRad);
+
+            return Quaternion.Normalize(qz * qy * qx);
         }
 
         private LandblockDocument? GetDocument() {

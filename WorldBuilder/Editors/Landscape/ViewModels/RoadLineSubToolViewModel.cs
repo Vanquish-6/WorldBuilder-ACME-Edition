@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using WorldBuilder.Editors.Landscape.Commands;
@@ -22,6 +22,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
         public override void OnActivated() {
             Context.ActiveVertices.Clear();
+            Context.BrushActive = true;
+            Context.BrushRadius = 0.5f; // Single vertex highlight
             _isDrawingLine = false;
             _lineStartPosition = null;
             _lineEndPosition = null;
@@ -30,6 +32,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         }
 
         public override void OnDeactivated() {
+            Context.BrushActive = false;
             if (_isDrawingLine) {
                 _isDrawingLine = false;
                 _lineStartPosition = null;
@@ -40,15 +43,14 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         }
 
         public override void Update(double deltaTime) {
+            Context.BrushCenter = new Vector2(_currentHitPosition.NearestVertice.X, _currentHitPosition.NearestVertice.Y);
             Context.ActiveVertices.Clear();
 
             if (_isDrawingLine && _previewVertices.Count > 0) {
+                // Show line preview vertices (these still use sphere rendering for the path)
                 foreach (var vertex in _previewVertices) {
                     Context.ActiveVertices.Add(new Vector2(vertex.X, vertex.Y));
                 }
-            }
-            else if (!_isDrawingLine && _currentHitPosition.Hit) {
-                Context.ActiveVertices.Add(new Vector2(_currentHitPosition.NearestVertice.X, _currentHitPosition.NearestVertice.Y));
             }
         }
 
