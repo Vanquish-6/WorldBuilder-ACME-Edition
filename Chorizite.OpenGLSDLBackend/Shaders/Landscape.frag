@@ -20,6 +20,12 @@ uniform float uGridOpacity;       // Opacity of grid lines (0.0 - 1.0)
 uniform float uCameraDistance;    // Distance from camera to terrain
 uniform float uScreenHeight;      // Screen height in pixels for scaling
 
+// Slope highlight uniforms
+uniform bool uShowSlopeHighlight;    // Enable/disable slope highlighting
+uniform float uSlopeThreshold;      // Slope angle threshold in radians
+uniform vec3 uSlopeHighlightColor;  // Color for slope highlight (RGB)
+uniform float uSlopeHighlightOpacity; // Opacity of slope highlight
+
 in vec3 vTexUV;
 in vec4 vOverlay0;
 in vec4 vOverlay1;
@@ -28,6 +34,7 @@ in vec4 vRoad0;
 in vec4 vRoad1;
 in float vLightingFactor;
 in vec2 vWorldPos;
+in vec3 vNormal;
 
 out vec4 FragColor;
 
@@ -198,6 +205,21 @@ vec3 calculateGrid(vec2 worldPos, vec3 terrainColor) {
     return gridColor * uGridOpacity;
 }
 
+vec3 calculateSlopeHighlight(vec3 normal) {
+    if (!uShowSlopeHighlight) return vec3(0.0);
+
+    // Calculate slope angle from the normal's Z component (dot with up vector)
+    // normal.Z == 1.0 means flat, normal.Z == 0.0 means vertical
+    float cosAngle = abs(normalize(normal).z);
+    float slopeAngle = acos(clamp(cosAngle, 0.0, 1.0));
+
+    // Smooth transition around the threshold
+    float transitionWidth = 0.05; // ~3 degrees of smooth blending
+    float highlight = smoothstep(uSlopeThreshold - transitionWidth, uSlopeThreshold + transitionWidth, slopeAngle);
+
+    return uSlopeHighlightColor * highlight * uSlopeHighlightOpacity;
+}
+
 void main() {
     vec4 baseColor = texture(xOverlays, vTexUV);
     vec4 combinedOverlays = vec4(0.0);
@@ -223,6 +245,10 @@ void main() {
     
     // Blend grid with terrain
     vec3 finalColor = mix(terrainColor, gridColor, length(gridColor));
+
+    // Apply slope highlighting
+    vec3 slopeColor = calculateSlopeHighlight(vNormal);
+    finalColor = mix(finalColor, slopeColor, length(slopeColor));
     
     vec3 litColor = finalColor * (saturate(vLightingFactor) + xAmbient);
     FragColor = vec4(litColor, uAlpha);

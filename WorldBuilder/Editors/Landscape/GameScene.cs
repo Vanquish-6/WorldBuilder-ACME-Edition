@@ -55,6 +55,8 @@ namespace WorldBuilder.Editors.Landscape {
         private readonly Queue<(uint Id, bool IsSetup)> _renderDataWarmupQueue = new();
         private List<StaticObject>? _cachedStaticObjects;
         private bool _staticObjectsDirty = true;
+        private bool _cachedShowStaticObjects = true;
+        private bool _cachedShowScenery = true;
 
         // Background loading pipeline
         private Task? _backgroundLoadTask;
@@ -114,6 +116,36 @@ namespace WorldBuilder.Editors.Landscape {
         public float SphereRadius {
             get => _settings.Landscape.Selection.SphereRadius;
             set => _settings.Landscape.Selection.SphereRadius = value;
+        }
+
+        public bool ShowStaticObjects {
+            get => _settings.Landscape.Overlay.ShowStaticObjects;
+            set => _settings.Landscape.Overlay.ShowStaticObjects = value;
+        }
+
+        public bool ShowScenery {
+            get => _settings.Landscape.Overlay.ShowScenery;
+            set => _settings.Landscape.Overlay.ShowScenery = value;
+        }
+
+        public bool ShowSlopeHighlight {
+            get => _settings.Landscape.Overlay.ShowSlopeHighlight;
+            set => _settings.Landscape.Overlay.ShowSlopeHighlight = value;
+        }
+
+        public float SlopeThreshold {
+            get => _settings.Landscape.Overlay.SlopeThreshold;
+            set => _settings.Landscape.Overlay.SlopeThreshold = value;
+        }
+
+        public Vector3 SlopeHighlightColor {
+            get => _settings.Landscape.Overlay.SlopeHighlightColor;
+            set => _settings.Landscape.Overlay.SlopeHighlightColor = value;
+        }
+
+        public float SlopeHighlightOpacity {
+            get => _settings.Landscape.Overlay.SlopeHighlightOpacity;
+            set => _settings.Landscape.Overlay.SlopeHighlightOpacity = value;
         }
 
         public float SphereHeightOffset { get; set; } = 0.0f;
@@ -746,13 +778,21 @@ namespace WorldBuilder.Editors.Landscape {
         public int GetVisibleChunkCount(Frustum frustum) => GetRenderableChunks(frustum).Count();
 
         public IEnumerable<StaticObject> GetAllStaticObjects() {
-            if (_staticObjectsDirty || _cachedStaticObjects == null) {
+            if (_staticObjectsDirty || _cachedStaticObjects == null
+                || _cachedShowStaticObjects != ShowStaticObjects
+                || _cachedShowScenery != ShowScenery) {
                 var statics = new List<StaticObject>();
-                foreach (var doc in _documentManager.ActiveDocs.Values.OfType<LandblockDocument>()) {
-                    statics.AddRange(doc.GetStaticObjects());
+                if (ShowStaticObjects) {
+                    foreach (var doc in _documentManager.ActiveDocs.Values.OfType<LandblockDocument>()) {
+                        statics.AddRange(doc.GetStaticObjects());
+                    }
                 }
-                statics.AddRange(_sceneryObjects.Values.SelectMany(x => x));
+                if (ShowScenery) {
+                    statics.AddRange(_sceneryObjects.Values.SelectMany(x => x));
+                }
                 _cachedStaticObjects = statics;
+                _cachedShowStaticObjects = ShowStaticObjects;
+                _cachedShowScenery = ShowScenery;
                 _staticObjectsDirty = false;
             }
             return _cachedStaticObjects;
@@ -925,6 +965,12 @@ namespace WorldBuilder.Editors.Landscape {
             _terrainShader.SetUniform("uGridOpacity", GridOpacity);
             _terrainShader.SetUniform("uCameraDistance", cameraDistance);
             _terrainShader.SetUniform("uScreenHeight", height);
+
+            // Slope highlight uniforms
+            _terrainShader.SetUniform("uShowSlopeHighlight", ShowSlopeHighlight ? 1 : 0);
+            _terrainShader.SetUniform("uSlopeThreshold", SlopeThreshold * MathF.PI / 180f); // Convert degrees to radians
+            _terrainShader.SetUniform("uSlopeHighlightColor", SlopeHighlightColor);
+            _terrainShader.SetUniform("uSlopeHighlightOpacity", SlopeHighlightOpacity);
 
             SurfaceManager.TerrainAtlas.Bind(0);
             _terrainShader.SetUniform("xOverlays", 0);

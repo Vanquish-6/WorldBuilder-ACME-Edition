@@ -43,6 +43,27 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         [ObservableProperty]
         private string _currentPositionText = "";
 
+        // Overlay toggle properties (bound to toolbar buttons)
+        public bool ShowGrid {
+            get => Settings.Landscape.Grid.ShowGrid;
+            set { Settings.Landscape.Grid.ShowGrid = value; OnPropertyChanged(); }
+        }
+
+        public bool ShowStaticObjects {
+            get => Settings.Landscape.Overlay.ShowStaticObjects;
+            set { Settings.Landscape.Overlay.ShowStaticObjects = value; OnPropertyChanged(); }
+        }
+
+        public bool ShowScenery {
+            get => Settings.Landscape.Overlay.ShowScenery;
+            set { Settings.Landscape.Overlay.ShowScenery = value; OnPropertyChanged(); }
+        }
+
+        public bool ShowSlopeHighlight {
+            get => Settings.Landscape.Overlay.ShowSlopeHighlight;
+            set { Settings.Landscape.Overlay.ShowSlopeHighlight = value; OnPropertyChanged(); }
+        }
+
         private Project? _project;
         private IDatReaderWriter? _dats;
         public TerrainSystem? TerrainSystem { get; private set; }

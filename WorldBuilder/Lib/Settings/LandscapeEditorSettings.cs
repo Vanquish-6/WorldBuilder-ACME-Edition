@@ -1,4 +1,4 @@
-﻿using Avalonia.Media;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Numerics;
 
@@ -13,6 +13,9 @@ namespace WorldBuilder.Lib.Settings {
 
         private GridSettings _grid = new();
         public GridSettings Grid { get => _grid; set => SetProperty(ref _grid, value); }
+
+        private OverlaySettings _overlay = new();
+        public OverlaySettings Overlay { get => _overlay; set => SetProperty(ref _overlay, value); }
 
         private SelectionSettings _selection = new();
         public SelectionSettings Selection { get => _selection; set => SetProperty(ref _selection, value); }
@@ -96,7 +99,45 @@ namespace WorldBuilder.Lib.Settings {
         public Vector3 CellColor { get => _cellColor; set => SetProperty(ref _cellColor, value); }
     }
 
-    [SettingCategory("Selection", ParentCategory = "Landscape Editor", Order = 3)]
+    [SettingCategory("Overlays", ParentCategory = "Landscape Editor", Order = 3)]
+    public partial class OverlaySettings : ObservableObject {
+        [SettingDescription("Show static objects in the viewport")]
+        [SettingOrder(0)]
+        private bool _showStaticObjects = true;
+        public bool ShowStaticObjects { get => _showStaticObjects; set => SetProperty(ref _showStaticObjects, value); }
+
+        [SettingDescription("Show auto-generated scenery objects in the viewport")]
+        [SettingOrder(1)]
+        private bool _showScenery = true;
+        public bool ShowScenery { get => _showScenery; set => SetProperty(ref _showScenery, value); }
+
+        [SettingDescription("Highlight unwalkable slopes with a color overlay")]
+        [SettingOrder(2)]
+        private bool _showSlopeHighlight = false;
+        public bool ShowSlopeHighlight { get => _showSlopeHighlight; set => SetProperty(ref _showSlopeHighlight, value); }
+
+        [SettingDescription("Slope angle threshold in degrees above which terrain is considered unwalkable")]
+        [SettingRange(5.0, 85.0, 1.0, 5.0)]
+        [SettingFormat("{0:F0}°")]
+        [SettingOrder(3)]
+        private float _slopeThreshold = 45f;
+        public float SlopeThreshold { get => _slopeThreshold; set => SetProperty(ref _slopeThreshold, value); }
+
+        [SettingDescription("Color for unwalkable slope highlighting (RGB values 0-1)")]
+        [SettingDisplayName("Slope Highlight Color")]
+        [SettingOrder(4)]
+        private Vector3 _slopeHighlightColor = new(1.0f, 0.2f, 0.2f);
+        public Vector3 SlopeHighlightColor { get => _slopeHighlightColor; set => SetProperty(ref _slopeHighlightColor, value); }
+
+        [SettingDescription("Opacity of the slope highlight overlay")]
+        [SettingRange(0.0, 1.0, 0.05, 0.1)]
+        [SettingFormat("{0:P0}")]
+        [SettingOrder(5)]
+        private float _slopeHighlightOpacity = 0.5f;
+        public float SlopeHighlightOpacity { get => _slopeHighlightOpacity; set => SetProperty(ref _slopeHighlightOpacity, value); }
+    }
+
+    [SettingCategory("Selection", ParentCategory = "Landscape Editor", Order = 4)]
     public partial class SelectionSettings : ObservableObject {
         [SettingDescription("Color of the selection sphere indicator (RGB values 0-1)")]
         [SettingDisplayName("Sphere Color")]
