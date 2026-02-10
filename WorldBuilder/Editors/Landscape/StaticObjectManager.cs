@@ -22,6 +22,7 @@ namespace WorldBuilder.Editors.Landscape {
         private readonly Dictionary<uint, StaticObjectRenderData> _renderData = new();
         internal readonly IShader _objectShader;
         private readonly ConcurrentDictionary<uint, int> _usageCount = new();
+        private readonly HashSet<uint> _failedIds = new();
 
         public StaticObjectManager(OpenGLRenderer renderer, IDatReaderWriter dats) {
             _renderer = renderer;
@@ -33,7 +34,13 @@ namespace WorldBuilder.Editors.Landscape {
                 GameScene.GetEmbeddedResource("Chorizite.OpenGLSDLBackend.Shaders.StaticObject.frag", assembly));
         }
 
+        /// <summary>
+        /// Returns true if the given object ID has previously failed to load.
+        /// </summary>
+        public bool IsKnownFailure(uint id) => _failedIds.Contains(id);
+
         public StaticObjectRenderData? GetRenderData(uint id, bool isSetup) {
+            if (_failedIds.Contains(id)) return null;
             if (_renderData.TryGetValue(id, out var data)) {
                 _usageCount.AddOrUpdate(id, 1, (_, count) => count + 1);
                 return data;
@@ -100,6 +107,7 @@ namespace WorldBuilder.Editors.Landscape {
             }
             catch (Exception ex) {
                 Console.WriteLine($"Error creating render data for object 0x{id:X8}: {ex}");
+                _failedIds.Add(id);
                 return null;
             }
         }
