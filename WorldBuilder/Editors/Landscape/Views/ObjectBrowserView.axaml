@@ -4,16 +4,12 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:conv="using:WorldBuilder.Lib.Converters"
     xmlns:vm="using:WorldBuilder.Editors.Landscape.ViewModels"
-    d:DesignHeight="250"
+    d:DesignHeight="500"
     d:DesignWidth="280"
     x:CompileBindings="True"
     x:DataType="vm:ObjectBrowserViewModel"
     mc:Ignorable="d">
-    <UserControl.Resources>
-        <conv:ObjectIdToTagsConverter x:Key="IdToTags" />
-    </UserControl.Resources>
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="4,2">
             <TextBox
@@ -38,41 +34,49 @@
         </StackPanel>
 
         <ScrollViewer>
-            <StackPanel Spacing="1" Margin="4,2">
-                <!-- Setup objects -->
-                <ItemsControl ItemsSource="{Binding FilteredSetupIds}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button
-                                Content="{Binding StringFormat='Setup  0x{0:X8}'}"
-                                ToolTip.Tip="{Binding Converter={StaticResource IdToTags}}"
-                                Command="{Binding $parent[UserControl].((vm:ObjectBrowserViewModel)DataContext).SelectForPlacementCommand}"
-                                CommandParameter="{Binding}"
-                                HorizontalAlignment="Stretch"
-                                Padding="4,2"
-                                FontSize="10"
-                                FontFamily="Consolas" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!-- GfxObj objects -->
-                <ItemsControl ItemsSource="{Binding FilteredGfxObjIds}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button
-                                Content="{Binding StringFormat='GfxObj 0x{0:X8}'}"
-                                ToolTip.Tip="{Binding Converter={StaticResource IdToTags}}"
-                                Command="{Binding $parent[UserControl].((vm:ObjectBrowserViewModel)DataContext).SelectForPlacementCommand}"
-                                CommandParameter="{Binding}"
-                                HorizontalAlignment="Stretch"
-                                Padding="4,2"
-                                FontSize="10"
-                                FontFamily="Consolas" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+            <ItemsControl ItemsSource="{Binding FilteredItems}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ObjectBrowserItem">
+                        <Button
+                            Margin="3"
+                            Padding="2"
+                            Command="{Binding $parent[UserControl].((vm:ObjectBrowserViewModel)DataContext).SelectForPlacementCommand}"
+                            CommandParameter="{Binding}"
+                            ToolTip.Tip="{Binding Tags}"
+                            Focusable="False"
+                            HorizontalContentAlignment="Center">
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <!-- Thumbnail image with placeholder fallback -->
+                                <Panel Width="80" Height="80">
+                                    <Border
+                                        Background="#FF2A2A2A"
+                                        CornerRadius="2"
+                                        IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNull}}" />
+                                    <Image
+                                        Width="80"
+                                        Height="80"
+                                        Source="{Binding Thumbnail}"
+                                        Stretch="Uniform"
+                                        IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                </Panel>
+                                <!-- Object ID label -->
+                                <TextBlock
+                                    Text="{Binding DisplayId}"
+                                    FontSize="9"
+                                    FontFamily="Consolas"
+                                    HorizontalAlignment="Center"
+                                    TextTrimming="CharacterEllipsis"
+                                    MaxWidth="84" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </ScrollViewer>
     </DockPanel>
 </UserControl>

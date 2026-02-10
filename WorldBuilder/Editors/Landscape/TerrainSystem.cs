@@ -28,6 +28,7 @@ namespace WorldBuilder.Editors.Landscape {
         public GameScene Scene { get; private set; }
         public IServiceProvider Services { get; private set; }
         public IDatReaderWriter Dats { get; private set; }
+        public string BaseDatDirectory { get; private set; }
         private bool _layerRefreshPending;
 
         public TerrainSystem(OpenGLRenderer renderer, Project project, IDatReaderWriter dats,
@@ -43,6 +44,7 @@ namespace WorldBuilder.Editors.Landscape {
             Region = region;
             Renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
             Dats = dats ?? throw new ArgumentNullException(nameof(dats));
+            BaseDatDirectory = project.BaseDatDirectory;
 
             var collection = new ServiceCollection();
             collection.AddSingleton(this);

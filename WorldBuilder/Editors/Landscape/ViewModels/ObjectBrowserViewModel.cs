@@ -1,8 +1,10 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DatReaderWriter.DBObjs;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
@@ -20,6 +22,9 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private readonly TerrainEditingContext _context;
         private readonly IDatReaderWriter _dats;
         private readonly ObjectTagIndex _tagIndex = new();
+        private readonly ThumbnailRenderService? _thumbnailService;
+        private readonly ThumbnailCache _thumbnailCache;
+        private bool _thumbnailsReady; // Deferred: don't request thumbnails until after startup
         private uint[] _allSetupIds = Array.Empty<uint>();
         private uint[] _allGfxObjIds = Array.Empty<uint>();
         private HashSet<uint> _buildingIds = new();
@@ -27,8 +32,10 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private HashSet<uint> _sceneryIds = new();
         private bool _sceneryIdsLoaded;
 
-        [ObservableProperty] private uint[] _filteredSetupIds = Array.Empty<uint>();
-        [ObservableProperty] private uint[] _filteredGfxObjIds = Array.Empty<uint>();
+        // Lookup for updating items when thumbnails arrive from the render service
+        private readonly Dictionary<uint, ObjectBrowserItem> _itemLookup = new();
+
+        [ObservableProperty] private ObservableCollection<ObjectBrowserItem> _filteredItems = new();
         [ObservableProperty] private string _searchText = "";
         [ObservableProperty] private string _status = "Search by name or hex ID";
 
@@ -42,9 +49,17 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         /// </summary>
         public ObjectTagIndex TagIndex => _tagIndex;
 
-        public ObjectBrowserViewModel(TerrainEditingContext context, IDatReaderWriter dats) {
+        public ObjectBrowserViewModel(TerrainEditingContext context, IDatReaderWriter dats,
+            ThumbnailRenderService? thumbnailService = null, ThumbnailCache? thumbnailCache = null) {
             _context = context;
             _dats = dats;
+            _thumbnailService = thumbnailService;
+            _thumbnailCache = thumbnailCache ?? new ThumbnailCache();
+
+            // Subscribe to thumbnail ready events from the render service
+            if (_thumbnailService != null) {
+                _thumbnailService.ThumbnailReady += OnThumbnailReady;
+            }
 
             // Load keyword tag index for name-based search
             _tagIndex.LoadFromEmbeddedResource();
@@ -64,6 +79,35 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             // Scan building and scenery IDs in background to avoid blocking startup
             Task.Run(LoadBuildingIds);
             Task.Run(LoadSceneryIds);
+
+            // Defer thumbnail loading until the app has fully initialized.
+            // This avoids competing with terrain/DAT loading during startup.
+            _ = Task.Run(async () => {
+                await Task.Delay(2000);
+                _thumbnailsReady = true;
+                Console.WriteLine($"[ObjectBrowser] Thumbnail loading ready, requesting for {FilteredItems.Count} items");
+                Dispatcher.UIThread.Post(() => RequestThumbnails(FilteredItems));
+            });
+        }
+
+        /// <summary>
+        /// Called on the GL thread when a thumbnail has been rendered.
+        /// Saves to disk cache and dispatches bitmap update to the UI thread.
+        /// </summary>
+        private void OnThumbnailReady(uint objectId, byte[] rgbaPixels) {
+            // Save to disk cache (fire-and-forget background thread)
+            _thumbnailCache.SaveAsync(objectId, rgbaPixels, ThumbnailRenderService.ThumbnailSize, ThumbnailRenderService.ThumbnailSize);
+
+            // Create bitmap from pixels
+            var bitmap = ThumbnailCache.CreateBitmapFromRgba(rgbaPixels,
+                ThumbnailRenderService.ThumbnailSize, ThumbnailRenderService.ThumbnailSize);
+
+            // Dispatch to UI thread to update the item
+            Dispatcher.UIThread.Post(() => {
+                if (_itemLookup.TryGetValue(objectId, out var item)) {
+                    item.Thumbnail = bitmap;
+                }
+            });
         }
 
         private void LoadBuildingIds() {
@@ -219,13 +263,68 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             );
         }
 
+        /// <summary>
+        /// Creates ObjectBrowserItem instances from filtered setup and gfxobj ID arrays.
+        /// Items start with placeholder thumbnails. Call RequestThumbnails() separately
+        /// to load cached images and queue missing ones for rendering.
+        /// </summary>
+        private ObservableCollection<ObjectBrowserItem> BuildItems(uint[] setups, uint[] gfxObjs) {
+            var items = new ObservableCollection<ObjectBrowserItem>();
+            _itemLookup.Clear();
+
+            foreach (var id in setups) {
+                var tags = _tagIndex.IsLoaded ? _tagIndex.GetTagString(id) : null;
+                var item = new ObjectBrowserItem(id, isSetup: true, tags);
+                items.Add(item);
+                _itemLookup[id] = item;
+            }
+            foreach (var id in gfxObjs) {
+                var tags = _tagIndex.IsLoaded ? _tagIndex.GetTagString(id) : null;
+                var item = new ObjectBrowserItem(id, isSetup: false, tags);
+                items.Add(item);
+                _itemLookup[id] = item;
+            }
+
+            // Only request thumbnails after initial startup has settled.
+            // This avoids queuing render work during app initialization when
+            // the DAT reader is still busy with background loading.
+            if (_thumbnailsReady) {
+                RequestThumbnails(items);
+            }
+
+            return items;
+        }
+
+        /// <summary>
+        /// For each item without a thumbnail, try the disk cache first.
+        /// If not cached, queue for rendering via the ThumbnailRenderService.
+        /// </summary>
+        private void RequestThumbnails(ObservableCollection<ObjectBrowserItem> items) {
+            int cached = 0, queued = 0, skipped = 0;
+            foreach (var item in items) {
+                if (item.Thumbnail != null) { skipped++; continue; }
+
+                // Try disk cache first
+                var cachedBitmap = _thumbnailCache.TryLoadCached(item.Id);
+                if (cachedBitmap != null) {
+                    item.Thumbnail = cachedBitmap;
+                    cached++;
+                    continue;
+                }
+
+                // Queue for rendering
+                _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup);
+                queued++;
+            }
+            Console.WriteLine($"[ObjectBrowser] RequestThumbnails: {items.Count} items, {cached} from cache, {queued} queued for render, {skipped} already have thumbnails");
+        }
+
         private void ApplyFilter() {
             // When buildings filter is active, show building IDs directly
             if (ShowBuildingsOnly) {
                 if (!_buildingIdsLoaded) {
                     Status = "Loading building list...";
-                    FilteredSetupIds = Array.Empty<uint>();
-                    FilteredGfxObjIds = Array.Empty<uint>();
+                    FilteredItems = new ObservableCollection<ObjectBrowserItem>();
                     return;
                 }
 
@@ -237,8 +336,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 var (filtSetups, filtGfx) = ApplySearchFilter(buildingSetups, buildingGfxObjs, out var suffix);
                 var sr = filtSetups.Take(100).ToArray();
                 var gr = filtGfx.Take(100).ToArray();
-                FilteredSetupIds = sr;
-                FilteredGfxObjIds = gr;
+                FilteredItems = BuildItems(sr, gr);
                 Status = suffix ?? $"{_buildingIds.Count} buildings total — showing {sr.Length + gr.Length}";
                 return;
             }
@@ -247,8 +345,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             if (ShowSceneryOnly) {
                 if (!_sceneryIdsLoaded) {
                     Status = "Loading scenery list...";
-                    FilteredSetupIds = Array.Empty<uint>();
-                    FilteredGfxObjIds = Array.Empty<uint>();
+                    FilteredItems = new ObservableCollection<ObjectBrowserItem>();
                     return;
                 }
 
@@ -260,8 +357,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 var (filtSetups, filtGfx) = ApplySearchFilter(scenerySetups, sceneryGfxObjs, out var suffix);
                 var scsr = filtSetups.Take(100).ToArray();
                 var scgr = filtGfx.Take(100).ToArray();
-                FilteredSetupIds = scsr;
-                FilteredGfxObjIds = scgr;
+                FilteredItems = BuildItems(scsr, scgr);
                 Status = suffix ?? $"{_sceneryIds.Count} scenery total — showing {scsr.Length + scgr.Length}";
                 return;
             }
@@ -273,8 +369,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             var (fSetups, fGfx) = ApplySearchFilter(setups, gfxObjs, out var statusSuffix);
             var setupResult = fSetups.Take(100).ToArray();
             var gfxResult = fGfx.Take(100).ToArray();
-            FilteredSetupIds = setupResult;
-            FilteredGfxObjIds = gfxResult;
+            FilteredItems = BuildItems(setupResult, gfxResult);
             Status = statusSuffix ?? $"Showing {setupResult.Length} Setups, {gfxResult.Length} GfxObjs";
         }
 
@@ -284,20 +379,18 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         public event EventHandler? PlacementRequested;
 
         [RelayCommand]
-        private void SelectForPlacement(uint objectId) {
-            bool isSetup = (objectId & 0x02000000) != 0;
-
+        private void SelectForPlacement(ObjectBrowserItem item) {
             _context.ObjectSelection.IsPlacementMode = true;
             _context.ObjectSelection.PlacementPreview = new StaticObject {
-                Id = objectId,
-                IsSetup = isSetup,
+                Id = item.Id,
+                IsSetup = item.IsSetup,
                 Origin = Vector3.Zero,
                 Orientation = Quaternion.Identity,
                 Scale = Vector3.One
             };
 
-            Status = $"Placing 0x{objectId:X8} - click terrain to place, Escape to cancel";
-            Console.WriteLine($"[ObjectBrowser] Selected 0x{objectId:X8} for placement (IsSetup={isSetup})");
+            Status = $"Placing 0x{item.Id:X8} - click terrain to place, Escape to cancel";
+            Console.WriteLine($"[ObjectBrowser] Selected 0x{item.Id:X8} for placement (IsSetup={item.IsSetup})");
 
             PlacementRequested?.Invoke(this, EventArgs.Empty);
         }

@@ -1,4 +1,4 @@
-﻿using DatReaderWriter;
+using DatReaderWriter;
 using DatReaderWriter.DBObjs;
 using DatReaderWriter.Enums;
 using DatReaderWriter.Lib.IO;
@@ -11,12 +11,17 @@ namespace WorldBuilder.Shared.Lib {
         private object _lock = new object();
         public DatCollection Dats { get; }
 
-        public DefaultDatReaderWriter(string datPath, DatAccessType accessType) {
+        public DefaultDatReaderWriter(string datPath, DatAccessType accessType)
+            : this(datPath, accessType, FileCachingStrategy.Never, IndexCachingStrategy.Never) {
+        }
+
+        public DefaultDatReaderWriter(string datPath, DatAccessType accessType,
+            FileCachingStrategy fileCaching, IndexCachingStrategy indexCaching) {
             Dats = new DatCollection(new DatCollectionOptions() {
                 AccessType = accessType,
                 DatDirectory = datPath,
-                FileCachingStrategy = FileCachingStrategy.Never,
-                IndexCachingStrategy = IndexCachingStrategy.Never
+                FileCachingStrategy = fileCaching,
+                IndexCachingStrategy = indexCaching
             });
         }
 

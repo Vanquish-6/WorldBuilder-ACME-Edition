@@ -94,7 +94,9 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             var documentStorageService = project.DocumentManager.DocumentStorageService;
             HistorySnapshotPanel = new HistorySnapshotPanelViewModel(TerrainSystem, documentStorageService, TerrainSystem.History);
             LayersPanel = new LayersViewModel(TerrainSystem);
-            ObjectBrowser = new ObjectBrowserViewModel(TerrainSystem.EditingContext, _dats);
+            ObjectBrowser = new ObjectBrowserViewModel(
+                TerrainSystem.EditingContext, _dats,
+                TerrainSystem.Scene.ThumbnailService);
             ObjectBrowser.PlacementRequested += OnPlacementRequested;
 
             UpdateTerrain(canvasSize);
