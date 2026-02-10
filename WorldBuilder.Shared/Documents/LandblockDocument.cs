@@ -101,8 +101,8 @@ namespace WorldBuilder.Shared.Documents {
                 _logger.LogInformation("[LBDoc]   No original LandBlockInfo found, creating new");
             }
             else {
-                _logger.LogInformation("[LBDoc]   Original LandBlockInfo: {ObjCount} objects, {BldCount} buildings",
-                    lbi.Objects.Count, lbi.Buildings.Count);
+                _logger.LogInformation("[LBDoc]   Original LandBlockInfo: {ObjCount} objects, {BldCount} buildings, NumCells={NumCells}",
+                    lbi.Objects.Count, lbi.Buildings.Count, lbi.NumCells);
             }
 
             // Track which StaticObjects have been matched to an original building
@@ -112,6 +112,10 @@ namespace WorldBuilder.Shared.Documents {
             // For each original building, try to find a matching StaticObject.
             // If found: update the building's position (preserving portal/cell data).
             // If not found: the building was deleted by the user.
+            // NOTE: We do NOT use BFS exclusion sets here. In original AC data, each building's
+            // cell graph is isolated (CellPortals don't cross between buildings), so the BFS
+            // naturally stays within each building. Using exclusion sets caused incorrect cell
+            // omission that led to missing EnvCells and ACE server crashes.
             var survivingBuildings = new List<BuildingInfo>();
             foreach (var building in lbi.Buildings) {
                 var buildingWorldPos = Offset(building.Frame.Origin, lbId);
@@ -253,17 +257,27 @@ namespace WorldBuilder.Shared.Documents {
         /// that belong to this building. Starts from BuildingPortal.OtherCellId and StabList,
         /// then follows CellPortal links in each discovered EnvCell.
         /// </summary>
-        private HashSet<ushort> CollectBuildingCellIds(BuildingInfo building, IDatReaderWriter datAccess, uint lbId) {
+        /// <summary>
+        /// Walks a building's portal graph to collect all EnvCell IDs (0x0100-0xFFFD).
+        /// An optional exclusion set prevents the BFS from crossing into cells belonging
+        /// to other buildings in the same landblock (fixes duplicate building conflicts).
+        /// </summary>
+        private HashSet<ushort> CollectBuildingCellIds(BuildingInfo building, IDatReaderWriter datAccess, uint lbId,
+            HashSet<ushort>? excludeCellIds = null) {
             var cellIds = new HashSet<ushort>();
             var toVisit = new Queue<ushort>();
 
             // Seed from building portals
             foreach (var portal in building.Portals) {
-                if (IsEnvCellId(portal.OtherCellId) && cellIds.Add(portal.OtherCellId))
+                if (IsEnvCellId(portal.OtherCellId) &&
+                    (excludeCellIds == null || !excludeCellIds.Contains(portal.OtherCellId)) &&
+                    cellIds.Add(portal.OtherCellId))
                     toVisit.Enqueue(portal.OtherCellId);
 
                 foreach (var stab in portal.StabList) {
-                    if (IsEnvCellId(stab) && cellIds.Add(stab))
+                    if (IsEnvCellId(stab) &&
+                        (excludeCellIds == null || !excludeCellIds.Contains(stab)) &&
+                        cellIds.Add(stab))
                         toVisit.Enqueue(stab);
                 }
             }
@@ -275,7 +289,9 @@ namespace WorldBuilder.Shared.Documents {
 
                 if (datAccess.TryGet<EnvCell>(fullCellId, out var envCell)) {
                     foreach (var cp in envCell.CellPortals) {
-                        if (IsEnvCellId(cp.OtherCellId) && cellIds.Add(cp.OtherCellId))
+                        if (IsEnvCellId(cp.OtherCellId) &&
+                            (excludeCellIds == null || !excludeCellIds.Contains(cp.OtherCellId)) &&
+                            cellIds.Add(cp.OtherCellId))
                             toVisit.Enqueue(cp.OtherCellId);
                     }
                 }

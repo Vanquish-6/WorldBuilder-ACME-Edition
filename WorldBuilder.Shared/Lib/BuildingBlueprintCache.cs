@@ -46,6 +46,8 @@ namespace WorldBuilder.Shared.Lib {
         public uint NumLeaves;
         /// <summary>The donor building's orientation, needed to rotate relative positions for new orientations.</summary>
         public Quaternion DonorOrientation;
+        /// <summary>The landblock ID the donor building was extracted from, for byte-level comparison.</summary>
+        public uint DonorLandblockId;
         public List<BuildingPortal> PortalTemplates = new();
         public List<EnvCellSnapshot> Cells = new();
         /// <summary>Maps original cell IDs to indices in the Cells list, for remapping.</summary>
@@ -180,10 +182,15 @@ namespace WorldBuilder.Shared.Lib {
             var blueprint = new BuildingBlueprint {
                 ModelId = donor.ModelId,
                 NumLeaves = donor.NumLeaves,
-                DonorOrientation = donor.Frame.Orientation
+                DonorOrientation = donor.Frame.Orientation,
+                DonorLandblockId = donorLbId
             };
 
-            // Collect all EnvCell IDs belonging to this building (may be empty for exterior-only buildings)
+            // Collect all EnvCell IDs belonging to this building (may be empty for exterior-only buildings).
+            // NOTE: We intentionally do NOT use an exclusion set here. In original AC data, each
+            // building's cell graph is isolated (portals don't cross between buildings), so the BFS
+            // naturally stays within the donor building. Adding exclusion caused incorrect cell
+            // omission when other buildings' unconstrained BFS overlapped with the donor's cells.
             var cellIds = CollectBuildingCellIds(donor, dats, donorLbId);
 
             // Build the cell snapshots
@@ -195,6 +202,16 @@ namespace WorldBuilder.Shared.Lib {
             foreach (var cellId in cellIds.OrderBy(c => c)) {
                 uint fullCellId = (donorLbId << 16) | cellId;
                 if (!dats.TryGet<EnvCell>(fullCellId, out var envCell)) continue;
+
+                logger?.LogInformation("[Blueprint] Donor EnvCell 0x{CellId:X8} env=0x{EnvId:X4} struct=0x{StructId:X4} portals={Portals} visible={Visible} statics={Statics} flags={Flags} pos=({X:F1},{Y:F1},{Z:F1})",
+                    fullCellId, envCell.EnvironmentId, envCell.CellStructure,
+                    envCell.CellPortals.Count, envCell.VisibleCells.Count, envCell.StaticObjects.Count,
+                    envCell.Flags,
+                    envCell.Position.Origin.X, envCell.Position.Origin.Y, envCell.Position.Origin.Z);
+                foreach (var cp in envCell.CellPortals) {
+                    logger?.LogInformation("[Blueprint]   Donor CellPortal: flags=0x{Flags:X4} polygon={PolyId} otherCell=0x{CellId:X4} otherPortal={PortalId}",
+                        (ushort)cp.Flags, cp.PolygonId, cp.OtherCellId, cp.OtherPortalId);
+                }
 
                 // Transform world-relative offset into donor-local space
                 var worldOffset = envCell.Position.Origin - donorOrigin;
@@ -225,13 +242,11 @@ namespace WorldBuilder.Shared.Lib {
                     });
                 }
 
-                // Copy visible cells -- only keep references to cells within this building
-                // (drop cross-building references that would be invalid in the new landblock)
-                foreach (var vc in envCell.VisibleCells) {
-                    if (cellIds.Contains(vc)) {
-                        snapshot.VisibleCells.Add(vc);
-                    }
-                }
+                // Copy ALL visible cells. During instantiation, building cell IDs will be
+                // remapped via RemapCellId, and non-building IDs (LandCells, exterior refs)
+                // pass through unchanged. Filtering here caused missing entries that broke
+                // ACE's find_transit_cells portal lookups, resulting in walk-through walls.
+                snapshot.VisibleCells.AddRange(envCell.VisibleCells);
 
                 // Copy static objects in donor-local space
                 foreach (var stab in envCell.StaticObjects) {
@@ -250,14 +265,19 @@ namespace WorldBuilder.Shared.Lib {
                 index++;
             }
 
-            // Copy building portals (will be remapped during instantiation)
-            // Filter StabList to only include cells from this building
+            // Copy building portals (will be remapped during instantiation).
+            // Keep ALL StabList entries -- building cells get remapped, non-building cells
+            // (LandCells, exterior refs) pass through RemapCellId unchanged.
             foreach (var portal in donor.Portals) {
+                logger?.LogInformation("[Blueprint] Donor BuildingPortal: flags=0x{Flags:X4} otherCell=0x{CellId:X4} otherPortal={PortalId} stabs=[{Stabs}]",
+                    (ushort)portal.Flags, portal.OtherCellId, portal.OtherPortalId,
+                    string.Join(",", portal.StabList.Select(s => $"0x{s:X4}")));
+
                 blueprint.PortalTemplates.Add(new BuildingPortal {
                     Flags = portal.Flags,
                     OtherCellId = portal.OtherCellId,
                     OtherPortalId = portal.OtherPortalId,
-                    StabList = portal.StabList.Where(s => cellIds.Contains(s) || !IsEnvCellId(s)).ToList()
+                    StabList = new List<ushort>(portal.StabList)
                 });
             }
 
@@ -313,16 +333,20 @@ namespace WorldBuilder.Shared.Lib {
 
                 // Copy and remap cell portals
                 foreach (var cp in cell.CellPortals) {
+                    var remappedCellId = RemapCellId(cp.OtherCellId, remap);
                     var newPortal = new CellPortal {
                         Flags = cp.Flags,
                         PolygonId = cp.PolygonId,
                         OtherPortalId = cp.OtherPortalId,
-                        OtherCellId = RemapCellId(cp.OtherCellId, remap)
+                        OtherCellId = remappedCellId
                     };
                     envCell.CellPortals.Add(newPortal);
+
+                    logger?.LogInformation("[Blueprint]     CellPortal: flags=0x{Flags:X4} poly={PolyId} otherCell=0x{NewCellId:X4} (was 0x{OldCellId:X4}) otherPortal={PortalId}",
+                        (ushort)cp.Flags, cp.PolygonId, remappedCellId, cp.OtherCellId, cp.OtherPortalId);
                 }
 
-                // Copy and remap visible cells
+                // Copy and remap ALL visible cells (building cells remapped, others pass through)
                 foreach (var vc in cell.VisibleCells) {
                     envCell.VisibleCells.Add(RemapCellId(vc, remap));
                 }
@@ -340,11 +364,68 @@ namespace WorldBuilder.Shared.Lib {
                     });
                 }
 
+                // Ensure flags are consistent with actual content.
+                // DatReaderWriter's Pack only writes StaticObjects/RestrictionObj when
+                // the corresponding flags are set.
+                if (envCell.StaticObjects.Count > 0)
+                    envCell.Flags |= EnvCellFlags.HasStaticObjs;
+                else
+                    envCell.Flags &= ~EnvCellFlags.HasStaticObjs;
+
+                if (envCell.RestrictionObj != 0)
+                    envCell.Flags |= EnvCellFlags.HasRestrictionObj;
+                else
+                    envCell.Flags &= ~EnvCellFlags.HasRestrictionObj;
+
                 if (!dats.TrySave(envCell, iteration)) {
                     logger?.LogError("[Blueprint]   FAILED to save new EnvCell 0x{CellId:X8}", fullCellId);
                     return null;
                 }
-                logger?.LogInformation("[Blueprint]   Created EnvCell 0x{CellId:X8}", fullCellId);
+                logger?.LogInformation("[Blueprint]   Created EnvCell 0x{CellId:X8} env=0x{EnvId:X4} struct=0x{StructId:X4} portals={Portals} visible={Visible} statics={Statics} flags={Flags} pos=({X:F1},{Y:F1},{Z:F1})",
+                    fullCellId, envCell.EnvironmentId, envCell.CellStructure,
+                    envCell.CellPortals.Count, envCell.VisibleCells.Count, envCell.StaticObjects.Count,
+                    envCell.Flags,
+                    envCell.Position.Origin.X, envCell.Position.Origin.Y, envCell.Position.Origin.Z);
+
+                // Detailed Frame serialization diagnostic
+                try {
+                    var donorFullCellId = (blueprint.DonorLandblockId << 16) | cell.OriginalCellId;
+                    if (dats.TryGet<EnvCell>(donorFullCellId, out var donorCell)) {
+                        // Serialize just the Frame from each cell
+                        var donorFrameBuf = new byte[128];
+                        var newFrameBuf = new byte[128];
+                        var donorFW = new DatReaderWriter.Lib.IO.DatBinWriter(donorFrameBuf.AsMemory());
+                        var newFW = new DatReaderWriter.Lib.IO.DatBinWriter(newFrameBuf.AsMemory());
+                        donorCell.Position.Pack(donorFW);
+                        envCell.Position.Pack(newFW);
+
+                        var donorFrameHex = BitConverter.ToString(donorFrameBuf, 0, donorFW.Offset).Replace("-", " ");
+                        var newFrameHex = BitConverter.ToString(newFrameBuf, 0, newFW.Offset).Replace("-", " ");
+                        logger?.LogInformation("[Blueprint]   FRAME donor ({Len}b): {Hex} origin=({X},{Y},{Z}) quat=({W},{QX},{QY},{QZ})",
+                            donorFW.Offset, donorFrameHex,
+                            donorCell.Position.Origin.X, donorCell.Position.Origin.Y, donorCell.Position.Origin.Z,
+                            donorCell.Position.Orientation.W, donorCell.Position.Orientation.X,
+                            donorCell.Position.Orientation.Y, donorCell.Position.Orientation.Z);
+                        logger?.LogInformation("[Blueprint]   FRAME new   ({Len}b): {Hex} origin=({X},{Y},{Z}) quat=({W},{QX},{QY},{QZ})",
+                            newFW.Offset, newFrameHex,
+                            envCell.Position.Origin.X, envCell.Position.Origin.Y, envCell.Position.Origin.Z,
+                            envCell.Position.Orientation.W, envCell.Position.Orientation.X,
+                            envCell.Position.Orientation.Y, envCell.Position.Orientation.Z);
+
+                        // Also serialize full cells and compare sizes
+                        var donorBuf = new byte[65536];
+                        var newBuf = new byte[65536];
+                        var dw = new DatReaderWriter.Lib.IO.DatBinWriter(donorBuf.AsMemory());
+                        var nw = new DatReaderWriter.Lib.IO.DatBinWriter(newBuf.AsMemory());
+                        donorCell.Pack(dw);
+                        envCell.Pack(nw);
+                        if (dw.Offset != nw.Offset) {
+                            logger?.LogWarning("[Blueprint]   FULL SIZE MISMATCH: donor={D} vs new={N}", dw.Offset, nw.Offset);
+                        }
+                    }
+                } catch (Exception ex) {
+                    logger?.LogWarning("[Blueprint]   Diag failed: {Msg}", ex.Message);
+                }
             }
 
             // Create the new BuildingInfo
@@ -366,6 +447,11 @@ namespace WorldBuilder.Shared.Lib {
                     StabList = portalTemplate.StabList.Select(s => RemapCellId(s, remap)).ToList()
                 };
                 buildingInfo.Portals.Add(newPortal);
+
+                logger?.LogInformation("[Blueprint]   BuildingPortal: flags=0x{Flags:X4} otherCell=0x{CellId:X4} (was 0x{OldCellId:X4}) otherPortal={PortalId} stabs=[{Stabs}]",
+                    (ushort)newPortal.Flags, newPortal.OtherCellId, portalTemplate.OtherCellId,
+                    newPortal.OtherPortalId,
+                    string.Join(",", newPortal.StabList.Select(s => $"0x{s:X4}")));
             }
 
             logger?.LogInformation("[Blueprint] Instantiated building 0x{ModelId:X8} with {CellCount} cells",
@@ -384,17 +470,24 @@ namespace WorldBuilder.Shared.Lib {
         /// <summary>
         /// Walks a building's portal graph to collect all EnvCell IDs (0x0100-0xFFFD).
         /// Same logic as LandblockDocument.CollectBuildingCellIds but static for use here.
+        /// An optional exclusion set prevents the BFS from crossing into cells belonging
+        /// to other buildings in the same landblock (fixes duplicate building conflicts).
         /// </summary>
-        private static HashSet<ushort> CollectBuildingCellIds(BuildingInfo building, IDatReaderWriter dats, uint lbId) {
+        private static HashSet<ushort> CollectBuildingCellIds(BuildingInfo building, IDatReaderWriter dats, uint lbId,
+            HashSet<ushort>? excludeCellIds = null) {
             var cellIds = new HashSet<ushort>();
             var toVisit = new Queue<ushort>();
 
             foreach (var portal in building.Portals) {
-                if (IsEnvCellId(portal.OtherCellId) && cellIds.Add(portal.OtherCellId))
+                if (IsEnvCellId(portal.OtherCellId) &&
+                    (excludeCellIds == null || !excludeCellIds.Contains(portal.OtherCellId)) &&
+                    cellIds.Add(portal.OtherCellId))
                     toVisit.Enqueue(portal.OtherCellId);
 
                 foreach (var stab in portal.StabList) {
-                    if (IsEnvCellId(stab) && cellIds.Add(stab))
+                    if (IsEnvCellId(stab) &&
+                        (excludeCellIds == null || !excludeCellIds.Contains(stab)) &&
+                        cellIds.Add(stab))
                         toVisit.Enqueue(stab);
                 }
             }
@@ -405,7 +498,9 @@ namespace WorldBuilder.Shared.Lib {
 
                 if (dats.TryGet<EnvCell>(fullCellId, out var envCell)) {
                     foreach (var cp in envCell.CellPortals) {
-                        if (IsEnvCellId(cp.OtherCellId) && cellIds.Add(cp.OtherCellId))
+                        if (IsEnvCellId(cp.OtherCellId) &&
+                            (excludeCellIds == null || !excludeCellIds.Contains(cp.OtherCellId)) &&
+                            cellIds.Add(cp.OtherCellId))
                             toVisit.Enqueue(cp.OtherCellId);
                     }
                 }
