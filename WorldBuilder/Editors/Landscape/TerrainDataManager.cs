@@ -1,4 +1,4 @@
-﻿using Chorizite.Core.Lib;
+using Chorizite.Core.Lib;
 using DatReaderWriter.DBObjs;
 using System;
 using System.Collections.Generic;
@@ -147,8 +147,14 @@ namespace WorldBuilder.Editors.Landscape {
         public static ulong GetChunkId(uint chunkX, uint chunkY) => (ulong)chunkX << 32 | chunkY;
 
         // Height lookup utilities
+
+        /// <summary>
+        /// Gets the terrain height at a world position using AC-accurate triangle-based
+        /// interpolation. Each 24x24 terrain cell is split into 2 triangles using a
+        /// pseudo-random split direction matching the AC client's algorithm
+        /// (see ACE LandblockStruct.ConstructPolygons).
+        /// </summary>
         public float GetHeightAtPosition(float worldX, float worldY) {
-            // Use current implementation from TerrainProvider.GetHeightAtPosition
             uint landblockX = (uint)Math.Floor(worldX / LandblockLength);
             uint landblockY = (uint)Math.Floor(worldY / LandblockLength);
 
@@ -160,6 +166,18 @@ namespace WorldBuilder.Editors.Landscape {
 
             float localX = worldX - landblockX * LandblockLength;
             float localY = worldY - landblockY * LandblockLength;
+
+            return SampleHeightTriangle(landblockData, _region.LandDefs.LandHeightTable,
+                localX, localY, landblockX, landblockY);
+        }
+
+        /// <summary>
+        /// Triangle-based terrain height interpolation matching the AC client.
+        /// localX/localY are in [0, 192] within the landblock.
+        /// </summary>
+        public static float SampleHeightTriangle(TerrainEntry[] data, float[] heightTable,
+            float localX, float localY, uint landblockX, uint landblockY) {
+
             float cellX = localX / CellSize;
             float cellY = localY / CellSize;
 
@@ -169,21 +187,70 @@ namespace WorldBuilder.Editors.Landscape {
             float fracX = cellX - cellIndexX;
             float fracY = cellY - cellIndexY;
 
-            var heightSW = GetHeightFromData(landblockData, cellIndexX, cellIndexY);
-            var heightSE = GetHeightFromData(landblockData, cellIndexX + 1, cellIndexY);
-            var heightNW = GetHeightFromData(landblockData, cellIndexX, cellIndexY + 1);
-            var heightNE = GetHeightFromData(landblockData, cellIndexX + 1, cellIndexY + 1);
+            // Get the four corner heights
+            float hSW = GetHeightFromData(data, heightTable, cellIndexX, cellIndexY);
+            float hSE = GetHeightFromData(data, heightTable, cellIndexX + 1, cellIndexY);
+            float hNW = GetHeightFromData(data, heightTable, cellIndexX, cellIndexY + 1);
+            float hNE = GetHeightFromData(data, heightTable, cellIndexX + 1, cellIndexY + 1);
 
-            float heightS = heightSW + (heightSE - heightSW) * fracX;
-            float heightN = heightNW + (heightNE - heightNW) * fracX;
-            return heightS + (heightN - heightS) * fracY;
+            // Determine triangle split direction using AC's pseudo-random algorithm
+            uint globalCellX = landblockX * LandblockEdgeCellCount + cellIndexX;
+            uint globalCellY = landblockY * LandblockEdgeCellCount + cellIndexY;
+            bool isSWtoNE = IsSWtoNEcut(globalCellX, globalCellY);
+
+            if (isSWtoNE) {
+                // Diagonal from (0,0) to (1,1)
+                // Triangle 1: (0,0)-(1,0)-(1,1) — lower-right, where fracX > fracY
+                // Triangle 2: (0,0)-(1,1)-(0,1) — upper-left, where fracX <= fracY
+                if (fracX > fracY) {
+                    // Lower-right triangle: SW, SE, NE
+                    // P = SW + fracX*(SE-SW) + fracY*(NE-SE)
+                    return hSW + fracX * (hSE - hSW) + fracY * (hNE - hSE);
+                }
+                else {
+                    // Upper-left triangle: SW, NE, NW
+                    // P = SW + fracX*(NE-NW) + fracY*(hNW-hSW)
+                    return hSW + fracX * (hNE - hNW) + fracY * (hNW - hSW);
+                }
+            }
+            else {
+                // Diagonal from (0,1) to (1,0) — NW-SE split
+                // Triangle 1: (0,0)-(1,0)-(0,1) — lower-left, where fracX + fracY < 1
+                // Triangle 2: (1,0)-(1,1)-(0,1) — upper-right, where fracX + fracY >= 1
+                if (fracX + fracY <= 1.0f) {
+                    // Lower-left triangle: SW, SE, NW
+                    // P = SW + fracX*(SE-SW) + fracY*(NW-SW)
+                    return hSW + fracX * (hSE - hSW) + fracY * (hNW - hSW);
+                }
+                else {
+                    // Upper-right triangle: SE, NE, NW
+                    // P = NE + (1-fracX)*(NW-NE) + (1-fracY)*(SE-NE)
+                    return hNE + (1.0f - fracX) * (hNW - hNE) + (1.0f - fracY) * (hSE - hNE);
+                }
+            }
         }
 
-        private float GetHeightFromData(TerrainEntry[] data, uint vx, uint vy) {
+        /// <summary>
+        /// Determines the triangle split direction for a terrain cell, matching the
+        /// AC client's pseudo-random algorithm from LandblockStruct.ConstructPolygons.
+        /// Returns true if the cell is split along the SW-NE diagonal (0,0)-(1,1),
+        /// false if split along the NW-SE diagonal (0,1)-(1,0).
+        /// </summary>
+        public static bool IsSWtoNEcut(uint globalCellX, uint globalCellY) {
+            // Matches ACE: magicA = seedA + 1813693831 where seedA accumulates 214614067 per X
+            // magicB = seedB which accumulates 1109124029 per X
+            // With VertexPerCell=1, globalCellX = lcoord.X + x, globalCellY = lcoord.Y + y
+            uint magicA = (uint)unchecked((int)globalCellX * 214614067 + 1813693831);
+            uint magicB = (uint)unchecked((int)globalCellX * 1109124029);
+            uint splitDir = unchecked((uint)((int)globalCellY * (int)magicA - (int)magicB - 1369149221));
+            return splitDir * 2.3283064e-10 >= 0.5;
+        }
+
+        private static float GetHeightFromData(TerrainEntry[] data, float[] heightTable, uint vx, uint vy) {
             vx = Math.Min(vx, 8);
             vy = Math.Min(vy, 8);
             var idx = (int)(vx * 9 + vy);
-            return idx < data.Length ? _region.LandDefs.LandHeightTable[data[idx].Height] : 0f;
+            return idx < data.Length ? heightTable[data[idx].Height] : 0f;
         }
     }
 }

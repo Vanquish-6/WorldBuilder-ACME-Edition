@@ -127,10 +127,9 @@ namespace WorldBuilder.Editors.Landscape.Commands {
                     // Skip objects outside this landblock's bounds
                     if (localX < 0 || localX > 192f || localY < 0 || localY > 192f) continue;
 
-                    // Sample terrain height using original vertex data
-                    float oldTerrainZ = SampleHeight(originalData, heightTable, localX, localY);
-                    // Sample terrain height using current (new) vertex data
-                    float newTerrainZ = SampleHeight(terrainData, heightTable, localX, localY);
+                    // Sample terrain height using AC-accurate triangle interpolation
+                    float oldTerrainZ = TerrainDataManager.SampleHeightTriangle(originalData, heightTable, localX, localY, landblockX, landblockY);
+                    float newTerrainZ = TerrainDataManager.SampleHeightTriangle(terrainData, heightTable, localX, localY, landblockX, landblockY);
 
                     float delta = newTerrainZ - oldTerrainZ;
                     if (Math.Abs(delta) < 0.001f) continue;
@@ -146,28 +145,8 @@ namespace WorldBuilder.Editors.Landscape.Commands {
             }
         }
 
-        /// <summary>
-        /// Bilinear interpolation of terrain height at a local position within a landblock.
-        /// </summary>
-        private static float SampleHeight(TerrainEntry[] data, float[] heightTable, float localX, float localY) {
-            float cellX = localX / 24f;
-            float cellY = localY / 24f;
-
-            uint cellIndexX = Math.Min((uint)Math.Floor(cellX), 7);
-            uint cellIndexY = Math.Min((uint)Math.Floor(cellY), 7);
-
-            float fracX = cellX - cellIndexX;
-            float fracY = cellY - cellIndexY;
-
-            float hSW = heightTable[data[cellIndexX * 9 + cellIndexY].Height];
-            float hSE = heightTable[data[(cellIndexX + 1) * 9 + cellIndexY].Height];
-            float hNW = heightTable[data[cellIndexX * 9 + (cellIndexY + 1)].Height];
-            float hNE = heightTable[data[(cellIndexX + 1) * 9 + (cellIndexY + 1)].Height];
-
-            float hS = hSW + (hSE - hSW) * fracX;
-            float hN = hNW + (hNE - hNW) * fracX;
-            return hS + (hN - hS) * fracY;
-        }
+        // Height sampling now uses TerrainDataManager.SampleHeightTriangle for AC-accurate
+        // triangle-based interpolation matching the client's pseudo-random cell split.
 
         /// <summary>
         /// Applies or reverts static object height changes based on the undo direction.
