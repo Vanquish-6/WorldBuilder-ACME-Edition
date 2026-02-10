@@ -49,9 +49,10 @@ namespace WorldBuilder.Editors.Landscape {
         internal readonly TerrainSystem _terrainSystem;
 
         // Static object background loading state
-        private const float WarmUpTimeBudgetMs = 12f; // Max ms per frame for GPU model loading
+        private const float WarmUpTimeBudgetMs = 12f; // Max ms per frame for GPU model upload
         private const int MaxIntegratePerFrame = 8; // Max background results to integrate per frame
         private const int MaxUnloadsPerFrame = 2; // Max landblocks to unload per frame
+        private const int MaxGpuUploadsPerFrame = 4; // Max prepared models to upload to GPU per frame
         private const float DocUpdateDistanceThreshold = 96f; // Re-check after camera moves ~4 cells
         private Vector3 _lastDocUpdatePosition = new(float.MinValue);
         private readonly Queue<(uint Id, bool IsSetup)> _renderDataWarmupQueue = new();
@@ -59,6 +60,11 @@ namespace WorldBuilder.Editors.Landscape {
         private bool _staticObjectsDirty = true;
         private bool _cachedShowStaticObjects = true;
         private bool _cachedShowScenery = true;
+
+        // Two-phase model loading: CPU preparation on background thread, GPU upload on main thread
+        private Task? _modelPrepTask;
+        private readonly ConcurrentQueue<PreparedModelData> _preparedModelQueue = new();
+        private readonly HashSet<uint> _modelsPreparing = new(); // IDs currently being prepared
 
         // Background loading pipeline
         private Task? _backgroundLoadTask;
@@ -169,7 +175,12 @@ namespace WorldBuilder.Editors.Landscape {
             SurfaceManager = new LandSurfaceManager(_renderer, _dats, _region);
             GPUManager = new TerrainGPUResourceManager(_renderer);
 
-            _objectManager = new StaticObjectManager(_renderer, _dats);
+            // Create texture disk cache for processed RGBA data (avoids re-decompressing DXT/INDEX16 each session)
+            var textureCacheDir = System.IO.Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
+                "WorldBuilder", "TextureCache");
+            var textureCache = new TextureDiskCache(textureCacheDir);
+            _objectManager = new StaticObjectManager(_renderer, _dats, textureCache);
             _thumbnailService = new ThumbnailRenderService(_gl, _objectManager);
 
             // Initialize shaders
@@ -491,47 +502,116 @@ namespace WorldBuilder.Editors.Landscape {
         }
 
         /// <summary>
-        /// Incrementally creates GPU render data for queued objects using a time budget.
-        /// Must run on the main thread (GL context). Stops as soon as the time budget is exceeded.
+        /// Two-phase model warmup:
+        /// Phase 1: Dispatch queued models to a background thread for CPU-side preparation
+        ///          (DAT reads, texture decompression, vertex building).
+        /// Phase 2: Upload prepared models to the GPU on the main thread (fast, ~1-5ms each).
         /// </summary>
         private void WarmUpRenderData() {
-            if (_renderDataWarmupQueue.Count == 0) return;
+            // Phase 2: Upload prepared models to GPU (main thread, fast)
+            UploadPreparedModels();
+
+            // Phase 1: Kick off background preparation for queued models
+            KickOffModelPreparation();
+        }
+
+        /// <summary>
+        /// Uploads prepared model data to the GPU. Limited by time budget and count per frame.
+        /// Each upload is fast (1-5ms) since all CPU work was done on background thread.
+        /// </summary>
+        private void UploadPreparedModels() {
+            if (_preparedModelQueue.IsEmpty) return;
 
             var sw = Stopwatch.StartNew();
-            int loaded = 0;
-            int skipped = 0;
-            while (_renderDataWarmupQueue.Count > 0) {
-                // Check time budget BEFORE loading each model (except the first - always load at least one)
-                if (loaded > 0 && sw.ElapsedMilliseconds >= WarmUpTimeBudgetMs) break;
+            int uploaded = 0;
 
-                var (id, isSetup) = _renderDataWarmupQueue.Dequeue();
-                if (_objectManager.TryGetCachedRenderData(id) != null) {
-                    skipped++;
+            while (uploaded < MaxGpuUploadsPerFrame && _preparedModelQueue.TryDequeue(out var prepared)) {
+                if (sw.ElapsedMilliseconds >= WarmUpTimeBudgetMs && uploaded > 0) {
+                    // Re-enqueue for next frame -- put it back at the front
+                    // (ConcurrentQueue doesn't support prepend, but this is rare)
+                    var temp = new List<PreparedModelData> { prepared };
+                    while (_preparedModelQueue.TryDequeue(out var remaining)) temp.Add(remaining);
+                    foreach (var item in temp) _preparedModelQueue.Enqueue(item);
+                    break;
+                }
+
+                if (_objectManager.TryGetCachedRenderData(prepared.Id) != null) {
+                    _modelsPreparing.Remove(prepared.Id);
                     continue;
                 }
 
                 try {
-                    var data = _objectManager.GetRenderData(id, isSetup);
-                    loaded++;
+                    var data = _objectManager.FinalizeGpuUpload(prepared);
+                    uploaded++;
 
                     // If this was a setup, queue its GfxObj parts for warmup too
                     if (data != null && data.IsSetup && data.SetupParts != null) {
                         foreach (var (partId, _) in data.SetupParts) {
-                            if (_objectManager.TryGetCachedRenderData(partId) == null && !_objectManager.IsKnownFailure(partId)) {
+                            if (_objectManager.TryGetCachedRenderData(partId) == null &&
+                                !_objectManager.IsKnownFailure(partId) &&
+                                !_modelsPreparing.Contains(partId)) {
                                 _renderDataWarmupQueue.Enqueue((partId, false));
                             }
                         }
                     }
                 }
                 catch (Exception ex) {
-                    Console.WriteLine($"[Statics] WarmUp error for 0x{id:X8}: {ex.Message}");
+                    Console.WriteLine($"[Statics] GPU upload error for 0x{prepared.Id:X8}: {ex.Message}");
+                }
+                finally {
+                    _modelsPreparing.Remove(prepared.Id);
                 }
             }
 
-            if (loaded > 0) {
-                Console.WriteLine($"[Statics] WarmUp: {loaded} models in {sw.ElapsedMilliseconds}ms " +
-                    $"(skipped {skipped} cached, remaining: {_renderDataWarmupQueue.Count})");
+            if (uploaded > 0) {
+                Console.WriteLine($"[Statics] GPU upload: {uploaded} models in {sw.ElapsedMilliseconds}ms " +
+                    $"(prep queue: {_preparedModelQueue.Count}, warmup queue: {_renderDataWarmupQueue.Count})");
             }
+        }
+
+        /// <summary>
+        /// Takes models from the warmup queue and dispatches them to a background thread
+        /// for CPU-side preparation (DAT reads, texture decompression).
+        /// </summary>
+        private void KickOffModelPreparation() {
+            if (_renderDataWarmupQueue.Count == 0) return;
+            if (_modelPrepTask != null && !_modelPrepTask.IsCompleted) return;
+
+            // Collect a batch of models to prepare
+            var batch = new List<(uint Id, bool IsSetup)>();
+            while (_renderDataWarmupQueue.Count > 0 && batch.Count < 16) {
+                var (id, isSetup) = _renderDataWarmupQueue.Dequeue();
+                if (_objectManager.TryGetCachedRenderData(id) != null || _modelsPreparing.Contains(id)) continue;
+                _modelsPreparing.Add(id);
+                batch.Add((id, isSetup));
+            }
+
+            if (batch.Count == 0) return;
+
+            var objectManager = _objectManager;
+            var resultQueue = _preparedModelQueue;
+
+            _modelPrepTask = Task.Run(() => {
+                var batchSw = Stopwatch.StartNew();
+                int prepared = 0;
+
+                foreach (var (id, isSetup) in batch) {
+                    try {
+                        var data = objectManager.PrepareModelData(id, isSetup);
+                        if (data != null) {
+                            resultQueue.Enqueue(data);
+                            prepared++;
+                        }
+                    }
+                    catch (Exception ex) {
+                        Console.WriteLine($"[Statics] Background prep error for 0x{id:X8}: {ex.Message}");
+                    }
+                }
+
+                if (prepared > 0) {
+                    Console.WriteLine($"[Statics] Background prep: {prepared}/{batch.Count} models in {batchSw.ElapsedMilliseconds}ms");
+                }
+            });
         }
 
         /// <summary>
