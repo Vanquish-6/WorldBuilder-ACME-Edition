@@ -265,6 +265,7 @@ public partial class LandscapeEditorView : Base3DView {
     protected override void OnGlPointerMoved(PointerEventArgs e, Vector2 mousePositionScaled) {
         if (!_didInit) return;
         _currentActiveTool?.HandleMouseMove(InputState.MouseState);
+        UpdateMarqueeOverlay();
     }
 
     protected override void OnGlPointerWheelChanged(PointerWheelEventArgs e) {
@@ -306,6 +307,7 @@ public partial class LandscapeEditorView : Base3DView {
     protected override void OnGlPointerReleased(PointerReleasedEventArgs e) {
         if (!_didInit) return;
         _currentActiveTool?.HandleMouseUp(InputState.MouseState);
+        UpdateMarqueeOverlay();
     }
 
     protected override void UpdateMouseState(Point position, PointerPointProperties properties) {
@@ -330,6 +332,31 @@ public partial class LandscapeEditorView : Base3DView {
             InputScale,
             _viewModel.TerrainSystem.Scene.CameraManager.Current,
             _viewModel.TerrainSystem); // Changed from TerrainProvider
+    }
+
+    private void UpdateMarqueeOverlay() {
+        var marqueeRect = this.FindControl<Avalonia.Controls.Border>("MarqueeRect");
+        if (marqueeRect == null) return;
+
+        // Get the active select sub-tool
+        var selectTool = _viewModel?.SelectedSubTool as ViewModels.SelectSubToolViewModel;
+        if (selectTool == null || !selectTool.IsMarqueeActive) {
+            marqueeRect.IsVisible = false;
+            return;
+        }
+
+        var start = selectTool.MarqueeStart;
+        var end = selectTool.MarqueeEnd;
+
+        float x = MathF.Min(start.X, end.X);
+        float y = MathF.Min(start.Y, end.Y);
+        float w = MathF.Abs(end.X - start.X);
+        float h = MathF.Abs(end.Y - start.Y);
+
+        marqueeRect.IsVisible = true;
+        marqueeRect.Margin = new Avalonia.Thickness(x, y, 0, 0);
+        marqueeRect.Width = Math.Max(1, w);
+        marqueeRect.Height = Math.Max(1, h);
     }
 
     private void ShowObjectContextMenu(PointerPressedEventArgs e) {

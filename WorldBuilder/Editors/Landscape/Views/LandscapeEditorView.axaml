@@ -44,6 +44,18 @@
                 x:Name="Viewport"
                 Background="Transparent" />
 
+            <!--  Marquee select overlay  -->
+            <Border
+                x:Name="MarqueeRect"
+                IsVisible="False"
+                IsHitTestVisible="False"
+                Background="#220078D7"
+                BorderBrush="#880078D7"
+                BorderThickness="1"
+                CornerRadius="1"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top" />
+
             <!--  Overlay toggle toolbar  -->
             <Border
                 Margin="8"

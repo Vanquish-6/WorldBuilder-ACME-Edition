@@ -38,6 +38,12 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         [ObservableProperty] private string _landcellText = "";
 
 
+        // Marquee (box) select state
+        [ObservableProperty] private bool _isMarqueeActive;
+        [ObservableProperty] private Vector2 _marqueeStart;
+        [ObservableProperty] private Vector2 _marqueeEnd;
+        private bool _marqueeCtrlHeld;
+
         private bool _suppressPropertyUpdates;
         private readonly CommandHistory _commandHistory;
 
@@ -310,14 +316,41 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 return true;
             }
             else {
-                Context.ObjectSelection.Deselect();
+                // Clicked empty space — start marquee drag
+                if (!mouseState.CtrlPressed) {
+                    Context.ObjectSelection.Deselect();
+                }
+                IsMarqueeActive = true;
+                MarqueeStart = mouseState.Position;
+                MarqueeEnd = mouseState.Position;
+                _marqueeCtrlHeld = mouseState.CtrlPressed;
                 return false;
             }
         }
 
-        public override bool HandleMouseUp(MouseState mouseState) => false;
+        public override bool HandleMouseUp(MouseState mouseState) {
+            if (IsMarqueeActive) {
+                IsMarqueeActive = false;
+                MarqueeEnd = mouseState.Position;
+
+                // Only perform box select if the rectangle is large enough (avoid accidental tiny drags)
+                float width = MathF.Abs(MarqueeEnd.X - MarqueeStart.X);
+                float height = MathF.Abs(MarqueeEnd.Y - MarqueeStart.Y);
+                if (width > 5f || height > 5f) {
+                    PerformBoxSelect(mouseState);
+                }
+                return true;
+            }
+            return false;
+        }
 
         public override bool HandleMouseMove(MouseState mouseState) {
+            // Marquee drag update
+            if (IsMarqueeActive && mouseState.LeftPressed) {
+                MarqueeEnd = mouseState.Position;
+                return true;
+            }
+
             var sel = Context.ObjectSelection;
             if (sel.IsPlacementMode && sel.PlacementPreview.HasValue && mouseState.IsOverTerrain && mouseState.TerrainHit.HasValue) {
                 var terrainPos = mouseState.TerrainHit.Value.HitPosition;
@@ -331,6 +364,30 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 };
             }
             return false;
+        }
+
+        private void PerformBoxSelect(MouseState mouseState) {
+            var scene = Context.TerrainSystem.Scene;
+            var camera = scene.CameraManager.Current;
+            var screenSize = camera.ScreenSize;
+
+            var hits = ObjectRaycast.BoxSelect(
+                MarqueeStart, MarqueeEnd,
+                (int)screenSize.X, (int)screenSize.Y,
+                camera, scene);
+
+            if (hits.Count == 0) return;
+
+            var sel = Context.ObjectSelection;
+            if (!_marqueeCtrlHeld) {
+                sel.Deselect();
+            }
+
+            foreach (var hit in hits) {
+                sel.ToggleSelect(hit.Object, hit.LandblockKey, hit.ObjectIndex, hit.IsScenery);
+            }
+
+            Console.WriteLine($"[Selector] Marquee selected {hits.Count} object(s)");
         }
 
         /// <summary>

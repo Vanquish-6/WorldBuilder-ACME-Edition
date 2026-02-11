@@ -135,6 +135,72 @@ namespace WorldBuilder.Editors.Landscape {
         }
 
         /// <summary>
+        /// Performs a marquee (box) select: projects all static objects to screen space
+        /// and returns those whose screen positions fall within the given rectangle.
+        /// </summary>
+        public static List<ObjectRaycastHit> BoxSelect(
+            Vector2 screenMin, Vector2 screenMax,
+            int viewportWidth, int viewportHeight,
+            ICamera camera,
+            GameScene scene) {
+
+            var results = new List<ObjectRaycastHit>();
+
+            Matrix4x4 view = camera.GetViewMatrix();
+            Matrix4x4 projection = camera.GetProjectionMatrix();
+            Matrix4x4 viewProjection = view * projection;
+
+            // Normalize the rectangle (handle drag in any direction)
+            float rectMinX = MathF.Min(screenMin.X, screenMax.X);
+            float rectMaxX = MathF.Max(screenMin.X, screenMax.X);
+            float rectMinY = MathF.Min(screenMin.Y, screenMax.Y);
+            float rectMaxY = MathF.Max(screenMin.Y, screenMax.Y);
+
+            // Test document objects (non-scenery)
+            foreach (var doc in scene._terrainSystem.DocumentManager.ActiveDocs.Values) {
+                if (doc is not LandblockDocument lbDoc) continue;
+
+                var lbIdHex = doc.Id.Replace("landblock_", "");
+                if (!ushort.TryParse(lbIdHex, System.Globalization.NumberStyles.HexNumber, null, out var lbKey)) continue;
+
+                for (int i = 0; i < lbDoc.StaticObjectCount; i++) {
+                    var obj = lbDoc.GetStaticObject(i);
+                    var screenPos = WorldToScreen(obj.Origin, viewProjection, viewportWidth, viewportHeight);
+                    if (!screenPos.HasValue) continue;
+
+                    if (screenPos.Value.X >= rectMinX && screenPos.Value.X <= rectMaxX &&
+                        screenPos.Value.Y >= rectMinY && screenPos.Value.Y <= rectMaxY) {
+                        results.Add(new ObjectRaycastHit {
+                            Hit = true,
+                            Object = obj,
+                            LandblockKey = lbKey,
+                            ObjectIndex = i,
+                            Distance = 0,
+                            HitPosition = obj.Origin,
+                            IsScenery = false
+                        });
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Projects a world-space position to screen-space pixel coordinates.
+        /// Returns null if the point is behind the camera.
+        /// </summary>
+        public static Vector2? WorldToScreen(Vector3 worldPos, Matrix4x4 viewProjection, int viewportWidth, int viewportHeight) {
+            var clip = Vector4.Transform(new Vector4(worldPos, 1f), viewProjection);
+            if (clip.W <= 0) return null; // Behind camera
+
+            var ndc = new Vector3(clip.X / clip.W, clip.Y / clip.W, clip.Z / clip.W);
+            float screenX = (ndc.X + 1f) * 0.5f * viewportWidth;
+            float screenY = (1f - ndc.Y) * 0.5f * viewportHeight; // Y is flipped in screen space
+            return new Vector2(screenX, screenY);
+        }
+
+        /// <summary>
         /// Ray-AABB intersection test (slab method).
         /// Returns true if the ray intersects the box, with the distance to the hit point.
         /// </summary>
