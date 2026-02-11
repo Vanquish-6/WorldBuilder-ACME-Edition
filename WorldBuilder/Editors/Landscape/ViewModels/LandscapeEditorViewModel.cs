@@ -41,6 +41,15 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private ObjectBrowserViewModel? _objectBrowser;
 
         [ObservableProperty]
+        private TerrainTexturePaletteViewModel? _texturePalette;
+
+        [ObservableProperty]
+        private object? _leftPanelContent;
+
+        [ObservableProperty]
+        private string _leftPanelTitle = "Object Browser";
+
+        [ObservableProperty]
         private string _currentPositionText = "";
 
         // Overlay toggle properties (bound to toolbar buttons)
@@ -98,6 +107,12 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 TerrainSystem.EditingContext, _dats,
                 TerrainSystem.Scene.ThumbnailService);
             ObjectBrowser.PlacementRequested += OnPlacementRequested;
+
+            TexturePalette = new TerrainTexturePaletteViewModel(TerrainSystem.Scene.SurfaceManager);
+            TexturePalette.TextureSelected += OnPaletteTextureSelected;
+
+            LeftPanelContent = ObjectBrowser;
+            LeftPanelTitle = "Object Browser";
 
             UpdateTerrain(canvasSize);
         }
@@ -157,6 +172,36 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 tool.ActivateSubTool(firstSub);
                 firstSub.IsSelected = true;
             }
+
+            UpdateLeftPanel();
+        }
+
+        private void UpdateLeftPanel() {
+            if (SelectedTool is TexturePaintingToolViewModel) {
+                // Sync palette to whatever the active sub-tool has selected
+                if (SelectedSubTool is BrushSubToolViewModel brush) {
+                    TexturePalette?.SyncSelection(brush.SelectedTerrainType);
+                }
+                else if (SelectedSubTool is BucketFillSubToolViewModel fill) {
+                    TexturePalette?.SyncSelection(fill.SelectedTerrainType);
+                }
+                LeftPanelContent = TexturePalette;
+                LeftPanelTitle = "Terrain Textures";
+            }
+            else {
+                LeftPanelContent = ObjectBrowser;
+                LeftPanelTitle = "Object Browser";
+            }
+        }
+
+        private void OnPaletteTextureSelected(object? sender, DatReaderWriter.Enums.TerrainTextureType type) {
+            // Push the selected texture to the active brush/fill sub-tool
+            if (SelectedSubTool is BrushSubToolViewModel brush) {
+                brush.SelectedTerrainType = type;
+            }
+            else if (SelectedSubTool is BucketFillSubToolViewModel fill) {
+                fill.SelectedTerrainType = type;
+            }
         }
 
         [RelayCommand]
@@ -178,6 +223,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             parentTool?.OnActivated();
             parentTool?.ActivateSubTool(subTool);
             SelectedSubTool.IsSelected = true;
+
+            UpdateLeftPanel();
         }
 
         [RelayCommand]

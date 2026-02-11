@@ -1,0 +1,65 @@
+<UserControl
+    x:Class="WorldBuilder.Editors.Landscape.Views.TerrainTexturePaletteView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:WorldBuilder.Editors.Landscape.ViewModels"
+    d:DesignHeight="600"
+    d:DesignWidth="280"
+    x:CompileBindings="True"
+    x:DataType="vm:TerrainTexturePaletteViewModel"
+    mc:Ignorable="d">
+    <DockPanel LastChildFill="True">
+        <TextBlock
+            DockPanel.Dock="Top"
+            Margin="10,8,10,6"
+            FontSize="13"
+            FontWeight="SemiBold"
+            Text="Terrain Textures" />
+
+        <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Textures}" Margin="6">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TerrainTextureItem">
+                        <Button
+                            Margin="2"
+                            Padding="2"
+                            Width="72"
+                            Height="88"
+                            Command="{Binding $parent[ItemsControl].((vm:TerrainTexturePaletteViewModel)DataContext).SelectTextureCommand}"
+                            CommandParameter="{Binding}"
+                            ToolTip.Tip="{Binding DisplayName}"
+                            Focusable="False"
+                            Classes.selected="{Binding IsSelected}">
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <Border
+                                    Width="60"
+                                    Height="60"
+                                    CornerRadius="3"
+                                    ClipToBounds="True"
+                                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                    BorderThickness="1">
+                                    <Image
+                                        Source="{Binding Thumbnail}"
+                                        Stretch="UniformToFill" />
+                                </Border>
+                                <TextBlock
+                                    Text="{Binding DisplayName}"
+                                    FontSize="9"
+                                    TextTrimming="CharacterEllipsis"
+                                    HorizontalAlignment="Center"
+                                    MaxWidth="68" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

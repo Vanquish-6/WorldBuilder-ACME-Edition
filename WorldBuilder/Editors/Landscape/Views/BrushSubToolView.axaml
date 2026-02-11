@@ -35,13 +35,11 @@
             </Grid>
         </StackPanel>
 
-        <!--  Terrain Type Selection  -->
-        <StackPanel Spacing="5">
-            <TextBlock Text="Terrain Type" />
-            <ComboBox
-                HorizontalAlignment="Stretch"
-                ItemsSource="{Binding AvailableTerrainTypes}"
-                SelectedItem="{Binding SelectedTerrainType}" />
-        </StackPanel>
+        <TextBlock
+            FontSize="11"
+            Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+            Text="Select a texture from the palette on the left."
+            TextWrapping="Wrap"
+            Opacity="0.7" />
     </StackPanel>
 </UserControl>

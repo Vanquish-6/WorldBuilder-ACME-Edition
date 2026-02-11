@@ -21,21 +21,13 @@
                 MaxWidth="500" />
         </Grid.ColumnDefinitions>
 
-        <!--  Left Panel: Object Browser  -->
+        <!--  Left Panel: Contextual (Object Browser or Texture Palette)  -->
         <Border
             Grid.Column="0"
             Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
             BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
             BorderThickness="0,0,1,0">
-            <DockPanel LastChildFill="True">
-                <TextBlock
-                    DockPanel.Dock="Top"
-                    Margin="10,8,10,6"
-                    FontSize="13"
-                    FontWeight="SemiBold"
-                    Text="Object Browser" />
-                <ContentControl Content="{Binding ObjectBrowser}" />
-            </DockPanel>
+            <ContentControl Content="{Binding LeftPanelContent}" />
         </Border>
 
         <!--  Splitter between left panel and viewport  -->

@@ -1,4 +1,4 @@
-﻿using Chorizite.Core.Dats;
+using Chorizite.Core.Dats;
 using Chorizite.Core.Render;
 using Chorizite.Core.Render.Enums;
 using Chorizite.Core.Render.Vertex;
@@ -82,6 +82,57 @@ namespace WorldBuilder.Editors.Landscape {
                 .Where(t => t.TerrainType != TerrainTextureType.RoadType)
                 .OrderBy(t => t.TerrainType.ToString())
                 .ToList();
+        }
+
+        /// <summary>
+        /// Generates small Avalonia bitmap thumbnails for each available terrain texture.
+        /// Reads the source textures from the DAT, downsamples to thumbnailSize, and returns
+        /// a dictionary keyed by TerrainTextureType.
+        /// </summary>
+        public Dictionary<TerrainTextureType, Avalonia.Media.Imaging.Bitmap> GetTerrainThumbnails(int thumbnailSize = 64) {
+            var result = new Dictionary<TerrainTextureType, Avalonia.Media.Imaging.Bitmap>();
+            var buffer = new byte[512 * 512 * 4];
+
+            foreach (var tmDesc in GetAvailableTerrainTextures()) {
+                try {
+                    if (!_dats.TryGet<SurfaceTexture>(tmDesc.TerrainTex.TexGID, out var st)) continue;
+                    if (!_dats.TryGet<RenderSurface>(st.Textures[^1], out var rs)) continue;
+                    if (rs.Width != 512 || rs.Height != 512) continue;
+
+                    GetReversedRGBA(rs.SourceData.AsSpan(), buffer.AsSpan());
+
+                    // Simple box downsample from 512x512 to thumbnailSize x thumbnailSize
+                    int scale = 512 / thumbnailSize;
+                    var thumbPixels = new byte[thumbnailSize * thumbnailSize * 4];
+                    for (int ty = 0; ty < thumbnailSize; ty++) {
+                        for (int tx = 0; tx < thumbnailSize; tx++) {
+                            int srcIdx = (ty * scale * 512 + tx * scale) * 4;
+                            int dstIdx = (ty * thumbnailSize + tx) * 4;
+                            thumbPixels[dstIdx] = buffer[srcIdx];
+                            thumbPixels[dstIdx + 1] = buffer[srcIdx + 1];
+                            thumbPixels[dstIdx + 2] = buffer[srcIdx + 2];
+                            thumbPixels[dstIdx + 3] = buffer[srcIdx + 3];
+                        }
+                    }
+
+                    using var ms = new System.IO.MemoryStream();
+                    // Write as raw bitmap via WriteableBitmap
+                    var wb = new Avalonia.Media.Imaging.WriteableBitmap(
+                        new Avalonia.PixelSize(thumbnailSize, thumbnailSize),
+                        new Avalonia.Vector(96, 96),
+                        Avalonia.Platform.PixelFormat.Rgba8888,
+                        Avalonia.Platform.AlphaFormat.Premul);
+                    using (var fb = wb.Lock()) {
+                        System.Runtime.InteropServices.Marshal.Copy(thumbPixels, 0, fb.Address, thumbPixels.Length);
+                    }
+                    result[tmDesc.TerrainType] = wb;
+                }
+                catch {
+                    // Skip textures that fail to load
+                }
+            }
+
+            return result;
         }
 
         private void LoadTextures() {

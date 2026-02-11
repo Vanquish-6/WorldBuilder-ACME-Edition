@@ -15,19 +15,10 @@
             FontWeight="SemiBold"
             Text="Bucket Fill Settings" />
 
-        <!--  Terrain Type Selection  -->
-        <StackPanel Spacing="5">
-            <TextBlock Text="Terrain Type" />
-            <ComboBox
-                HorizontalAlignment="Stretch"
-                ItemsSource="{Binding AvailableTerrainTypes}"
-                SelectedItem="{Binding SelectedTerrainType}" />
-        </StackPanel>
-
         <TextBlock
             FontSize="11"
             Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-            Text="Click on terrain to fill all connected vertices of the same type."
+            Text="Select a texture from the palette on the left, then click on terrain to fill all connected vertices of the same type."
             TextWrapping="Wrap" />
     </StackPanel>
 </UserControl>
