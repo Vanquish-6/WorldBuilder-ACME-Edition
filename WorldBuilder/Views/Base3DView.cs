@@ -1,4 +1,4 @@
-﻿using Autofac.Core;
+using Autofac.Core;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -18,6 +18,7 @@ using SkiaSharp;
 using System;
 using System.IO;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using WorldBuilder.Lib;
 using WorldBuilder.Shared.Documents;
 using WorldBuilder.Shared.Lib;
@@ -62,6 +63,27 @@ namespace WorldBuilder.Views {
             // Add pointer tracking to viewport
             _viewport.PointerEntered += ViewportPointerEntered;
             _viewport.PointerExited += ViewportPointerExited;
+
+            LayoutUpdated += OnLayoutUpdated;
+        }
+
+        private void OnLayoutUpdated(object? sender, EventArgs e) {
+            UpdateScreenPosition();
+        }
+
+        private void UpdateScreenPosition() {
+            if (_viewport != null && _visual != null) {
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel != null) {
+                    var point = _viewport.TranslatePoint(new Point(0, 0), topLevel);
+                    if (point.HasValue) {
+                        var scaling = topLevel.RenderScaling;
+                        _visual.SendHandlerMessage(new PositionMessage {
+                            Position = new PixelPoint((int)(point.Value.X * scaling), (int)(point.Value.Y * scaling))
+                        });
+                    }
+                }
+            }
         }
 
         private void ViewportPointerEntered(object? sender, PointerEventArgs e) {
@@ -280,6 +302,7 @@ namespace WorldBuilder.Views {
                     Math.Abs(viewportSize.Height - _lastViewportSize.Height) > 0.5) {
                     _lastViewportSize = viewportSize;
                     UpdateSize(viewportSize);
+                    UpdateScreenPosition();
                 }
             }
 
@@ -338,6 +361,7 @@ namespace WorldBuilder.Views {
             private bool _contentInitialized;
             internal IGlContext? _gl;
             private PixelSize _lastSize;
+            private PixelPoint _screenPosition = new PixelPoint(-1, -1);
 
             private AvaloniaInputState _inputState => _parent.InputState;
             private readonly Base3DView _parent;
@@ -345,34 +369,8 @@ namespace WorldBuilder.Views {
             public DateTime LastRenderTime { get; private set; } = DateTime.MinValue;
             public GL? SilkGl { get; private set; }
 
-            // Platform-specific blit coordinate calculation to avoid if statement in render loop
-            private delegate void BlitFramebufferDelegate(Avalonia.OpenGL.IGlContext glContext, int srcWidth, int srcHeight, SKRectI dst);
-            private static readonly BlitFramebufferDelegate _blitFramebuffer = OperatingSystem.IsWindows()
-                ? BlitFramebufferDefault
-                : BlitFramebufferMacOS;
-
             public GlVisual(Base3DView parent) {
                 _parent = parent;
-            }
-
-            // On macOS, flip source Y and blit from 0,0 to fill entire viewport (dst has menu bar offset)
-            private static void BlitFramebufferMacOS(Avalonia.OpenGL.IGlContext glContext, int srcWidth, int srcHeight, SKRectI dst) {
-                glContext.GlInterface.BlitFramebuffer(
-                        0, srcHeight, srcWidth, 0,  // Source Y flipped
-                        0, 0, dst.Width, dst.Height,  // Fill from 0,0
-                        GL_COLOR_BUFFER_BIT,
-                        GL_LINEAR
-                    );
-            }
-
-            // Windows/Linux: use dst rectangle as-is
-            private static void BlitFramebufferDefault(Avalonia.OpenGL.IGlContext glContext, int srcWidth, int srcHeight, SKRectI dst) {
-                glContext.GlInterface.BlitFramebuffer(
-                    0, 0, srcWidth, srcHeight,
-                    dst.Left, dst.Top, dst.Right, dst.Bottom,
-                    GL_COLOR_BUFFER_BIT,
-                    GL_LINEAR
-                );
             }
 
             public override void OnRender(ImmediateDrawingContext drawingContext) {
@@ -391,8 +389,10 @@ namespace WorldBuilder.Views {
                         var grContext = skiaLease.GrContext;
                         if (grContext == null) return;
 
-                        var dst = skiaLease.SkCanvas.DeviceClipBounds;
-                        var canvasSize = new PixelSize(dst.Width, dst.Height);
+                        // Calculate control size in physical pixels using the top-level scaling
+                        var topLevel = TopLevel.GetTopLevel(_parent);
+                        var scaling = topLevel?.RenderScaling ?? 1.0;
+                        var controlSize = new PixelSize((int)(_parent._viewport!.Bounds.Width * scaling), (int)(_parent._viewport!.Bounds.Height * scaling));
 
                         using (var platformApiLease = skiaLease.TryLeasePlatformGraphicsApi()) {
                             if (platformApiLease?.Context is not IGlContext glContext) return;
@@ -405,46 +405,109 @@ namespace WorldBuilder.Views {
                             var gl = GL.GetApi(glContext.GlInterface.GetProcAddress);
                             SilkGl = gl;
 
-                            _parent.InputScale = new Vector2(dst.Width / (float)size.Width, dst.Height / (float)size.Height);
-
-                            glContext.GlInterface.GetIntegerv(GL_FRAMEBUFFER_BINDING, out var oldFb);
-                            SetDefaultStates(gl);
                             if (!_contentInitialized) {
-                                _parent.OnGlInitInternal(gl, canvasSize);
+                                _parent.OnGlInitInternal(gl, controlSize);
                                 _contentInitialized = true;
 
                                 string openGLVersion = gl.GetStringS(StringName.Version);
-                                Console.WriteLine($"OpenGL Version: {openGLVersion}");
-
-                                // You can also get the vendor and renderer information
                                 string vendor = gl.GetStringS(StringName.Vendor);
                                 string renderer = gl.GetStringS(StringName.Renderer);
-                                Console.WriteLine($"OpenGL Vendor: {vendor}");
-                                Console.WriteLine($"OpenGL Renderer: {renderer}");
+                                Console.WriteLine($"OpenGL Version: {openGLVersion} // {vendor} // {renderer}");
                             }
 
-                            if (_lastSize.Width != canvasSize.Width || _lastSize.Height != canvasSize.Height) {
-                                _parent.OnGlResizeInternal(canvasSize);
+                            if (_lastSize.Width != controlSize.Width || _lastSize.Height != controlSize.Height) {
+                                _parent.OnGlResizeInternal(controlSize);
                             }
 
-                            gl.Viewport(0, 0, (uint)canvasSize.Width, (uint)canvasSize.Height);
+                            _parent.InputScale = new Vector2(controlSize.Width / (float)size.Width, controlSize.Height / (float)size.Height);
+
+                            // save current framebuffer
+                            gl.GetInteger(GetPName.DrawFramebufferBinding, out int oldFb);
+
+                            // Save current OpenGL state to ensure isolation between render views
+                            var originalViewport = new int[4];
+                            gl.GetInteger(GetPName.Viewport, originalViewport);
+                            var originalDepthTest = gl.IsEnabled(EnableCap.DepthTest);
+                            var originalCullFace = gl.IsEnabled(EnableCap.CullFace);
+                            gl.GetInteger(GetPName.CullFaceMode, out int originalCullFaceMode);
+                            gl.GetInteger(GetPName.FrontFace, out int originalFrontFace);
+                            var originalBlend = gl.IsEnabled(EnableCap.Blend);
+                            gl.GetInteger(GetPName.BlendSrcRgb, out int originalBlendSrc);
+                            gl.GetInteger(GetPName.BlendDstRgb, out int originalBlendDst);
+                            gl.GetInteger(GetPName.BlendEquationRgb, out int originalBlendEquation);
+                            var originalScissor = gl.IsEnabled(EnableCap.ScissorTest);
+                            var originalScissorBox = new int[4];
+                            gl.GetInteger(GetPName.ScissorBox, originalScissorBox);
+
+                            SetDefaultStates(gl);
+
+                            gl.Viewport(0, 0, (uint)controlSize.Width, (uint)controlSize.Height);
+
+                            // Disable scissor test for FBO rendering to ensure we draw the full viewport
+                            gl.Disable(EnableCap.ScissorTest);
 
                             _parent.OnGlRenderInternal(frameTime);
-                            glContext.GlInterface.BindFramebuffer(GL_FRAMEBUFFER, oldFb);
+
+                            // Restore the original OpenGL state
+                            gl.Viewport(originalViewport[0], originalViewport[1], (uint)originalViewport[2], (uint)originalViewport[3]);
+
+                            if (originalScissor) gl.Enable(EnableCap.ScissorTest); else gl.Disable(EnableCap.ScissorTest);
+                            gl.Scissor(originalScissorBox[0], originalScissorBox[1], (uint)originalScissorBox[2], (uint)originalScissorBox[3]);
+
+                            if (originalDepthTest) gl.Enable(EnableCap.DepthTest); else gl.Disable(EnableCap.DepthTest);
+                            if (originalCullFace) gl.Enable(EnableCap.CullFace); else gl.Disable(EnableCap.CullFace);
+                            gl.CullFace((TriangleFace)originalCullFaceMode);
+                            gl.FrontFace((FrontFaceDirection)originalFrontFace);
+
+                            if (originalBlend) gl.Enable(EnableCap.Blend); else gl.Disable(EnableCap.Blend);
+                            gl.BlendFunc((BlendingFactor)originalBlendSrc, (BlendingFactor)originalBlendDst);
+                            gl.BlendEquation((BlendEquationModeEXT)originalBlendEquation);
+
+                            // restore old framebuffer
+                            gl.BindFramebuffer(FramebufferTarget.Framebuffer, (uint)oldFb);
 
                             if (_parent.RenderTarget?.Framebuffer is not null && _parent.RenderTarget?.Texture is not null) {
-                                var textureFB = (int)_parent.RenderTarget.Framebuffer.NativeHandle;
-                                glContext.GlInterface.BindFramebuffer(GL_READ_FRAMEBUFFER, textureFB);
-                                glContext.GlInterface.BindFramebuffer(GL_DRAW_FRAMEBUFFER, oldFb);
+                                var textureFB = (uint)_parent.RenderTarget.Framebuffer.NativeHandle;
+                                gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, textureFB);
+                                gl.BindFramebuffer(FramebufferTarget.DrawFramebuffer, (uint)oldFb);
 
                                 var srcWidth = _parent.RenderTarget.Texture.Width;
                                 var srcHeight = _parent.RenderTarget.Texture.Height;
 
-                                _blitFramebuffer(glContext, srcWidth, srcHeight, dst);
+                                int destW = controlSize.Width;
+                                int destH = controlSize.Height;
+
+                                if (_screenPosition.X >= 0) {
+                                    int destX = _screenPosition.X;
+                                    int destY;
+
+                                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                                        // Windows uses top-down coordinates for the destination FBO
+                                        destY = _screenPosition.Y;
+                                    }
+                                    else {
+                                        // Linux/macOS use bottom-up coordinates
+                                        destY = originalViewport[3] - (_screenPosition.Y + destH);
+                                    }
+
+                                    var scissorEnabled = gl.IsEnabled(EnableCap.ScissorTest);
+                                    if (scissorEnabled) gl.Disable(EnableCap.ScissorTest);
+
+                                    gl.BlitFramebuffer(
+                                        0, 0, srcWidth, srcHeight,
+                                        destX, destY + destH, destX + destW, destY,
+                                        ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Linear
+                                    );
+
+                                    if (scissorEnabled) gl.Enable(EnableCap.ScissorTest);
+                                }
                             }
+
+                            // restore old framebuffer
+                            gl.BindFramebuffer(FramebufferTarget.Framebuffer, (uint)oldFb);
                         }
 
-                        _lastSize = canvasSize;
+                        _lastSize = controlSize;
                     }
                 }
                 catch (Exception ex) {
@@ -480,6 +543,9 @@ namespace WorldBuilder.Views {
                 if (message is DisposeMessage) {
                     DisposeResources();
                 }
+                else if (message is PositionMessage posMsg) {
+                    _screenPosition = posMsg.Position;
+                }
                 base.OnMessage(message);
             }
 
@@ -508,5 +574,9 @@ namespace WorldBuilder.Views {
         #endregion
 
         public class DisposeMessage { }
+
+        public class PositionMessage {
+            public PixelPoint Position { get; set; }
+        }
     }
 }
