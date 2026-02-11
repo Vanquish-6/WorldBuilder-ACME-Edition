@@ -7,7 +7,7 @@
 ;-------------------------------- ; Custom Variables
 
 !define PRODUCT "WorldBuilder"
-!define ICON "avalonia-logo.ico"
+!define ICON "acme-wblogo.ico"
 !define COMPANY "Thrungus"
 !define MUI_ICON "${ICON}"
 !define MUI_UNICON "${ICON}"

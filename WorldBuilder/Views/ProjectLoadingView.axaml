@@ -1,0 +1,139 @@
+<UserControl
+    x:Class="WorldBuilder.Views.ProjectLoadingView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:WorldBuilder.ViewModels"
+    d:DesignHeight="580"
+    d:DesignWidth="950"
+    x:CompileBindings="True"
+    x:DataType="vm:ProjectLoadingViewModel"
+    mc:Ignorable="d">
+
+    <Grid>
+        <!--  Background gradient  -->
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#0d0016" />
+                <GradientStop Offset="0.5" Color="#1a0a2e" />
+                <GradientStop Offset="1" Color="#100820" />
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <!--  Ambient glow (centered)  -->
+        <Ellipse
+            Width="500"
+            Height="500"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            IsHitTestVisible="False"
+            Opacity="0.1">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Offset="0" Color="#7c4dbd" />
+                    <GradientStop Offset="1" Color="Transparent" />
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+        <!--  Center content  -->
+        <StackPanel
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Spacing="20">
+
+            <!--  Logo with portal glow  -->
+            <Panel Margin="0,0,0,8" HorizontalAlignment="Center">
+                <Ellipse
+                    Width="140"
+                    Height="140"
+                    IsHitTestVisible="False"
+                    Opacity="0.3">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Offset="0" Color="#7c4dbd" />
+                            <GradientStop Offset="1" Color="Transparent" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <Image
+                    Width="100"
+                    Height="100"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    RenderOptions.BitmapInterpolationMode="HighQuality"
+                    Source="/Assets/acme-wblogo.png" />
+            </Panel>
+
+            <!--  Project name  -->
+            <TextBlock
+                HorizontalAlignment="Center"
+                FontSize="22"
+                FontWeight="SemiBold"
+                Foreground="#d4a843"
+                Text="{Binding ProjectName}" />
+
+            <!--  Status message  -->
+            <TextBlock
+                HorizontalAlignment="Center"
+                FontSize="14"
+                Foreground="#8a7a9e"
+                Text="{Binding StatusMessage}" />
+
+            <!--  Progress bar (visible when not errored)  -->
+            <ProgressBar
+                Width="320"
+                Height="4"
+                Background="#1e1035"
+                CornerRadius="2"
+                Foreground="#7c4dbd"
+                IsIndeterminate="True"
+                IsVisible="{Binding !HasError}" />
+
+            <!--  Error section (visible only on error)  -->
+            <StackPanel
+                HorizontalAlignment="Center"
+                IsVisible="{Binding HasError}"
+                Spacing="12">
+
+                <Border
+                    MaxWidth="500"
+                    Padding="16,12"
+                    Background="#2a1020"
+                    CornerRadius="8">
+                    <TextBlock
+                        FontSize="12"
+                        Foreground="#e74c3c"
+                        Text="{Binding ErrorMessage}"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap" />
+                </Border>
+
+                <Button
+                    MinWidth="120"
+                    Padding="16,8"
+                    HorizontalAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    Background="#2a1545"
+                    BorderBrush="#3d2a5c"
+                    BorderThickness="1"
+                    Command="{Binding GoBackCommand}"
+                    Content="Go Back"
+                    CornerRadius="8"
+                    Cursor="Hand"
+                    Foreground="White" />
+            </StackPanel>
+        </StackPanel>
+
+        <!--  Subtle branding at bottom  -->
+        <TextBlock
+            Margin="0,0,15,12"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            FontSize="10"
+            Foreground="#3a2a4e"
+            Text="ACME Edition - WorldBuilder" />
+    </Grid>
+
+</UserControl>

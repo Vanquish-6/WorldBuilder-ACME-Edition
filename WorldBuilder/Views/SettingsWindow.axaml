@@ -9,7 +9,7 @@
     MinWidth="600"
     MinHeight="400"
     x:DataType="settings:WorldBuilderSettings"
-    Icon="avares://WorldBuilder/Assets/avalonia-logo.ico">
+    Icon="avares://WorldBuilder/Assets/acme-wblogo.ico">
 
     <Window.Styles>
         <Style Selector="TextBlock.SettingLabel">

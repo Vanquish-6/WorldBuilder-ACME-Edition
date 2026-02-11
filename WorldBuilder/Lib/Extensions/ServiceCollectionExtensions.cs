@@ -24,6 +24,7 @@ namespace WorldBuilder.Lib.Extensions {
             // splash page
             collection.AddTransient<RecentProject>();
             collection.AddTransient<CreateProjectViewModel>();
+            collection.AddTransient<ProjectLoadingViewModel>();
             collection.AddTransient<SplashPageViewModel>();
             collection.AddTransient<ProjectSelectionViewModel>();
 

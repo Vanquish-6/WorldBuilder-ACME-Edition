@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
@@ -14,7 +14,7 @@
         <Product>WorldBuilder</Product>
         <Copyright>2025 Thrungus</Copyright>
         <ApplicationManifest>app.manifest</ApplicationManifest>
-        <ApplicationIcon>..\avalonia-logo.ico</ApplicationIcon>
+        <ApplicationIcon>..\acme-wblogo.ico</ApplicationIcon>
         <UpdateAssemblyInfo>false</UpdateAssemblyInfo>
     </PropertyGroup>
 

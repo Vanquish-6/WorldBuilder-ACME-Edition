@@ -6,18 +6,20 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:views="clr-namespace:WorldBuilder.Views"
     xmlns:vm="using:WorldBuilder.ViewModels"
-    Title="WorldBuilder"
-    Width="800"
-    Height="400"
-    d:DesignHeight="450"
-    d:DesignWidth="800"
+    Title="ACME WorldBuilder"
+    Width="950"
+    Height="580"
+    d:DesignHeight="580"
+    d:DesignWidth="950"
     x:CompileBindings="True"
     x:DataType="vm:SplashPageViewModel"
+    Background="#0d0016"
     CanResize="false"
-    Icon="/Assets/avalonia-logo.ico"
+    Icon="/Assets/acme-wblogo.ico"
+    RequestedThemeVariant="Dark"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
-    <TransitioningContentControl Grid.Row="1" Content="{Binding CurrentPage}">
+    <TransitioningContentControl Content="{Binding CurrentPage}">
         <TransitioningContentControl.PageTransition>
             <CrossFade Duration="0:0:0.2" />
         </TransitioningContentControl.PageTransition>

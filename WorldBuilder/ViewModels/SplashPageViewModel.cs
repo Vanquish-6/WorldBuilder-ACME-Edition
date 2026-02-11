@@ -1,4 +1,4 @@
-﻿using Avalonia.Animation;
+using Avalonia.Animation;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -19,7 +19,7 @@ public partial class SplashPageViewModel : ViewModelBase, IRecipient<SplashPageC
 
     public bool IsOnSubPage => CurrentPage is not ProjectSelectionViewModel;
 
-    public enum SplashPage { ProjectSelection, CreateProject };
+    public enum SplashPage { ProjectSelection, CreateProject, Loading };
 
     public SplashPageViewModel(SplashPageFactory splashFactory, ILogger<SplashPageViewModel> log) {
         _log = log;
@@ -42,6 +42,7 @@ public partial class SplashPageViewModel : ViewModelBase, IRecipient<SplashPageC
         return value switch {
             SplashPage.ProjectSelection => _splashFactory.Create<ProjectSelectionViewModel>(),
             SplashPage.CreateProject => _splashFactory.Create<CreateProjectViewModel>(),
+            SplashPage.Loading => _splashFactory.Create<ProjectLoadingViewModel>(),
             _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
         };
     }

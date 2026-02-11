@@ -1,4 +1,4 @@
-﻿using Avalonia.Platform.Storage;
+using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -129,7 +129,9 @@ public partial class CreateProjectViewModel : SplashPageViewModelBase, INotifyDa
 
     [RelayCommand(CanExecute = nameof(CanProceed))]
     private void GoNext() {
-        WeakReferenceMessenger.Default.Send(new CreateProjectMessage(this));
+        // Navigate to loading screen, then send the create message
+        WeakReferenceMessenger.Default.Send(new SplashPageChangedMessage(SplashPage.Loading));
+        WeakReferenceMessenger.Default.Send(new StartProjectCreateMessage(ProjectName, ProjectLocation, BaseDatDirectory));
     }
 
     private void ValidateBaseDatDirectory() {

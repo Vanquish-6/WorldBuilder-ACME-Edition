@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -82,7 +82,12 @@ public partial class ProjectSelectionViewModel : SplashPageViewModelBase {
 
     private void LoadProject(string filePath) {
         _log.LogInformation($"LoadProject: {filePath}");
-        WeakReferenceMessenger.Default.Send(new OpenProjectMessage(filePath));
+
+        // Navigate to loading screen, then send the load message
+        // (SplashPageChangedMessage is synchronous, so the loading VM is created and registered
+        //  before StartProjectLoadMessage is sent)
+        WeakReferenceMessenger.Default.Send(new SplashPageChangedMessage(SplashPage.Loading));
+        WeakReferenceMessenger.Default.Send(new StartProjectLoadMessage(filePath));
     }
 
     [RelayCommand]
@@ -105,6 +110,39 @@ public partial class ProjectSelectionViewModel : SplashPageViewModelBase {
             catch (Exception ex) {
                 _log.LogError(ex, "Failed to open project directory in file explorer");
             }
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyProjectPath(RecentProject? project) {
+        if (project?.FilePath == null) return;
+
+        try {
+            var clipboard = TopLevel.Clipboard;
+            if (clipboard != null) {
+                await clipboard.SetTextAsync(project.FilePath);
+            }
+        }
+        catch (Exception ex) {
+            _log.LogError(ex, "Failed to copy project path to clipboard");
+        }
+    }
+
+    [RelayCommand]
+    private async Task DeleteProject(RecentProject? project) {
+        if (project == null) return;
+
+        try {
+            var dir = project.FileDirectory;
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir)) {
+                Directory.Delete(dir, true);
+                _log.LogInformation($"Deleted project directory: {dir}");
+            }
+
+            await _projectManager.RemoveRecentProject(project.FilePath);
+        }
+        catch (Exception ex) {
+            _log.LogError(ex, "Failed to delete project from disk");
         }
     }
 }

@@ -13,7 +13,7 @@
     d:DesignHeight="450"
     d:DesignWidth="800"
     x:CompileBindings="True"
-    Icon="/Assets/avalonia-logo.ico"
+    Icon="/Assets/acme-wblogo.ico"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
 

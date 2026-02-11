@@ -6,200 +6,400 @@
     xmlns:lib="clr-namespace:WorldBuilder.Lib"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="clr-namespace:WorldBuilder.ViewModels"
-    d:DesignHeight="600"
-    d:DesignWidth="1000"
+    d:DesignHeight="580"
+    d:DesignWidth="950"
     x:CompileBindings="True"
     x:DataType="vm:ProjectSelectionViewModel"
     mc:Ignorable="d">
 
-    <Grid Margin="20">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="300" />
-            <ColumnDefinition Width="20" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <UserControl.Styles>
+        <!--  Action button style  -->
+        <Style Selector="Button.action-btn">
+            <Setter Property="Background" Value="#1e1035" />
+            <Setter Property="BorderBrush" Value="#3d2a5c" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.action-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2a1545" />
+            <Setter Property="BorderBrush" Value="#6b3fa0" />
+        </Style>
+        <Style Selector="Button.action-btn:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#351a55" />
+            <Setter Property="BorderBrush" Value="#7c4dbd" />
+        </Style>
 
-        <!--  Recent Projects Section  -->
-        <Grid Grid.Column="0" Margin="0,0,0,0">
+        <!--  Recent project card button style  -->
+        <Style Selector="Button.project-card">
+            <Setter Property="Background" Value="#18102a" />
+            <Setter Property="BorderBrush" Value="#2a1d42" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.project-card:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#221540" />
+            <Setter Property="BorderBrush" Value="#4a2d6e" />
+        </Style>
+        <Style Selector="Button.project-card:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2a1a4a" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <!--  Background gradient  -->
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#0d0016" />
+                <GradientStop Offset="0.5" Color="#1a0a2e" />
+                <GradientStop Offset="1" Color="#100820" />
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <!--  Subtle ambient glow (top-left)  -->
+        <Ellipse
+            Width="600"
+            Height="600"
+            Margin="-150,-150,0,0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            IsHitTestVisible="False"
+            Opacity="0.08">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Offset="0" Color="#7c4dbd" />
+                    <GradientStop Offset="1" Color="Transparent" />
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+        <!--  Subtle ambient glow (bottom-right)  -->
+        <Ellipse
+            Width="400"
+            Height="400"
+            Margin="0,0,-100,-100"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            IsHitTestVisible="False"
+            Opacity="0.06">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Offset="0" Color="#9b59b6" />
+                    <GradientStop Offset="1" Color="Transparent" />
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+        <!--  Main content  -->
+        <Grid Margin="30,25">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="310" />
+                <ColumnDefinition Width="25" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="20" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" FontSize="18">Recent Projects</TextBlock>
-
-            <ScrollViewer Grid.Row="2">
-                <ItemsControl ItemsSource="{Binding RecentProjects}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="lib:RecentProject">
-                            <Button
-                                Margin="0,0,10,15"
-                                Padding="0"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Stretch"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Command="{Binding $parent[UserControl].((vm:ProjectSelectionViewModel)DataContext).OpenRecentProjectCommand}"
-                                CommandParameter="{Binding}"
-                                Cursor="Hand">
-                                <Border
-                                    Padding="10"
-                                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                                    CornerRadius="8">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock
-                                                FontSize="16"
-                                                Text="{Binding Name}"
-                                                TextTrimming="CharacterEllipsis" />
-                                            <TextBlock
-                                                Margin="0,4,0,0"
-                                                FontSize="12"
-                                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                                Text="{Binding FileDirectory}"
-                                                TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-                                        <DropDownButton
-                                            Grid.Column="1"
-                                            Width="32"
-                                            ToolTip.Tip="Project options">
-                                            <DropDownButton.Flyout>
-                                                <MenuFlyout>
-                                                    <MenuItem
-                                                        Command="{Binding $parent[UserControl].((vm:ProjectSelectionViewModel)DataContext).OpenRecentProjectCommand}"
-                                                        CommandParameter="{Binding}"
-                                                        Header="Open" />
-                                                    <MenuItem
-                                                        Command="{Binding $parent[UserControl].((vm:ProjectSelectionViewModel)DataContext).OpenInExplorerCommand}"
-                                                        CommandParameter="{Binding}"
-                                                        Header="Open in file explorer" />
-                                                    <MenuItem
-                                                        Command="{Binding $parent[UserControl].((vm:ProjectSelectionViewModel)DataContext).RemoveRecentProjectCommand}"
-                                                        CommandParameter="{Binding}"
-                                                        Header="Remove from recent" />
-                                                </MenuFlyout>
-                                            </DropDownButton.Flyout>
-                                        </DropDownButton>
-                                    </Grid>
-                                </Border>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-
-            <!--  Empty State - overlay it on the same row  -->
+            <!--  LEFT PANEL: Branding + Actions  -->
             <Border
-                Grid.Row="2"
-                Padding="20"
-                Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                CornerRadius="8"
-                IsVisible="{Binding !RecentProjects.Count}">
-                <TextBlock
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Text="No recent projects" />
+                Grid.Row="0"
+                Grid.Column="0"
+                BoxShadow="0 0 40 0 #206b3fa0"
+                ClipToBounds="True"
+                CornerRadius="16"
+                Padding="25,25">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#16102a" />
+                        <GradientStop Offset="1" Color="#120c22" />
+                    </LinearGradientBrush>
+                </Border.Background>
+
+                <Grid RowDefinitions="*,Auto">
+                    <!--  Top: Logo and branding  -->
+                    <StackPanel
+                        Grid.Row="0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="12">
+
+                        <!--  Portal glow behind logo  -->
+                        <Panel Margin="0,0,0,4" HorizontalAlignment="Center">
+                            <Ellipse
+                                Width="155"
+                                Height="155"
+                                IsHitTestVisible="False"
+                                Opacity="0.25">
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush>
+                                        <GradientStop Offset="0" Color="#7c4dbd" />
+                                        <GradientStop Offset="1" Color="Transparent" />
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <Image
+                                Width="120"
+                                Height="120"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                RenderOptions.BitmapInterpolationMode="HighQuality"
+                                Source="/Assets/acme-wblogo.png" />
+                        </Panel>
+
+                        <!--  Title  -->
+                        <StackPanel HorizontalAlignment="Center" Spacing="2">
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                FontSize="13"
+                                FontWeight="SemiBold"
+                                Foreground="#d4a843"
+                                LetterSpacing="4"
+                                Text="ACME EDITION" />
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                FontSize="28"
+                                FontWeight="Bold"
+                                Foreground="White"
+                                Text="WorldBuilder" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!--  Bottom: Action buttons  -->
+                    <StackPanel Grid.Row="1" Spacing="10">
+                        <!--  Separator with gradient fade  -->
+                        <Border Height="1" Margin="0,0,0,8">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                                    <GradientStop Offset="0" Color="Transparent" />
+                                    <GradientStop Offset="0.5" Color="#3d2a5c" />
+                                    <GradientStop Offset="1" Color="Transparent" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+
+                        <!--  New Project  -->
+                        <Button Classes="action-btn" Command="{Binding NewProjectCommand}">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <Border
+                                    Grid.Column="0"
+                                    Width="38"
+                                    Height="38"
+                                    Background="#2a1545"
+                                    CornerRadius="10">
+                                    <Path
+                                        Width="14"
+                                        Height="14"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Data="M8,0 L8,16 M0,8 L16,8"
+                                        Stretch="Uniform"
+                                        Stroke="#d4a843"
+                                        StrokeThickness="2" />
+                                </Border>
+                                <StackPanel
+                                    Grid.Column="1"
+                                    Margin="12,0,0,0"
+                                    VerticalAlignment="Center">
+                                    <TextBlock
+                                        FontSize="14"
+                                        FontWeight="SemiBold"
+                                        Foreground="White"
+                                        Text="New Project" />
+                                    <TextBlock
+                                        FontSize="11"
+                                        Foreground="#8a7a9e"
+                                        Text="Create a new blank project" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+
+                        <!--  Open Existing  -->
+                        <Button Classes="action-btn" Command="{Binding OpenExistingProjectCommand}">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <Border
+                                    Grid.Column="0"
+                                    Width="38"
+                                    Height="38"
+                                    Background="#2a1545"
+                                    CornerRadius="10">
+                                    <Path
+                                        Width="16"
+                                        Height="13"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Data="M1,4 L1,14 L15,14 L15,6 L9,6 L7,4 Z"
+                                        Fill="#9b80c4"
+                                        Stretch="Uniform" />
+                                </Border>
+                                <StackPanel
+                                    Grid.Column="1"
+                                    Margin="12,0,0,0"
+                                    VerticalAlignment="Center">
+                                    <TextBlock
+                                        FontSize="14"
+                                        FontWeight="SemiBold"
+                                        Foreground="White"
+                                        Text="Open Project" />
+                                    <TextBlock
+                                        FontSize="11"
+                                        Foreground="#8a7a9e"
+                                        Text="Browse for an existing project" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                    </StackPanel>
+                </Grid>
             </Border>
-        </Grid>
 
-        <!--  Right Section with App Title and Project Creation  -->
-        <StackPanel
-            Grid.Column="2"
-            VerticalAlignment="Top"
-            Spacing="30">
+            <!--  RIGHT PANEL: Recent Projects  -->
+            <Border
+                Grid.Row="0"
+                Grid.Column="2"
+                BoxShadow="0 0 40 0 #206b3fa0"
+                ClipToBounds="True"
+                CornerRadius="16"
+                Padding="20">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#16102a" />
+                        <GradientStop Offset="1" Color="#120c22" />
+                    </LinearGradientBrush>
+                </Border.Background>
 
-            <!--  App Header  -->
-            <StackPanel Spacing="5">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock FontSize="42" Text="WorldBuilder" />
+                <Grid RowDefinitions="Auto,12,*">
+                    <!--  Header  -->
                     <TextBlock
-                        MaxWidth="100"
-                        Margin="0,0,0,8"
-                        VerticalAlignment="Bottom"
-                        FontSize="14"
-                        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                        Text="{Binding AppVersion}"
-                        TextTrimming="CharacterEllipsis"
-                        ToolTip.Tip="{Binding AppVersion}" />
-                </StackPanel>
-            </StackPanel>
+                        Grid.Row="0"
+                        FontSize="18"
+                        FontWeight="SemiBold"
+                        Foreground="#c0b0d8"
+                        Text="Recent Projects" />
 
-            <StackPanel Spacing="15">
-                <!--  Create New Project  -->
-                <Border
-                    Padding="20"
-                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                    CornerRadius="8">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                    <!--  Project list  -->
+                    <ScrollViewer Grid.Row="2">
+                        <ItemsControl ItemsSource="{Binding RecentProjects}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="lib:RecentProject">
+                                    <Button
+                                        Margin="0,0,0,8"
+                                        Classes="project-card"
+                                        Command="{Binding $parent[UserControl].((vm:ProjectSelectionViewModel)DataContext).OpenRecentProjectCommand}"
+                                        CommandParameter="{Binding}">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock
+                                                        Grid.Column="0"
+                                                        FontSize="14"
+                                                        FontWeight="SemiBold"
+                                                        Foreground="White"
+                                                        Text="{Binding Name}"
+                                                        TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock
+                                                        Grid.Column="1"
+                                                        Margin="10,0,0,0"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="10"
+                                                        Foreground="#5a4a6e"
+                                                        Text="{Binding LastOpenedDisplay}" />
+                                                </Grid>
+                                                <TextBlock
+                                                    Margin="0,3,0,0"
+                                                    FontSize="11"
+                                                    Foreground="#6a5a7e"
+                                                    Text="{Binding FileDirectory}"
+                                                    TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
 
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="New Project" />
+                                            <DropDownButton
+                                                Grid.Column="1"
+                                                Width="32"
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                ToolTip.Tip="Project options">
+                                                <DropDownButton.Flyout>
+                                                    <MenuFlyout>
+                                                        <MenuItem
+                                                            Command="{Binding $parent[UserControl].((vm:ProjectSelectionViewModel)DataContext).OpenRecentProjectCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Header="Open" />
+                                                        <MenuItem
+                                                            Command="{Binding $parent[UserControl].((vm:ProjectSelectionViewModel)DataContext).OpenInExplorerCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Header="Open in file explorer" />
+                                                        <MenuItem
+                                                            Command="{Binding $parent[UserControl].((vm:ProjectSelectionViewModel)DataContext).CopyProjectPathCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Header="Copy project path" />
+                                                        <Separator />
+                                                        <MenuItem
+                                                            Command="{Binding $parent[UserControl].((vm:ProjectSelectionViewModel)DataContext).RemoveRecentProjectCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Header="Remove from recent" />
+                                                        <MenuItem
+                                                            Command="{Binding $parent[UserControl].((vm:ProjectSelectionViewModel)DataContext).DeleteProjectCommand}"
+                                                            CommandParameter="{Binding}">
+                                                            <MenuItem.Header>
+                                                                <TextBlock Foreground="#e74c3c" Text="Delete project from disk" />
+                                                            </MenuItem.Header>
+                                                        </MenuItem>
+                                                    </MenuFlyout>
+                                                </DropDownButton.Flyout>
+                                            </DropDownButton>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!--  Empty state  -->
+                    <Border
+                        Grid.Row="2"
+                        Padding="20"
+                        Background="#18102a"
+                        CornerRadius="10"
+                        IsVisible="{Binding !RecentProjects.Count}">
+                        <StackPanel
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="8">
                             <TextBlock
-                                Margin="0,4,0,0"
-                                FontSize="12"
-                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                Text="Open a new blank project." />
-                        </StackPanel>
-
-                        <Button
-                            Grid.Column="1"
-                            Width="80"
-                            Padding="15,8"
-                            HorizontalContentAlignment="Center"
-                            Background="{DynamicResource SystemControlBackgroundAccentBrush}"
-                            Command="{Binding NewProjectCommand}"
-                            Content="Create"
-                            Cursor="Hand" />
-                    </Grid>
-                </Border>
-
-                <!--  Open Existing Project  -->
-                <Border
-                    Padding="20"
-                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                    CornerRadius="8">
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Open Existing" />
+                                HorizontalAlignment="Center"
+                                FontSize="14"
+                                Foreground="#6a5a7e"
+                                Text="No recent projects" />
                             <TextBlock
-                                Margin="0,4,0,0"
+                                HorizontalAlignment="Center"
                                 FontSize="12"
-                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                Text="Open an existing project from the filesystem." />
+                                Foreground="#4a3a5e"
+                                Text="Create a new project or open an existing one"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
                         </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
 
-                        <Button
-                            Grid.Column="1"
-                            Width="80"
-                            Padding="15,8"
-                            HorizontalContentAlignment="Center"
-                            Background="{DynamicResource SystemControlBackgroundAccentBrush}"
-                            Command="{Binding OpenExistingProjectCommand}"
-                            Content="Open"
-                            Cursor="Hand" />
-                    </Grid>
-                </Border>
-
-            </StackPanel>
-        </StackPanel>
+            <!--  Version - bottom right corner, tiny  -->
+            <TextBlock
+                Grid.Row="1"
+                Grid.Column="2"
+                Margin="0,8,5,0"
+                HorizontalAlignment="Right"
+                FontSize="10"
+                Foreground="#4a3a5e"
+                Text="{Binding AppVersion}" />
+        </Grid>
     </Grid>
 
 </UserControl>

@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -75,28 +75,8 @@ namespace WorldBuilder.Lib {
         }
 
         private void SetProject(Project project) {
-            var services = new ServiceCollection();
-
-            services.AddProjectServices(project, _rootProvider);
-
-            _projectProvider = services.BuildServiceProvider();
-            CompositeProvider = new(_projectProvider, _rootProvider);
-
-            CurrentProject = project;
-
-            var cacheDir = Path.Combine(_settings.AppDataDirectory, "cache", project.Name);
-            if (!Directory.Exists(cacheDir)) {
-                Directory.CreateDirectory(cacheDir);
-            }
-            project.DocumentManager = CompositeProvider.GetRequiredService<DocumentManager>();
-            project.DocumentManager.SetCacheDirectory(cacheDir);
-            project.DocumentManager.Dats = new DefaultDatReaderWriter(project.BaseDatDirectory, DatReaderWriter.Options.DatAccessType.Read);
-
-            var dbCtx = CompositeProvider.GetRequiredService<DocumentDbContext>();
-            dbCtx.InitializeSqliteAsync().Wait();
-
-            CurrentProjectChanged?.Invoke(this, EventArgs.Empty);
-            _ = AddRecentProject(project.Name, project.FilePath);
+            InitializeProjectServices(project);
+            FinalizeProject(project);
         }
 
         private void SetProject(string projectPath) {
@@ -108,6 +88,64 @@ namespace WorldBuilder.Lib {
                 throw new Exception($"Failed to load project: {projectPath}");
             }
             SetProject(project);
+        }
+
+        /// <summary>
+        /// Async version of SetProject for loading screen - runs heavy initialization on a background thread.
+        /// </summary>
+        public async Task LoadProjectAsync(string projectPath) {
+            _projectProvider?.Dispose();
+            CurrentProject?.Dispose();
+
+            var project = Project.FromDisk(projectPath);
+            if (project == null) {
+                throw new Exception($"Failed to load project: {projectPath}");
+            }
+
+            await Task.Run(() => InitializeProjectServices(project));
+            FinalizeProject(project);
+        }
+
+        /// <summary>
+        /// Async version of create project for loading screen - runs heavy initialization on a background thread.
+        /// </summary>
+        public async Task CreateProjectAsync(string projectName, string projectLocation, string baseDatDirectory) {
+            var project = Project.Create(projectName,
+                Path.Combine(projectLocation, $"{projectName}.wbproj"),
+                baseDatDirectory);
+
+            if (project == null) {
+                throw new Exception("Failed to create project");
+            }
+
+            await Task.Run(() => InitializeProjectServices(project));
+            FinalizeProject(project);
+        }
+
+        private void InitializeProjectServices(Project project) {
+            var services = new ServiceCollection();
+
+            services.AddProjectServices(project, _rootProvider);
+
+            _projectProvider = services.BuildServiceProvider();
+            CompositeProvider = new(_projectProvider, _rootProvider);
+
+            var cacheDir = Path.Combine(_settings.AppDataDirectory, "cache", project.Name);
+            if (!Directory.Exists(cacheDir)) {
+                Directory.CreateDirectory(cacheDir);
+            }
+            project.DocumentManager = CompositeProvider.GetRequiredService<DocumentManager>();
+            project.DocumentManager.SetCacheDirectory(cacheDir);
+            project.DocumentManager.Dats = new DefaultDatReaderWriter(project.BaseDatDirectory, DatReaderWriter.Options.DatAccessType.Read);
+
+            var dbCtx = CompositeProvider.GetRequiredService<DocumentDbContext>();
+            dbCtx.InitializeSqliteAsync().Wait();
+        }
+
+        private void FinalizeProject(Project project) {
+            CurrentProject = project;
+            CurrentProjectChanged?.Invoke(this, EventArgs.Empty);
+            _ = AddRecentProject(project.Name, project.FilePath);
         }
 
         public IServiceScope? CreateProjectScope() {
