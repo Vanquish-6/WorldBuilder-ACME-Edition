@@ -98,6 +98,8 @@ namespace WorldBuilder.Editors.Landscape {
                 }
             }
 
+            Console.WriteLine($"[EnvCellMgr] LB 0x{lbKey:X4}: {envCells.Count} EnvCells in, {batch.Cells.Count} prepared OK");
+
             return batch.Cells.Count > 0 ? batch : null;
         }
 
@@ -123,15 +125,22 @@ namespace WorldBuilder.Editors.Landscape {
                 return null;
             }
 
-            // Build the world transform from EnvCell position + landblock offset
+            // Build the world transform from EnvCell position + landblock offset.
+            // Small Z offset (+0.05) avoids z-fighting with building floors (matches ACViewer).
+            var cellOrigin = envCell.Position.Origin + lbOffset;
+            cellOrigin.Z += 0.05f;
             var worldTransform = Matrix4x4.CreateFromQuaternion(envCell.Position.Orientation)
-                * Matrix4x4.CreateTranslation(envCell.Position.Origin + lbOffset);
+                * Matrix4x4.CreateTranslation(cellOrigin);
 
             // Resolve surface IDs (EnvCell surfaces are not fully qualified, OR with 0x08000000)
             var surfaceIds = new List<uint>();
             foreach (var surfId in envCell.Surfaces) {
                 surfaceIds.Add((uint)(surfId | 0x08000000));
             }
+
+            Console.WriteLine($"[EnvCellMgr]   Cell 0x{envCell.Id:X8} env=0x{envFileId:X8} struct={envCell.CellStructure} " +
+                $"surfaces={surfaceIds.Count} polygons={cellStruct.Polygons.Count} " +
+                $"pos=({cellOrigin.X:F1},{cellOrigin.Y:F1},{cellOrigin.Z:F1})");
 
             // Check if we already have GPU data for this exact geometry+surface combo
             var gpuKey = new EnvCellGpuKey(envFileId, envCell.CellStructure, ComputeSurfaceHash(surfaceIds));
@@ -159,21 +168,15 @@ namespace WorldBuilder.Editors.Landscape {
                 var poly = kvp.Value;
                 if (poly.VertexIds.Count < 3) continue;
 
+                // Skip portal polygons (openings between rooms) — they have no renderable
+                // surface and should not be drawn. ACViewer also skips these.
+                if (poly.Stippling == StipplingType.NoPos) continue;
+
                 // EnvCell polygons reference surfaces from the EnvCell's Surfaces list
                 int surfaceIdx = poly.PosSurface;
                 bool useNegSurface = false;
 
-                if (poly.Stippling == StipplingType.NoPos) {
-                    if (poly.PosSurface < surfaceIds.Count) {
-                        surfaceIdx = poly.PosSurface;
-                    }
-                    else if (poly.NegSurface < surfaceIds.Count) {
-                        surfaceIdx = poly.NegSurface;
-                        useNegSurface = true;
-                    }
-                    else continue;
-                }
-                else if (surfaceIdx >= surfaceIds.Count) continue;
+                if (surfaceIdx >= surfaceIds.Count) continue;
 
                 var surfaceId = surfaceIds[surfaceIdx];
                 if (!_dats.TryGet<Surface>(surfaceId, out var surface)) continue;
@@ -410,6 +413,7 @@ namespace WorldBuilder.Editors.Landscape {
 
             if (cells.Count > 0) {
                 _loadedCells[batch.LandblockKey] = cells;
+                Console.WriteLine($"[EnvCellMgr] GPU upload LB 0x{batch.LandblockKey:X4}: {cells.Count} cells, {_gpuCache.Count} unique GPU entries total");
             }
         }
 
@@ -505,8 +509,10 @@ namespace WorldBuilder.Editors.Landscape {
             gl.Enable(EnableCap.DepthTest);
             gl.Enable(EnableCap.Blend);
             gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            gl.Enable(EnableCap.CullFace);
-            gl.CullFace(TriangleFace.Back);
+            // Disable face culling for EnvCell geometry — AC's CellStruct polygon winding
+            // doesn't match OpenGL's default CCW front-face convention, so walls/ceilings
+            // get culled if we enable it. ACViewer also uses CullMode.None for CellStructs.
+            gl.Disable(EnableCap.CullFace);
 
             _shader.Bind();
             _shader.SetUniform("uViewProjection", viewProjection);
@@ -594,20 +600,12 @@ namespace WorldBuilder.Editors.Landscape {
                 gl.VertexAttribDivisor((uint)(3 + i), 1);
             }
 
-            bool cullFaceEnabled = true;
+            // Culling is disabled globally for EnvCell geometry (set in Render method),
+            // so no per-batch cull toggling needed.
             foreach (var batch in renderData.Batches) {
                 if (batch.TextureArray == null) continue;
 
                 try {
-                    if (batch.IsDoubleSided && cullFaceEnabled) {
-                        gl.Disable(EnableCap.CullFace);
-                        cullFaceEnabled = false;
-                    }
-                    else if (!batch.IsDoubleSided && !cullFaceEnabled) {
-                        gl.Enable(EnableCap.CullFace);
-                        cullFaceEnabled = true;
-                    }
-
                     batch.TextureArray.Bind(0);
                     _shader.SetUniform("uTextureArray", 0);
                     _shader.SetUniform("uTextureIndex", (float)batch.TextureIndex);
@@ -617,10 +615,6 @@ namespace WorldBuilder.Editors.Landscape {
                 catch (Exception ex) {
                     Console.WriteLine($"[EnvCellMgr] Error rendering batch: {ex.Message}");
                 }
-            }
-
-            if (!cullFaceEnabled) {
-                gl.Enable(EnableCap.CullFace);
             }
 
             gl.BindVertexArray(0);
