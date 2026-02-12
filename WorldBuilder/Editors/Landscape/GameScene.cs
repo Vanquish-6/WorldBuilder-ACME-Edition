@@ -33,6 +33,7 @@ namespace WorldBuilder.Editors.Landscape {
         private IShader _sphereShader;
 
         internal readonly StaticObjectManager _objectManager;
+        internal readonly EnvCellManager _envCellManager;
         private ThumbnailRenderService? _thumbnailService;
         public ThumbnailRenderService? ThumbnailService => _thumbnailService;
         private IDatReaderWriter _dats => _terrainSystem.Dats;
@@ -99,7 +100,7 @@ namespace WorldBuilder.Editors.Landscape {
         /// </summary>
         public HashSet<ushort>? VisibleLandblocks => _lastVisibleLandblocks;
 
-        private record BackgroundLoadResult(ushort LbKey, string DocId, List<StaticObject> Scenery, HashSet<(uint Id, bool IsSetup)> UniqueObjectIds, long LoadMs, long SceneryMs, int SceneryCount);
+        private record BackgroundLoadResult(ushort LbKey, string DocId, List<StaticObject> Scenery, HashSet<(uint Id, bool IsSetup)> UniqueObjectIds, long LoadMs, long SceneryMs, int SceneryCount, PreparedEnvCellBatch? EnvCellBatch = null);
 
         // Sphere rendering resources (from TerrainRenderer)
         private uint _sphereVAO;
@@ -162,6 +163,11 @@ namespace WorldBuilder.Editors.Landscape {
             set => _settings.Landscape.Overlay.ShowScenery = value;
         }
 
+        public bool ShowDungeons {
+            get => _settings.Landscape.Overlay.ShowDungeons;
+            set => _settings.Landscape.Overlay.ShowDungeons = value;
+        }
+
         public bool ShowSlopeHighlight {
             get => _settings.Landscape.Overlay.ShowSlopeHighlight;
             set => _settings.Landscape.Overlay.ShowSlopeHighlight = value;
@@ -222,6 +228,7 @@ namespace WorldBuilder.Editors.Landscape {
                 "WorldBuilder", "TextureCache");
             var textureCache = new TextureDiskCache(textureCacheDir);
             _objectManager = new StaticObjectManager(_renderer, _dats, textureCache);
+            _envCellManager = new EnvCellManager(_renderer, _dats, _objectManager._objectShader, textureCache);
             _thumbnailService = new ThumbnailRenderService(_gl, _objectManager);
 
             // Initialize shaders
@@ -385,6 +392,9 @@ namespace WorldBuilder.Editors.Landscape {
             // Incrementally warm up GPU render data (a few per frame, on main thread for GL context)
             WarmUpRenderData();
 
+            // Process queued dungeon EnvCell GPU uploads (must happen on GL thread)
+            _envCellManager.ProcessUploads(maxPerFrame: 2);
+
             // Thumbnail rendering moved to end of Render() where GL state is known-good
 
             long staticMs = sw.ElapsedMilliseconds;
@@ -441,12 +451,18 @@ namespace WorldBuilder.Editors.Landscape {
                     }
                 }
 
+                // Upload dungeon EnvCell GPU data (must happen on GL thread)
+                if (result.EnvCellBatch != null) {
+                    _envCellManager.QueueForUpload(result.EnvCellBatch);
+                }
+
                 _staticObjectsDirty = true;
                 integrated++;
 
                 Console.WriteLine($"[Statics] Integrated landblock {result.DocId}: " +
                     $"doc={result.LoadMs}ms, scenery={result.SceneryMs}ms ({result.SceneryCount} objects), " +
-                    $"unique models={result.UniqueObjectIds.Count}, warmup queue={_renderDataWarmupQueue.Count}");
+                    $"unique models={result.UniqueObjectIds.Count}, warmup queue={_renderDataWarmupQueue.Count}" +
+                    (result.EnvCellBatch != null ? $", envCells={result.EnvCellBatch.Cells.Count}" : ""));
             }
         }
 
@@ -499,6 +515,7 @@ namespace WorldBuilder.Editors.Landscape {
             var resultQueue = _backgroundLoadResults;
             var sceneryThreshold = GetEffectiveSceneryThreshold();
             var camPosCapture = cameraPosition;
+            var envCellManager = _envCellManager;
 
             _backgroundLoadTask = Task.Run(() => {
                 var batchSw = Stopwatch.StartNew();
@@ -539,7 +556,26 @@ namespace WorldBuilder.Editors.Landscape {
                                 uniqueIds.Add((obj.Id, obj.IsSetup));
                             }
 
-                            resultQueue.Enqueue(new BackgroundLoadResult(lbKey, docId, scenery, uniqueIds, loadMs, sceneryMs, scenery.Count));
+                            // Load dungeon EnvCell geometry (CPU preparation on background thread)
+                            PreparedEnvCellBatch? envCellBatch = null;
+                            if (!envCellManager.HasLoadedCells(lbKey)) {
+                                uint lbId = (uint)lbKey;
+                                uint infoId = lbId << 16 | 0xFFFE;
+                                if (dats.TryGet<LandBlockInfo>(infoId, out var lbi) && lbi.NumCells > 0) {
+                                    var envCells = new List<EnvCell>();
+                                    for (uint c = 0x0100; c < 0x0100 + lbi.NumCells; c++) {
+                                        uint cellId = (lbId << 16) | c;
+                                        if (dats.TryGet<EnvCell>(cellId, out var envCell)) {
+                                            envCells.Add(envCell);
+                                        }
+                                    }
+                                    if (envCells.Count > 0) {
+                                        envCellBatch = envCellManager.PrepareLandblockEnvCells(lbKey, lbId, envCells);
+                                    }
+                                }
+                            }
+
+                            resultQueue.Enqueue(new BackgroundLoadResult(lbKey, docId, scenery, uniqueIds, loadMs, sceneryMs, scenery.Count, envCellBatch));
                             loaded++;
                         }
                     }
@@ -601,6 +637,9 @@ namespace WorldBuilder.Editors.Landscape {
                             _objectManager.ReleaseRenderData(obj.Id, obj.IsSetup);
                         }
                     }
+
+                    // Unload dungeon EnvCell GPU data for this landblock
+                    _envCellManager.UnloadLandblock(lbKey);
 
                     // Fire-and-forget the document close (DB/IO work)
                     _ = _documentManager.CloseDocumentAsync(docId);
@@ -1292,6 +1331,11 @@ namespace WorldBuilder.Editors.Landscape {
                 Console.WriteLine($"[GameScene.Render] Static objects: {renderStaticsMs}ms ({visibleObjects.Count} objects)");
             }
 
+            // Render dungeon EnvCell geometry
+            if (ShowDungeons) {
+                _envCellManager.Render(viewProjection, camera, LightDirection, AmbientLightIntensity, SpecularPower);
+            }
+
             // Render selection highlight
             if (editingContext.ObjectSelection.HasSelection) {
                 RenderSelectionHighlight(editingContext.ObjectSelection, camera, viewProjection);
@@ -1703,6 +1747,7 @@ namespace WorldBuilder.Editors.Landscape {
                 _gl.DeleteVertexArray(_sphereVAO);
                 if (_instanceVBO != 0) _gl.DeleteBuffer(_instanceVBO);
                 _thumbnailService?.Dispose();
+                _envCellManager?.Dispose();
                 _objectManager?.Dispose();
                 GPUManager?.Dispose();
                 _disposed = true;

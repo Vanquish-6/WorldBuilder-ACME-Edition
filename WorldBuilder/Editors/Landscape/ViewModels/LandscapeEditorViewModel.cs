@@ -17,6 +17,7 @@ using WorldBuilder.Editors.Landscape;
 using WorldBuilder.Lib;
 using WorldBuilder.Lib.Settings;
 using WorldBuilder.Shared.Documents;
+using DatReaderWriter.DBObjs;
 using WorldBuilder.Shared.Lib;
 using WorldBuilder.Shared.Models;
 using WorldBuilder.ViewModels;
@@ -66,6 +67,11 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         public bool ShowScenery {
             get => Settings.Landscape.Overlay.ShowScenery;
             set { Settings.Landscape.Overlay.ShowScenery = value; OnPropertyChanged(); }
+        }
+
+        public bool ShowDungeons {
+            get => Settings.Landscape.Overlay.ShowDungeons;
+            set { Settings.Landscape.Overlay.ShowDungeons = value; OnPropertyChanged(); }
         }
 
         public bool ShowSlopeHighlight {
@@ -256,10 +262,37 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         public async Task GotoLandblock() {
             if (TerrainSystem == null) return;
 
-            var landblockId = await ShowGotoLandblockDialog();
-            if (landblockId == null) return;
+            var cellId = await ShowGotoLandblockDialog();
+            if (cellId == null) return;
 
-            NavigateToLandblock(landblockId.Value);
+            NavigateToCell(cellId.Value);
+        }
+
+        /// <summary>
+        /// Navigates to a full cell ID (0xLLLLCCCC) or landblock-only ID (0x0000LLLL).
+        /// If the cell portion is an EnvCell (>= 0x0100), navigates the camera to the
+        /// EnvCell's position underground. Otherwise, navigates to the overworld.
+        /// </summary>
+        public void NavigateToCell(uint fullCellId) {
+            if (TerrainSystem == null) return;
+
+            var lbId = (ushort)(fullCellId >> 16);
+            var cellPart = (ushort)(fullCellId & 0xFFFF);
+
+            // If only a landblock ID was given (no cell), go to overworld
+            if (lbId == 0 && cellPart != 0) {
+                // Input was 4-char hex like "C6AC" — treat cellPart as the landblock ID
+                NavigateToLandblock(cellPart);
+                return;
+            }
+
+            // If an EnvCell is specified (>= 0x0100), try to navigate to its position
+            if (cellPart >= 0x0100 && cellPart <= 0xFFFD) {
+                if (NavigateToEnvCell(lbId, cellPart)) return;
+            }
+
+            // Fallback: navigate to the overworld of the landblock
+            NavigateToLandblock(lbId);
         }
 
         public void NavigateToLandblock(ushort landblockId) {
@@ -283,12 +316,41 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             }
         }
 
-        private async Task<ushort?> ShowGotoLandblockDialog() {
-            ushort? result = null;
+        /// <summary>
+        /// Navigates the camera to a specific EnvCell's position within a landblock.
+        /// Returns true if successful, false if the EnvCell couldn't be read.
+        /// </summary>
+        private bool NavigateToEnvCell(ushort landblockId, ushort cellId) {
+            if (TerrainSystem == null) return false;
+
+            var dats = TerrainSystem.Dats;
+            uint fullId = ((uint)landblockId << 16) | cellId;
+            if (!dats.TryGet<EnvCell>(fullId, out var envCell)) return false;
+
+            var lbX = (landblockId >> 8) & 0xFF;
+            var lbY = landblockId & 0xFF;
+            var worldX = lbX * 192f + envCell.Position.Origin.X;
+            var worldY = lbY * 192f + envCell.Position.Origin.Y;
+            var worldZ = envCell.Position.Origin.Z;
+
+            var camera = TerrainSystem.Scene.CameraManager.Current;
+            if (camera is OrthographicTopDownCamera) {
+                camera.LookAt(new Vector3(worldX, worldY, worldZ));
+            }
+            else {
+                // Position perspective camera at the EnvCell, slightly offset
+                camera.SetPosition(worldX, worldY, worldZ + 10f);
+                camera.LookAt(new Vector3(worldX, worldY, worldZ));
+            }
+            return true;
+        }
+
+        private async Task<uint?> ShowGotoLandblockDialog() {
+            uint? result = null;
             var textBox = new TextBox {
                 Text = "",
                 Width = 300,
-                Watermark = "Hex ID (e.g. C6AC) or X,Y (e.g. 198,172)"
+                Watermark = "Hex ID (e.g. C6AC or 01D90108) or X,Y (e.g. 198,172)"
             };
             var errorText = new TextBlock {
                 Text = "",
@@ -302,12 +364,12 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 Spacing = 15,
                 Children = {
                     new TextBlock {
-                        Text = "Go to Landblock",
+                        Text = "Go to Location",
                         FontSize = 16,
                         FontWeight = FontWeight.Bold
                     },
                     new TextBlock {
-                        Text = "Enter a landblock ID in hex (e.g. C6AC)\nor as X,Y coordinates (e.g. 198,172).",
+                        Text = "Enter a landblock ID in hex (e.g. C6AC),\na full cell ID (e.g. 01D90108),\nor X,Y coordinates (e.g. 198,172).",
                         TextWrapping = TextWrapping.Wrap,
                         MaxWidth = 300,
                         FontSize = 12,
@@ -327,13 +389,13 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                             new Button {
                                 Content = "Go",
                                 Command = new RelayCommand(() => {
-                                    var parsed = ParseLandblockInput(textBox.Text);
+                                    var parsed = ParseLocationInput(textBox.Text);
                                     if (parsed != null) {
                                         result = parsed;
                                         DialogHost.Close("MainDialogHost");
                                     }
                                     else {
-                                        errorText.Text = "Invalid input. Use hex (C6AC) or X,Y (198,172).";
+                                        errorText.Text = "Invalid input. Use hex (C6AC or 01D90108) or X,Y (198,172).";
                                         errorText.IsVisible = true;
                                     }
                                 })
@@ -346,17 +408,23 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             return result;
         }
 
-        internal static ushort? ParseLandblockInput(string? input) {
+        /// <summary>
+        /// Parses user input for the Go To dialog. Returns a uint where:
+        /// - 4-char hex (e.g. "C6AC") returns 0x0000C6AC (landblock only, cell=0)
+        /// - 8-char hex (e.g. "01D90108") returns 0x01D90108 (full cell ID)
+        /// - X,Y (e.g. "198,172") returns 0x0000C6AC (landblock only)
+        /// </summary>
+        internal static uint? ParseLocationInput(string? input) {
             if (string.IsNullOrWhiteSpace(input)) return null;
             input = input.Trim();
 
-            // Try X,Y format
+            // Try X,Y format → landblock only
             if (input.Contains(',')) {
                 var parts = input.Split(',');
                 if (parts.Length == 2
                     && byte.TryParse(parts[0].Trim(), out var x)
                     && byte.TryParse(parts[1].Trim(), out var y)) {
-                    return (ushort)((x << 8) | y);
+                    return (uint)((x << 8) | y);
                 }
                 return null;
             }
@@ -366,8 +434,16 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 hex = hex[2..];
 
-            if (ushort.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hexId))
-                return hexId;
+            // 8-char hex → full cell ID (e.g. 01D90108 → landblock 0x01D9, cell 0x0108)
+            if (hex.Length > 4 && hex.Length <= 8) {
+                if (uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var fullId))
+                    return fullId;
+                return null;
+            }
+
+            // 1-4 char hex → landblock only (e.g. C6AC → 0x0000C6AC)
+            if (ushort.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var lbId))
+                return lbId;
 
             return null;
         }

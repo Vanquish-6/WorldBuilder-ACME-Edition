@@ -102,6 +102,18 @@
                         </StackPanel>
                     </ToggleButton>
                     <ToggleButton
+                        IsChecked="{Binding ShowDungeons}"
+                        ToolTip.Tip="Toggle Dungeon Geometry"
+                        Padding="6,4"
+                        FontSize="11"
+                        MinWidth="0"
+                        Focusable="False">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="&#x1F573;" FontSize="13" />
+                            <TextBlock Text="Dungeons" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ToggleButton>
+                    <ToggleButton
                         IsChecked="{Binding ShowSlopeHighlight}"
                         ToolTip.Tip="Highlight Unwalkable Slopes"
                         Padding="6,4"
