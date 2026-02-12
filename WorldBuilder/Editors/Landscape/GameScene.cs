@@ -50,6 +50,7 @@ namespace WorldBuilder.Editors.Landscape {
         public CameraManager CameraManager { get; private set; }
 
         private readonly Dictionary<ushort, List<StaticObject>> _sceneryObjects = new();
+        private readonly Dictionary<ushort, List<StaticObject>> _dungeonStaticObjects = new();
         internal readonly TerrainSystem _terrainSystem;
 
         // Static object background loading state
@@ -65,6 +66,7 @@ namespace WorldBuilder.Editors.Landscape {
         private bool _staticObjectsDirty = true;
         private bool _cachedShowStaticObjects = true;
         private bool _cachedShowScenery = true;
+        private bool _cachedShowDungeons = true;
 
         // Persistent instance buffer for static object instanced rendering (avoids per-frame alloc/dealloc)
         private uint _instanceVBO;
@@ -454,6 +456,16 @@ namespace WorldBuilder.Editors.Landscape {
                 // Upload dungeon EnvCell GPU data (must happen on GL thread)
                 if (result.EnvCellBatch != null) {
                     _envCellManager.QueueForUpload(result.EnvCellBatch);
+
+                    // Add dungeon static objects (furniture, torches, etc.) to the rendering pipeline
+                    if (result.EnvCellBatch.DungeonStaticObjects.Count > 0) {
+                        _dungeonStaticObjects[result.LbKey] = result.EnvCellBatch.DungeonStaticObjects;
+                        foreach (var obj in result.EnvCellBatch.DungeonStaticObjects) {
+                            if (_objectManager.TryGetCachedRenderData(obj.Id) == null && !_objectManager.IsKnownFailure(obj.Id)) {
+                                _renderDataWarmupQueue.Enqueue((obj.Id, obj.IsSetup));
+                            }
+                        }
+                    }
                 }
 
                 _staticObjectsDirty = true;
@@ -638,8 +650,14 @@ namespace WorldBuilder.Editors.Landscape {
                         }
                     }
 
-                    // Unload dungeon EnvCell GPU data for this landblock
+                    // Unload dungeon EnvCell GPU data and static objects for this landblock
                     _envCellManager.UnloadLandblock(lbKey);
+                    if (_dungeonStaticObjects.TryGetValue(lbKey, out var dungeonObjs)) {
+                        foreach (var obj in dungeonObjs) {
+                            _objectManager.ReleaseRenderData(obj.Id, obj.IsSetup);
+                        }
+                        _dungeonStaticObjects.Remove(lbKey);
+                    }
 
                     // Fire-and-forget the document close (DB/IO work)
                     _ = _documentManager.CloseDocumentAsync(docId);
@@ -1221,7 +1239,8 @@ namespace WorldBuilder.Editors.Landscape {
         public IEnumerable<StaticObject> GetAllStaticObjects() {
             if (_staticObjectsDirty || _cachedStaticObjects == null
                 || _cachedShowStaticObjects != ShowStaticObjects
-                || _cachedShowScenery != ShowScenery) {
+                || _cachedShowScenery != ShowScenery
+                || _cachedShowDungeons != ShowDungeons) {
                 var statics = new List<StaticObject>();
                 if (ShowStaticObjects) {
                     foreach (var doc in _documentManager.ActiveDocs.Values.OfType<LandblockDocument>()) {
@@ -1231,9 +1250,13 @@ namespace WorldBuilder.Editors.Landscape {
                 if (ShowScenery) {
                     statics.AddRange(_sceneryObjects.Values.SelectMany(x => x));
                 }
+                if (ShowDungeons) {
+                    statics.AddRange(_dungeonStaticObjects.Values.SelectMany(x => x));
+                }
                 _cachedStaticObjects = statics;
                 _cachedShowStaticObjects = ShowStaticObjects;
                 _cachedShowScenery = ShowScenery;
+                _cachedShowDungeons = ShowDungeons;
                 _staticObjectsDirty = false;
             }
             return _cachedStaticObjects;

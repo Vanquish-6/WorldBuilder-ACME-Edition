@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using WorldBuilder.Lib;
+using WorldBuilder.Shared.Documents;
 using WorldBuilder.Shared.Lib;
 using PixelFormat = Silk.NET.OpenGL.PixelFormat;
 
@@ -92,15 +93,39 @@ namespace WorldBuilder.Editors.Landscape {
                     if (prepared != null) {
                         batch.Cells.Add(prepared);
                     }
+
+                    // Extract static objects (furniture, torches, etc.) from inside this EnvCell.
+                    // Each Stab's Frame is in the EnvCell's local space; transform to world space.
+                    if (envCell.StaticObjects != null && envCell.StaticObjects.Count > 0) {
+                        var cellWorldTransform = Matrix4x4.CreateFromQuaternion(envCell.Position.Orientation)
+                            * Matrix4x4.CreateTranslation(envCell.Position.Origin + lbOffset);
+
+                        foreach (var stab in envCell.StaticObjects) {
+                            var localTransform = Matrix4x4.CreateFromQuaternion(stab.Frame.Orientation)
+                                * Matrix4x4.CreateTranslation(stab.Frame.Origin);
+                            var worldMatrix = localTransform * cellWorldTransform;
+
+                            // Decompose to get world position and orientation
+                            Matrix4x4.Decompose(worldMatrix, out _, out var worldRot, out var worldPos);
+
+                            batch.DungeonStaticObjects.Add(new StaticObject {
+                                Id = stab.Id,
+                                IsSetup = (stab.Id & 0x02000000) != 0,
+                                Origin = worldPos,
+                                Orientation = worldRot,
+                                Scale = Vector3.One
+                            });
+                        }
+                    }
                 }
                 catch (Exception ex) {
                     Console.WriteLine($"[EnvCellMgr] Error preparing EnvCell 0x{envCell.Id:X8}: {ex.Message}");
                 }
             }
 
-            Console.WriteLine($"[EnvCellMgr] LB 0x{lbKey:X4}: {envCells.Count} EnvCells in, {batch.Cells.Count} prepared OK");
+            Console.WriteLine($"[EnvCellMgr] LB 0x{lbKey:X4}: {envCells.Count} EnvCells in, {batch.Cells.Count} prepared OK, {batch.DungeonStaticObjects.Count} static objects");
 
-            return batch.Cells.Count > 0 ? batch : null;
+            return batch.Cells.Count > 0 || batch.DungeonStaticObjects.Count > 0 ? batch : null;
         }
 
         private PreparedEnvCell? PrepareEnvCell(EnvCell envCell, Vector3 lbOffset) {
@@ -734,6 +759,11 @@ namespace WorldBuilder.Editors.Landscape {
     public class PreparedEnvCellBatch {
         public ushort LandblockKey { get; set; }
         public List<PreparedEnvCell> Cells { get; set; } = new();
+        /// <summary>
+        /// Static objects (furniture, torches, decorations) from inside dungeon EnvCells,
+        /// already transformed to world space. Fed into the regular static object pipeline.
+        /// </summary>
+        public List<StaticObject> DungeonStaticObjects { get; set; } = new();
     }
 
     /// <summary>
