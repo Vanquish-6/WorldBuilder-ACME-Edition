@@ -68,6 +68,7 @@ namespace WorldBuilder.Editors.Landscape {
         private bool _cachedShowStaticObjects = true;
         private bool _cachedShowScenery = true;
         private bool _cachedShowDungeons = true;
+        private ushort? _cachedFocusedDungeonLB = null;
 
         // Persistent instance buffer for static object instanced rendering (avoids per-frame alloc/dealloc)
         private uint _instanceVBO;
@@ -1285,10 +1286,12 @@ namespace WorldBuilder.Editors.Landscape {
         public int GetVisibleChunkCount(Frustum frustum) => GetRenderableChunks(frustum).Count();
 
         public IEnumerable<StaticObject> GetAllStaticObjects() {
+            var focusedLB = _envCellManager.FocusedDungeonLB;
             if (_staticObjectsDirty || _cachedStaticObjects == null
                 || _cachedShowStaticObjects != ShowStaticObjects
                 || _cachedShowScenery != ShowScenery
-                || _cachedShowDungeons != ShowDungeons) {
+                || _cachedShowDungeons != ShowDungeons
+                || _cachedFocusedDungeonLB != focusedLB) {
                 var statics = new List<StaticObject>();
                 if (ShowStaticObjects) {
                     foreach (var doc in _documentManager.ActiveDocs.Values.OfType<LandblockDocument>()) {
@@ -1299,12 +1302,17 @@ namespace WorldBuilder.Editors.Landscape {
                     statics.AddRange(_sceneryObjects.Values.SelectMany(x => x));
                 }
                 if (ShowDungeons) {
-                    statics.AddRange(_dungeonStaticObjects.Values.SelectMany(x => x));
+                    // Respect dungeon focus filter — only include statics from the focused landblock
+                    foreach (var kvp in _dungeonStaticObjects) {
+                        if (focusedLB.HasValue && kvp.Key != focusedLB.Value) continue;
+                        statics.AddRange(kvp.Value);
+                    }
                 }
                 _cachedStaticObjects = statics;
                 _cachedShowStaticObjects = ShowStaticObjects;
                 _cachedShowScenery = ShowScenery;
                 _cachedShowDungeons = ShowDungeons;
+                _cachedFocusedDungeonLB = focusedLB;
                 _staticObjectsDirty = false;
             }
             return _cachedStaticObjects;
@@ -1428,6 +1436,48 @@ namespace WorldBuilder.Editors.Landscape {
         /// </summary>
         private unsafe void RenderSelectionHighlight(ObjectSelectionState selection, ICamera camera, Matrix4x4 viewProjection) {
             if (!selection.HasSelection) return;
+
+            // EnvCell (dungeon cell) highlight — use cell bounding box corners
+            if (selection.HasEnvCellSelection) {
+                var cell = selection.SelectedEnvCell!;
+                float r = EnvCellManager.CellBoundsRadius;
+                float sphereR = r * 0.08f; // proportional sphere size
+                var pos = cell.WorldPosition;
+                var cellCorners = new List<Vector4>();
+
+                // 8 corners of the bounding box
+                for (int cx = -1; cx <= 1; cx += 2)
+                    for (int cy = -1; cy <= 1; cy += 2)
+                        for (int cz = -1; cz <= 1; cz += 2)
+                            cellCorners.Add(new Vector4(pos.X + cx * r, pos.Y + cy * r, pos.Z + cz * r, sphereR));
+
+                _gl.Enable(EnableCap.Blend);
+                _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+                _sphereShader.Bind();
+                _sphereShader.SetUniform("uViewProjection", viewProjection);
+                _sphereShader.SetUniform("uCameraPosition", camera.Position);
+                _sphereShader.SetUniform("uSphereColor", new Vector3(0.0f, 0.8f, 1.0f)); // Cyan for dungeon cells
+                _sphereShader.SetUniform("uLightDirection", Vector3.Normalize(LightDirection));
+                _sphereShader.SetUniform("uAmbientIntensity", 0.8f);
+                _sphereShader.SetUniform("uSpecularPower", SpecularPower);
+                _sphereShader.SetUniform("uGlowColor", new Vector3(0.0f, 0.8f, 1.0f));
+                _sphereShader.SetUniform("uGlowIntensity", 2.0f);
+                _sphereShader.SetUniform("uGlowPower", 0.3f);
+
+                var cellArray = cellCorners.ToArray();
+                _gl.BindBuffer(GLEnum.ArrayBuffer, _sphereInstanceVBO);
+                unsafe {
+                    fixed (Vector4* ptr = cellArray) {
+                        _gl.BufferData(GLEnum.ArrayBuffer, (nuint)(cellArray.Length * sizeof(Vector4)), ptr, GLEnum.DynamicDraw);
+                    }
+                }
+                _gl.BindVertexArray(_sphereVAO);
+                _gl.DrawElementsInstanced(GLEnum.Triangles, (uint)_sphereIndexCount, GLEnum.UnsignedInt, null, (uint)cellArray.Length);
+                _gl.BindVertexArray(0);
+                _gl.UseProgram(0);
+                _gl.Disable(EnableCap.Blend);
+                return; // EnvCell selection handled, skip static object highlight
+            }
 
             // Collect corners for all selected objects, with per-object sphere radius
             var allInstances = new List<Vector4>();

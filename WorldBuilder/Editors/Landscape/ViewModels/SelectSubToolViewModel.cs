@@ -60,7 +60,23 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             _suppressPropertyUpdates = true;
             var sel = Context.ObjectSelection;
 
-            if (sel.IsMultiSelection) {
+            if (sel.HasEnvCellSelection) {
+                // Dungeon cell selected — show cell info (read-only)
+                var cell = sel.SelectedEnvCell!;
+                ushort cellLb = (ushort)(cell.CellId >> 16);
+                SelectedObjectInfo = "Dungeon Cell";
+                SelectedObjectId = $"CellId: 0x{cell.CellId:X8}  (LoadedLB: 0x{cell.LoadedLandblockKey:X4})";
+                HasEditableSelection = false;
+                PositionX = cell.WorldPosition.X;
+                PositionY = cell.WorldPosition.Y;
+                PositionZ = cell.WorldPosition.Z;
+                RotationX = 0; RotationY = 0; RotationZ = 0;
+                var envMgr = Context.TerrainSystem.Scene._envCellManager;
+                var dungeonLbs = envMgr.GetLoadedDungeonLandblocks();
+                int dungeonIdx = dungeonLbs.IndexOf(cell.LoadedLandblockKey) + 1;
+                LandcellText = $"LB: 0x{cell.LoadedLandblockKey:X4}  Env: 0x{cell.EnvironmentId:X8}  Surfaces: {cell.SurfaceCount}  [{dungeonIdx}/{dungeonLbs.Count}]";
+            }
+            else if (sel.IsMultiSelection) {
                 // Multi-selection: show count, hide individual editing
                 var nonSceneryCount = sel.SelectedEntries.Count(e => !e.IsScenery);
                 SelectedObjectId = "";
@@ -315,10 +331,22 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 }
                 return true;
             }
+            // Dungeon cell selection (EnvCell click) — auto-focus that dungeon
+            else if (mouseState.EnvCellHit.HasValue && mouseState.EnvCellHit.Value.Hit) {
+                var hitCell = mouseState.EnvCellHit.Value.Cell;
+                Context.ObjectSelection.SelectEnvCell(hitCell);
+                Context.TerrainSystem.Scene._envCellManager.FocusedDungeonLB = hitCell.LoadedLandblockKey;
+                Context.TerrainSystem.Scene.InvalidateStaticObjectsCache();
+                return true;
+            }
             else {
-                // Clicked empty space — start marquee drag
+                // Clicked empty space — start marquee drag, clear dungeon focus
                 if (!mouseState.CtrlPressed) {
                     Context.ObjectSelection.Deselect();
+                    if (Context.TerrainSystem.Scene._envCellManager.FocusedDungeonLB.HasValue) {
+                        Context.TerrainSystem.Scene._envCellManager.FocusedDungeonLB = null;
+                        Context.TerrainSystem.Scene.InvalidateStaticObjectsCache();
+                    }
                 }
                 IsMarqueeActive = true;
                 MarqueeStart = mouseState.Position;

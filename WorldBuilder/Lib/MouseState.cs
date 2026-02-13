@@ -14,5 +14,6 @@ namespace WorldBuilder.Lib {
         public bool IsOverTerrain;
         public TerrainRaycast.TerrainRaycastHit? TerrainHit;
         public ObjectRaycast.ObjectRaycastHit? ObjectHit;
+        public EnvCellManager.EnvCellRaycastHit? EnvCellHit;
     }
 }

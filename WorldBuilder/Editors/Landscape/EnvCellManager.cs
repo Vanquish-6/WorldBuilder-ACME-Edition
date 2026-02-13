@@ -43,6 +43,38 @@ namespace WorldBuilder.Editors.Landscape {
         // Per-landblock list of loaded dungeon cells
         private readonly Dictionary<ushort, List<LoadedEnvCell>> _loadedCells = new();
 
+        /// <summary>
+        /// When set, only render dungeon cells from this landblock. Null = show all.
+        /// </summary>
+        public ushort? FocusedDungeonLB { get; set; }
+
+        /// <summary>
+        /// Returns all landblock keys that have loaded dungeon cells, sorted.
+        /// </summary>
+        public List<ushort> GetLoadedDungeonLandblocks() => _loadedCells.Keys.OrderBy(k => k).ToList();
+
+        /// <summary>
+        /// Cycles to the next loaded dungeon landblock. Wraps around.
+        /// </summary>
+        public void FocusNextDungeon() {
+            var lbs = GetLoadedDungeonLandblocks();
+            if (lbs.Count == 0) { FocusedDungeonLB = null; return; }
+            if (!FocusedDungeonLB.HasValue) { FocusedDungeonLB = lbs[0]; return; }
+            int idx = lbs.IndexOf(FocusedDungeonLB.Value);
+            FocusedDungeonLB = lbs[(idx + 1) % lbs.Count];
+        }
+
+        /// <summary>
+        /// Cycles to the previous loaded dungeon landblock. Wraps around.
+        /// </summary>
+        public void FocusPrevDungeon() {
+            var lbs = GetLoadedDungeonLandblocks();
+            if (lbs.Count == 0) { FocusedDungeonLB = null; return; }
+            if (!FocusedDungeonLB.HasValue) { FocusedDungeonLB = lbs[^1]; return; }
+            int idx = lbs.IndexOf(FocusedDungeonLB.Value);
+            FocusedDungeonLB = lbs[(idx - 1 + lbs.Count) % lbs.Count];
+        }
+
         // Track failed IDs to avoid repeated DAT reads
         private readonly HashSet<uint> _failedEnvironments = new();
 
@@ -95,14 +127,14 @@ namespace WorldBuilder.Editors.Landscape {
 
             foreach (var envCell in envCells) {
                 try {
-                    var prepared = PrepareEnvCell(envCell, lbOffset);
+                    var prepared = PrepareEnvCell(envCell, lbOffset, lbKey);
                     if (prepared != null) {
                         batch.Cells.Add(prepared);
                     }
 
                     // Extract static objects (furniture, torches, etc.) from inside this EnvCell.
-                    // Stab positions are already in landblock-local space (not cell-relative),
-                    // so we just add the landblock world offset — no cell rotation needed.
+                    // Stab positions are in landblock-local space (already account for cell
+                    // position and rotation), so we just add the landblock world offset.
                     if (envCell.StaticObjects != null && envCell.StaticObjects.Count > 0) {
                         foreach (var stab in envCell.StaticObjects) {
                             batch.DungeonStaticObjects.Add(new StaticObject {
@@ -125,7 +157,7 @@ namespace WorldBuilder.Editors.Landscape {
             return batch.Cells.Count > 0 || batch.DungeonStaticObjects.Count > 0 ? batch : null;
         }
 
-        private PreparedEnvCell? PrepareEnvCell(EnvCell envCell, Vector3 lbOffset) {
+        private PreparedEnvCell? PrepareEnvCell(EnvCell envCell, Vector3 lbOffset, ushort lbKey = 0) {
             // Load Environment from portal.dat
             uint envFileId = (uint)(envCell.EnvironmentId | 0x0D000000);
             if (_failedEnvironments.Contains(envFileId)) return null;
@@ -141,9 +173,8 @@ namespace WorldBuilder.Editors.Landscape {
                 }
             }
 
-            // Get the CellStruct for this cell
+            // Get the CellStruct for this cell.
             if (!env.Cells.TryGetValue(envCell.CellStructure, out var cellStruct)) {
-                Console.WriteLine($"[EnvCellMgr] CellStruct {envCell.CellStructure} not found in Environment 0x{envFileId:X8}");
                 return null;
             }
 
@@ -160,12 +191,8 @@ namespace WorldBuilder.Editors.Landscape {
                 surfaceIds.Add((uint)(surfId | 0x08000000));
             }
 
-            Console.WriteLine($"[EnvCellMgr]   Cell 0x{envCell.Id:X8} env=0x{envFileId:X8} struct={envCell.CellStructure} " +
-                $"surfaces={surfaceIds.Count} polygons={cellStruct.Polygons.Count} " +
-                $"pos=({cellOrigin.X:F1},{cellOrigin.Y:F1},{cellOrigin.Z:F1})");
-
             // Check if we already have GPU data for this exact geometry+surface combo
-            var gpuKey = new EnvCellGpuKey(envFileId, envCell.CellStructure, ComputeSurfaceHash(surfaceIds));
+            var gpuKey = new EnvCellGpuKey(envFileId, envCell.CellStructure, surfaceIds);
 
             // Build vertex/index data from CellStruct (same approach as StaticObjectManager.PrepareGfxObjData)
             var meshData = PrepareCellStructMesh(cellStruct, surfaceIds);
@@ -175,7 +202,11 @@ namespace WorldBuilder.Editors.Landscape {
                 GpuKey = gpuKey,
                 WorldTransform = worldTransform,
                 WorldPosition = cellOrigin,
-                MeshData = meshData
+                MeshData = meshData,
+                CellId = envCell.Id,
+                EnvironmentId = envFileId,
+                SurfaceCount = surfaceIds.Count,
+                LoadedLandblockKey = lbKey
             };
         }
 
@@ -192,19 +223,24 @@ namespace WorldBuilder.Editors.Landscape {
                 if (poly.VertexIds.Count < 3) continue;
 
                 // Skip portal polygons (openings between rooms) — they have no renderable
-                // surface and should not be drawn. ACViewer also skips these.
-                if (poly.Stippling == StipplingType.NoPos) continue;
+                // surface and should not be drawn. StipplingType is a flags enum:
+                //   NoPos (bit 0) = no positive surface
+                //   NoNeg (bit 1) = no negative surface
+                // Use HasFlag to catch both pure NoPos and compound types like NoBoth.
+                if (poly.Stippling.HasFlag(StipplingType.NoPos)) continue;
 
                 // EnvCell polygons reference surfaces from the EnvCell's Surfaces list
                 int surfaceIdx = poly.PosSurface;
                 bool useNegSurface = false;
 
-                if (surfaceIdx >= surfaceIds.Count) continue;
+                if (surfaceIdx < 0 || surfaceIdx >= surfaceIds.Count) continue;
 
                 var surfaceId = surfaceIds[surfaceIdx];
                 if (!_dats.TryGet<Surface>(surfaceId, out var surface)) continue;
 
-                bool isSolid = poly.Stippling == StipplingType.NoPos || surface.Type.HasFlag(SurfaceType.Base1Solid);
+                // NoPos polygons are already skipped above, so the stippling check here
+                // only matters for Base1Solid surfaces.
+                bool isSolid = surface.Type.HasFlag(SurfaceType.Base1Solid);
                 var texResult = LoadTextureData(surfaceId, surface, isSolid, poly.Stippling);
                 if (!texResult.HasValue) continue;
 
@@ -436,7 +472,11 @@ namespace WorldBuilder.Editors.Landscape {
                 cells.Add(new LoadedEnvCell {
                     GpuKey = prepared.GpuKey,
                     WorldTransform = prepared.WorldTransform,
-                    WorldPosition = prepared.WorldPosition
+                    WorldPosition = prepared.WorldPosition,
+                    CellId = prepared.CellId,
+                    EnvironmentId = prepared.EnvironmentId,
+                    SurfaceCount = prepared.SurfaceCount,
+                    LoadedLandblockKey = prepared.LoadedLandblockKey
                 });
             }
 
@@ -555,8 +595,11 @@ namespace WorldBuilder.Editors.Landscape {
             const float cellBoundsRadius = 50f; // Approximate bounding radius for a dungeon room
             foreach (var list in _cellGroupBuffer.Values) list.Clear();
 
-            foreach (var lbCells in _loadedCells.Values) {
-                foreach (var cell in lbCells) {
+            foreach (var kvp in _loadedCells) {
+                // Filter: only render the focused dungeon's landblock (if set)
+                if (FocusedDungeonLB.HasValue && kvp.Key != FocusedDungeonLB.Value) continue;
+
+                foreach (var cell in kvp.Value) {
                     // Frustum cull: skip cells whose bounding box is entirely outside the view
                     var cellBounds = new Chorizite.Core.Lib.BoundingBox(
                         cell.WorldPosition - new Vector3(cellBoundsRadius),
@@ -647,7 +690,11 @@ namespace WorldBuilder.Editors.Landscape {
                 try {
                     batch.TextureArray.Bind(0);
                     _shader.SetUniform("uTextureArray", 0);
-                    _shader.SetUniform("uTextureIndex", (float)batch.TextureIndex);
+                    // The shader reads texture index from vertex attribute location 7 (aTextureIndex),
+                    // NOT from a uniform. Use glVertexAttrib1f to set a constant value for all vertices
+                    // when no VBO is bound to that attribute. This is the same approach the shader expects.
+                    gl.DisableVertexAttribArray(7); // ensure no VBO is bound to location 7
+                    gl.VertexAttrib1((uint)7, (float)batch.TextureIndex);
                     gl.BindBuffer(GLEnum.ElementArrayBuffer, batch.IBO);
                     gl.DrawElementsInstanced(GLEnum.Triangles, (uint)batch.IndexCount, GLEnum.UnsignedShort, null, (uint)instanceTransforms.Count);
                 }
@@ -716,13 +763,86 @@ namespace WorldBuilder.Editors.Landscape {
 
         #region Helpers
 
-        private static uint ComputeSurfaceHash(List<uint> surfaceIds) {
-            uint hash = 2166136261u; // FNV-1a offset basis
-            foreach (var id in surfaceIds) {
-                hash ^= id;
-                hash *= 16777619u; // FNV-1a prime
+        /// <summary>
+        /// Approximate bounding radius for dungeon cells (frustum culling — kept large).
+        /// </summary>
+        public const float CellBoundsRadius = 50f;
+
+        /// <summary>
+        /// Tighter bounding radius for ray picking (cells are typically ~10 units wide).
+        /// </summary>
+        public const float CellPickRadius = 4f;
+
+        /// <summary>
+        /// Hit result from an EnvCell raycast.
+        /// </summary>
+        public struct EnvCellRaycastHit {
+            public bool Hit;
+            public LoadedEnvCell Cell;
+            public float Distance;
+            public Vector3 HitPosition;
+        }
+
+        /// <summary>
+        /// Performs a ray-AABB intersection test against all loaded dungeon cells.
+        /// Returns the closest hit cell, or a miss result.
+        /// </summary>
+        public EnvCellRaycastHit Raycast(Vector3 rayOrigin, Vector3 rayDirection) {
+            var result = new EnvCellRaycastHit { Hit = false, Distance = float.MaxValue };
+
+            foreach (var kvp in _loadedCells) {
+                // Only raycast against focused dungeon (if set), otherwise all
+                if (FocusedDungeonLB.HasValue && kvp.Key != FocusedDungeonLB.Value) continue;
+
+                foreach (var cell in kvp.Value) {
+                    var aabbMin = cell.WorldPosition - new Vector3(CellPickRadius);
+                    var aabbMax = cell.WorldPosition + new Vector3(CellPickRadius);
+
+                    if (RayIntersectsAABB(rayOrigin, rayDirection, aabbMin, aabbMax, out float dist)) {
+                        if (dist < result.Distance) {
+                            result = new EnvCellRaycastHit {
+                                Hit = true,
+                                Cell = cell,
+                                Distance = dist,
+                                HitPosition = rayOrigin + rayDirection * dist
+                            };
+                        }
+                    }
+                }
             }
-            return hash;
+
+            return result;
+        }
+
+        /// <summary>
+        /// Ray-AABB intersection test (slab method).
+        /// </summary>
+        private static bool RayIntersectsAABB(Vector3 rayOrigin, Vector3 rayDir, Vector3 aabbMin, Vector3 aabbMax, out float distance) {
+            distance = 0f;
+            float tMin = float.MinValue;
+            float tMax = float.MaxValue;
+
+            for (int i = 0; i < 3; i++) {
+                float origin = i == 0 ? rayOrigin.X : i == 1 ? rayOrigin.Y : rayOrigin.Z;
+                float dir = i == 0 ? rayDir.X : i == 1 ? rayDir.Y : rayDir.Z;
+                float min = i == 0 ? aabbMin.X : i == 1 ? aabbMin.Y : aabbMin.Z;
+                float max = i == 0 ? aabbMax.X : i == 1 ? aabbMax.Y : aabbMax.Z;
+
+                if (Math.Abs(dir) < 1e-8f) {
+                    if (origin < min || origin > max) return false;
+                }
+                else {
+                    float t1 = (min - origin) / dir;
+                    float t2 = (max - origin) / dir;
+                    if (t1 > t2) (t1, t2) = (t2, t1);
+                    tMin = Math.Max(tMin, t1);
+                    tMax = Math.Min(tMax, t2);
+                    if (tMin > tMax) return false;
+                }
+            }
+
+            distance = tMin >= 0 ? tMin : tMax;
+            return distance >= 0;
         }
 
         #endregion
@@ -750,9 +870,26 @@ namespace WorldBuilder.Editors.Landscape {
 
     /// <summary>
     /// Unique key for GPU-cached EnvCell geometry. Combines the Environment ID, CellStructure index,
-    /// and a hash of the surface list (since different EnvCells can share geometry but have different textures).
+    /// and the full surface list (to avoid hash collisions that cause wrong textures).
     /// </summary>
-    public readonly record struct EnvCellGpuKey(uint EnvironmentId, uint CellStructure, uint SurfaceHash);
+    public readonly record struct EnvCellGpuKey : IEquatable<EnvCellGpuKey> {
+        public readonly uint EnvironmentId;
+        public readonly uint CellStructure;
+        private readonly string _surfaceKey;
+
+        public EnvCellGpuKey(uint environmentId, uint cellStructure, List<uint> surfaceIds) {
+            EnvironmentId = environmentId;
+            CellStructure = cellStructure;
+            _surfaceKey = string.Join(",", surfaceIds);
+        }
+
+        public bool Equals(EnvCellGpuKey other) =>
+            EnvironmentId == other.EnvironmentId &&
+            CellStructure == other.CellStructure &&
+            _surfaceKey == other._surfaceKey;
+
+        public override int GetHashCode() => HashCode.Combine(EnvironmentId, CellStructure, _surfaceKey);
+    }
 
     /// <summary>
     /// GPU resource data for a rendered CellStruct instance.
@@ -772,6 +909,14 @@ namespace WorldBuilder.Editors.Landscape {
         public Matrix4x4 WorldTransform { get; set; }
         /// <summary>World-space position for frustum culling.</summary>
         public Vector3 WorldPosition { get; set; }
+        /// <summary>Original cell ID from cell.dat (e.g. 0x01D90105).</summary>
+        public uint CellId { get; set; }
+        /// <summary>Qualified environment file ID (0x0D000000 range).</summary>
+        public uint EnvironmentId { get; set; }
+        /// <summary>Number of surfaces in this cell's surface list.</summary>
+        public int SurfaceCount { get; set; }
+        /// <summary>Landblock key this cell was loaded under (from GameScene, always correct).</summary>
+        public ushort LoadedLandblockKey { get; set; }
     }
 
     /// <summary>
@@ -796,6 +941,10 @@ namespace WorldBuilder.Editors.Landscape {
         /// <summary>World-space position for frustum culling.</summary>
         public Vector3 WorldPosition { get; set; }
         public PreparedCellStructMesh MeshData { get; set; } = null!;
+        public uint CellId { get; set; }
+        public uint EnvironmentId { get; set; }
+        public int SurfaceCount { get; set; }
+        public ushort LoadedLandblockKey { get; set; }
     }
 
     /// <summary>

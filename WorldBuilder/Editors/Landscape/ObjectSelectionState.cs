@@ -27,9 +27,26 @@ namespace WorldBuilder.Editors.Landscape {
         /// </summary>
         public event EventHandler? SelectionChanged;
 
+        // --- EnvCell (dungeon cell) selection ---
+
+        /// <summary>The currently selected dungeon cell, or null if none.</summary>
+        public LoadedEnvCell? SelectedEnvCell { get; private set; }
+
+        /// <summary>True if a dungeon cell is selected (mutually exclusive with object selection).</summary>
+        public bool HasEnvCellSelection => SelectedEnvCell != null;
+
+        /// <summary>
+        /// Selects a dungeon cell. Clears any object selection.
+        /// </summary>
+        public void SelectEnvCell(LoadedEnvCell cell) {
+            _selectedObjects.Clear();
+            SelectedEnvCell = cell;
+            SelectionChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         // --- Backward-compatible single-selection properties (primary = first in list) ---
 
-        public bool HasSelection => _selectedObjects.Count > 0;
+        public bool HasSelection => _selectedObjects.Count > 0 || SelectedEnvCell != null;
         public StaticObject? SelectedObject => _selectedObjects.Count > 0 ? _selectedObjects[0].Object : null;
         public ushort SelectedLandblockKey => _selectedObjects.Count > 0 ? _selectedObjects[0].LandblockKey : (ushort)0;
         public int SelectedObjectIndex => _selectedObjects.Count > 0 ? _selectedObjects[0].ObjectIndex : -1;
@@ -55,6 +72,7 @@ namespace WorldBuilder.Editors.Landscape {
         /// </summary>
         public void Select(StaticObject obj, ushort landblockKey, int objectIndex, bool isScenery) {
             _selectedObjects.Clear();
+            SelectedEnvCell = null; // clear EnvCell selection when selecting an object
             _selectedObjects.Add(new SelectedEntry {
                 Object = obj,
                 LandblockKey = landblockKey,
@@ -104,6 +122,7 @@ namespace WorldBuilder.Editors.Landscape {
         /// </summary>
         public void Deselect() {
             _selectedObjects.Clear();
+            SelectedEnvCell = null;
             SelectionChanged?.Invoke(this, EventArgs.Empty);
         }
 
