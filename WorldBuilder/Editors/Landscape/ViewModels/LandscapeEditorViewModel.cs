@@ -107,9 +107,15 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             var pViewport = new ViewportViewModel(pCam) { Title = "Perspective", IsActive = true };
             var orthoViewport = new ViewportViewModel(orthoCam) { Title = "Top Down", IsActive = false };
 
-            // Wire up rendering
+            // Wire up rendering and input
             pViewport.RenderAction = (dt, size, input) => RenderViewport(pViewport, dt, size, input);
             orthoViewport.RenderAction = (dt, size, input) => RenderViewport(orthoViewport, dt, size, input);
+
+            pViewport.PointerWheelAction = (e) => HandleViewportWheel(pViewport, e);
+            orthoViewport.PointerWheelAction = (e) => HandleViewportWheel(orthoViewport, e);
+
+            pViewport.PointerPressedAction = (e) => HandleViewportClick(pViewport, e);
+            orthoViewport.PointerPressedAction = (e) => HandleViewportClick(orthoViewport, e);
 
             Viewports.Add(pViewport);
             Viewports.Add(orthoViewport);
@@ -190,6 +196,37 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             // It calls `tool.RenderOverlay`.
             // I should add `tool.RenderOverlay` call here.
             SelectedTool?.RenderOverlay(viewport.Renderer, viewport.Camera, (float)canvasSize.Width / canvasSize.Height);
+        }
+
+        private void HandleViewportClick(ViewportViewModel viewport, PointerPressedEventArgs e) {
+            foreach (var v in Viewports) {
+                v.IsActive = v == viewport;
+            }
+        }
+
+        private void HandleViewportWheel(ViewportViewModel viewport, PointerWheelEventArgs e) {
+            var camera = viewport.Camera;
+            if (camera is PerspectiveCamera perspectiveCamera) {
+                perspectiveCamera.ProcessMouseScroll((float)e.Delta.Y);
+            }
+            else if (camera is OrthographicTopDownCamera orthoCamera) {
+                // We need the mouse position relative to the viewport
+                // PointerWheelEventArgs gives us position relative to the source
+                // ViewportControl handles this? No, we need logic.
+                // e.GetPosition(null) ?
+                // The camera needs screen coordinates (0..Width, 0..Height)
+                // ViewportControl passes 'e'.
+                // We can't easily get the control bounds here in ViewModel without passing sender.
+                // But InputState in HandleViewportInput has MouseState.Position.
+                // However, that's updated in Render loop. Wheel event is async.
+                // Let's assume center zoom if position is hard, OR pass position from ViewportControl.
+                // But OrthoCamera.ProcessMouseScrollAtCursor needs position.
+                // I'll stick to simple ProcessMouseScroll for now which zooms to center/forward.
+                // orthoCamera.ProcessMouseScrollAtCursor requires screen pos.
+                // I'll use ProcessMouseScroll which zooms at center.
+                orthoCamera.ProcessMouseScroll((float)e.Delta.Y);
+            }
+            SyncCameras(camera);
         }
 
         private void HandleViewportInput(ViewportViewModel viewport, AvaloniaInputState inputState, double deltaTime) {
