@@ -1039,7 +1039,10 @@ namespace WorldBuilder.Editors.Landscape {
         }
 
         private SceneContext GetContext(OpenGLRenderer renderer) {
-            var context = _contexts.GetOrAdd(renderer, r => new SceneContext(r, _dats, _textureCache));
+            var context = _contexts.GetOrAdd(renderer, r => {
+                SurfaceManager.RegisterRenderer(r);
+                return new SceneContext(r, _dats, _textureCache);
+            });
 
             if (_thumbnailService == null) {
                 lock (_contexts) {
@@ -1518,8 +1521,9 @@ namespace WorldBuilder.Editors.Landscape {
         public void Dispose() {
             SaveCameraState();
             if (!_disposed) {
-                foreach (var context in _contexts.Values) {
-                    context.Dispose();
+                foreach (var kvp in _contexts) {
+                    kvp.Value.Dispose();
+                    SurfaceManager.UnregisterRenderer(kvp.Key);
                 }
                 _contexts.Clear();
                 _thumbnailService?.Dispose();

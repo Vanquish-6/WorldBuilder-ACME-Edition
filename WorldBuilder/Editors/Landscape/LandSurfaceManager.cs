@@ -28,6 +28,7 @@ namespace WorldBuilder.Editors.Landscape {
 
         private readonly Dictionary<OpenGLRenderer, ITextureArray> _terrainAtlases = new();
         private readonly Dictionary<OpenGLRenderer, ITextureArray> _alphaAtlases = new();
+        private readonly object _lock = new();
 
         private static readonly Vector2[] LandUVs = new Vector2[] {
             new Vector2(0, 1), new Vector2(1, 1), new Vector2(1, 0), new Vector2(0, 0)
@@ -71,27 +72,31 @@ namespace WorldBuilder.Editors.Landscape {
         }
 
         public void RegisterRenderer(OpenGLRenderer renderer) {
-            if (_terrainAtlases.ContainsKey(renderer)) return;
+            lock (_lock) {
+                if (_terrainAtlases.ContainsKey(renderer)) return;
 
-            var terrainAtlas = renderer.GraphicsDevice.CreateTextureArray(TextureFormat.RGBA8, 512, 512, 36)
-                ?? throw new Exception("Unable to create terrain atlas.");
-            var alphaAtlas = renderer.GraphicsDevice.CreateTextureArray(TextureFormat.RGBA8, 512, 512, 16)
-                ?? throw new Exception("Unable to create terrain atlas.");
+                var terrainAtlas = renderer.GraphicsDevice.CreateTextureArray(TextureFormat.RGBA8, 512, 512, 36)
+                    ?? throw new Exception("Unable to create terrain atlas.");
+                var alphaAtlas = renderer.GraphicsDevice.CreateTextureArray(TextureFormat.RGBA8, 512, 512, 16)
+                    ?? throw new Exception("Unable to create terrain atlas.");
 
-            _terrainAtlases[renderer] = terrainAtlas;
-            _alphaAtlases[renderer] = alphaAtlas;
+                _terrainAtlases[renderer] = terrainAtlas;
+                _alphaAtlases[renderer] = alphaAtlas;
 
-            LoadTextures(renderer, terrainAtlas, alphaAtlas);
+                LoadTextures(renderer, terrainAtlas, alphaAtlas);
+            }
         }
 
         public void UnregisterRenderer(OpenGLRenderer renderer) {
-            if (_terrainAtlases.TryGetValue(renderer, out var t)) {
-                t.Dispose();
-                _terrainAtlases.Remove(renderer);
-            }
-            if (_alphaAtlases.TryGetValue(renderer, out var a)) {
-                a.Dispose();
-                _alphaAtlases.Remove(renderer);
+            lock (_lock) {
+                if (_terrainAtlases.TryGetValue(renderer, out var t)) {
+                    t.Dispose();
+                    _terrainAtlases.Remove(renderer);
+                }
+                if (_alphaAtlases.TryGetValue(renderer, out var a)) {
+                    a.Dispose();
+                    _alphaAtlases.Remove(renderer);
+                }
             }
         }
 
