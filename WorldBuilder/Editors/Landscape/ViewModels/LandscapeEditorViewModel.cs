@@ -210,20 +210,6 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 perspectiveCamera.ProcessMouseScroll((float)e.Delta.Y);
             }
             else if (camera is OrthographicTopDownCamera orthoCamera) {
-                // We need the mouse position relative to the viewport
-                // PointerWheelEventArgs gives us position relative to the source
-                // ViewportControl handles this? No, we need logic.
-                // e.GetPosition(null) ?
-                // The camera needs screen coordinates (0..Width, 0..Height)
-                // ViewportControl passes 'e'.
-                // We can't easily get the control bounds here in ViewModel without passing sender.
-                // But InputState in HandleViewportInput has MouseState.Position.
-                // However, that's updated in Render loop. Wheel event is async.
-                // Let's assume center zoom if position is hard, OR pass position from ViewportControl.
-                // But OrthoCamera.ProcessMouseScrollAtCursor needs position.
-                // I'll stick to simple ProcessMouseScroll for now which zooms to center/forward.
-                // orthoCamera.ProcessMouseScrollAtCursor requires screen pos.
-                // I'll use ProcessMouseScroll which zooms at center.
                 orthoCamera.ProcessMouseScroll((float)e.Delta.Y);
             }
             SyncCameras(camera);
