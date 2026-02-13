@@ -1,66 +1,45 @@
-<views:Base3DView
-    x:Class="WorldBuilder.Editors.Landscape.Views.LandscapeEditorView"
-    xmlns="https://github.com/avaloniaui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:views="using:WorldBuilder.Views"
-    xmlns:vm="using:WorldBuilder.Editors.Landscape.ViewModels"
-    x:CompileBindings="True"
-    x:DataType="vm:LandscapeEditorViewModel">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:WorldBuilder.Editors.Landscape.ViewModels"
+             xmlns:vp="using:WorldBuilder.Views.Components.Viewports"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="WorldBuilder.Editors.Landscape.Views.LandscapeEditorView"
+             x:DataType="vm:LandscapeEditorViewModel">
     <Grid x:Name="MainGrid">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition
-                Width="280"
-                MinWidth="180"
-                MaxWidth="500" />
+            <ColumnDefinition Width="280" MinWidth="180" MaxWidth="500" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
-            <ColumnDefinition
-                Width="250"
-                MinWidth="150"
-                MaxWidth="500" />
+            <ColumnDefinition Width="250" MinWidth="150" MaxWidth="500" />
         </Grid.ColumnDefinitions>
 
         <!--  Left Panel: Contextual (Object Browser or Texture Palette)  -->
-        <Border
-            Grid.Column="0"
-            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-            BorderThickness="0,0,1,0">
+        <Border Grid.Column="0"
+                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="0,0,1,0">
             <ContentControl Content="{Binding LeftPanelContent}" />
         </Border>
 
         <!--  Splitter between left panel and viewport  -->
-        <GridSplitter
-            Grid.Column="1"
-            Width="5"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Stretch"
-            Background="Transparent" />
+        <GridSplitter Grid.Column="1"
+                      Width="5"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Stretch"
+                      Background="Transparent" />
 
-        <!--  Main 3D viewport area  -->
-        <Grid Grid.Column="2">
-            <Panel
-                x:Name="Viewport"
-                Background="Transparent" />
-
-            <!--  Marquee select overlay  -->
-            <Border
-                x:Name="MarqueeRect"
-                IsVisible="False"
-                IsHitTestVisible="False"
-                Background="#220078D7"
-                BorderBrush="#880078D7"
-                BorderThickness="1"
-                CornerRadius="1"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top" />
+        <!--  Main Viewport Area  -->
+        <Grid Grid.Column="2" Background="Black">
+            <vp:ViewportContainer />
 
             <!--  Overlay toggle toolbar  -->
             <Border
-                Margin="8"
+                Margin="0,8,0,0"
                 Padding="4,2"
-                HorizontalAlignment="Left"
+                HorizontalAlignment="Center"
                 VerticalAlignment="Top"
                 Background="#CC1E1E1E"
                 CornerRadius="4">
@@ -159,44 +138,39 @@
         </Grid>
 
         <!--  Splitter for tools panel  -->
-        <GridSplitter
-            Grid.Column="3"
-            Width="5"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Stretch"
-            Background="Transparent" />
+        <GridSplitter Grid.Column="3"
+                      Width="5"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Stretch"
+                      Background="Transparent" />
 
         <!--  Tools Panel with History at bottom  -->
-        <Border
-            Grid.Column="4"
-            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-            BorderThickness="1,0,0,0">
+        <Border Grid.Column="4"
+                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="1,0,0,0">
             <DockPanel LastChildFill="True">
 
                 <!--  Layers Panel  -->
-                <Border
-                    Padding="10"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    BorderThickness="0,0,0,1"
-                    DockPanel.Dock="Top">
+                <Border Padding="10"
+                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                        BorderThickness="0,0,0,1"
+                        DockPanel.Dock="Top">
                     <ContentControl Content="{Binding LayersPanel}" />
                 </Border>
                 <!--  History and Snapshot Panel  -->
-                <Border
-                    Padding="10"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    BorderThickness="0,1,0,0"
-                    DockPanel.Dock="Bottom">
+                <Border Padding="10"
+                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                        BorderThickness="0,1,0,0"
+                        DockPanel.Dock="Bottom">
                     <ContentControl Content="{Binding HistorySnapshotPanel}" />
                 </Border>
 
                 <!--  Tool Bar - horizontal tool selector  -->
-                <Border
-                    Padding="6"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    BorderThickness="0,0,0,1"
-                    DockPanel.Dock="Top">
+                <Border Padding="6"
+                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                        BorderThickness="0,0,0,1"
+                        DockPanel.Dock="Top">
                     <ItemsControl ItemsSource="{Binding Tools}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -205,14 +179,13 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button
-                                    Margin="0,0,4,0"
-                                    Padding="8,4"
-                                    Classes.selected="{Binding IsSelected}"
-                                    Command="{Binding $parent[Grid].((vm:LandscapeEditorViewModel)DataContext).SelectToolCommand}"
-                                    CommandParameter="{Binding}"
-                                    Focusable="False"
-                                    ToolTip.Tip="{Binding Name}">
+                                <Button Margin="0,0,4,0"
+                                        Padding="8,4"
+                                        Classes.selected="{Binding IsSelected}"
+                                        Command="{Binding $parent[Grid].((vm:LandscapeEditorViewModel)DataContext).SelectToolCommand}"
+                                        CommandParameter="{Binding}"
+                                        Focusable="False"
+                                        ToolTip.Tip="{Binding Name}">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <TextBlock FontSize="14" Text="{Binding IconGlyph}" />
                                         <TextBlock FontSize="11" VerticalAlignment="Center" Text="{Binding Name}" />
@@ -224,12 +197,11 @@
                 </Border>
 
                 <!--  Sub-Tool Bar - only shown for selected tool  -->
-                <Border
-                    Padding="6"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    BorderThickness="0,0,0,1"
-                    DockPanel.Dock="Top"
-                    IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <Border Padding="6"
+                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                        BorderThickness="0,0,0,1"
+                        DockPanel.Dock="Top"
+                        IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNotNull}}">
                     <ItemsControl ItemsSource="{Binding SelectedTool.AllSubTools}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -238,14 +210,13 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button
-                                    Margin="0,0,4,4"
-                                    Padding="6,3"
-                                    Classes.selected="{Binding IsSelected}"
-                                    Command="{Binding $parent[Grid].((vm:LandscapeEditorViewModel)DataContext).SelectSubToolCommand}"
-                                    CommandParameter="{Binding}"
-                                    Focusable="False"
-                                    ToolTip.Tip="{Binding Name}">
+                                <Button Margin="0,0,4,4"
+                                        Padding="6,3"
+                                        Classes.selected="{Binding IsSelected}"
+                                        Command="{Binding $parent[Grid].((vm:LandscapeEditorViewModel)DataContext).SelectSubToolCommand}"
+                                        CommandParameter="{Binding}"
+                                        Focusable="False"
+                                        ToolTip.Tip="{Binding Name}">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <TextBlock FontSize="13" Text="{Binding IconGlyph}" />
                                         <TextBlock FontSize="11" VerticalAlignment="Center" Text="{Binding Name}" />
@@ -259,13 +230,12 @@
                 <!--  Sub-Tool Settings - fills remaining space  -->
                 <ScrollViewer>
                     <StackPanel Margin="10" Spacing="10">
-                        <ContentControl
-                            HorizontalContentAlignment="Stretch"
-                            Content="{Binding SelectedSubTool}"
-                            IsVisible="{Binding SelectedSubTool, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <ContentControl HorizontalContentAlignment="Stretch"
+                                        Content="{Binding SelectedSubTool}"
+                                        IsVisible="{Binding SelectedSubTool, Converter={x:Static ObjectConverters.IsNotNull}}" />
                     </StackPanel>
                 </ScrollViewer>
             </DockPanel>
         </Border>
     </Grid>
-</views:Base3DView>
+</UserControl>

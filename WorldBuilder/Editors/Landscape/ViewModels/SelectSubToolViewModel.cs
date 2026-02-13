@@ -401,7 +401,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private float? FlattenTerrainUnderBuilding(StaticObject obj) {
             try {
                 // Start with model bounds from the object manager
-                var bounds = Context.TerrainSystem.Scene._objectManager.GetBounds(obj.Id, obj.IsSetup);
+                var bounds = Context.TerrainSystem.Scene.AnyObjectManager?.GetBounds(obj.Id, obj.IsSetup);
                 if (!bounds.HasValue) return null;
 
                 var (localMin, localMax) = bounds.Value;

@@ -60,7 +60,7 @@ namespace WorldBuilder.Editors.Landscape {
 
                 for (int i = 0; i < lbDoc.StaticObjectCount; i++) {
                     var obj = lbDoc.GetStaticObject(i);
-                    var bounds = scene._objectManager.GetBounds(obj.Id, obj.IsSetup);
+                    var bounds = scene.AnyObjectManager?.GetBounds(obj.Id, obj.IsSetup);
                     if (bounds == null) continue;
 
                     var (localMin, localMax) = bounds.Value;
@@ -96,7 +96,7 @@ namespace WorldBuilder.Editors.Landscape {
             // Also test against scenery objects
             var allStatics = scene.GetAllStaticObjects();
             foreach (var obj in allStatics) {
-                var bounds = scene._objectManager.GetBounds(obj.Id, obj.IsSetup);
+                var bounds = scene.AnyObjectManager?.GetBounds(obj.Id, obj.IsSetup);
                 if (bounds == null) continue;
 
                 var (localMin, localMax) = bounds.Value;
@@ -167,7 +167,7 @@ namespace WorldBuilder.Editors.Landscape {
                     var obj = lbDoc.GetStaticObject(i);
 
                     // Project the object's bounding box to screen space for accurate hit testing
-                    var bounds = scene._objectManager.GetBounds(obj.Id, obj.IsSetup);
+                    var bounds = scene.AnyObjectManager?.GetBounds(obj.Id, obj.IsSetup);
                     if (bounds == null) {
                         // Fallback: use origin point if no bounds available
                         var screenPos = WorldToScreen(obj.Origin, viewProjection, viewportWidth, viewportHeight);

@@ -1,0 +1,11 @@
+<views:Base3DView xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:views="using:WorldBuilder.Views"
+             xmlns:vm="using:WorldBuilder.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="WorldBuilder.Views.Components.Viewports.ViewportControl"
+             x:DataType="vm:ViewportViewModel">
+  <Panel x:Name="Viewport" Background="Transparent" />
+</views:Base3DView>
