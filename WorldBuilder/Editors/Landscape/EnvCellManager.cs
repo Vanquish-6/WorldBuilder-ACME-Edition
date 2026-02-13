@@ -101,24 +101,15 @@ namespace WorldBuilder.Editors.Landscape {
                     }
 
                     // Extract static objects (furniture, torches, etc.) from inside this EnvCell.
-                    // Each Stab's Frame is in the EnvCell's local space; transform to world space.
+                    // Stab positions are already in landblock-local space (not cell-relative),
+                    // so we just add the landblock world offset — no cell rotation needed.
                     if (envCell.StaticObjects != null && envCell.StaticObjects.Count > 0) {
-                        var cellWorldTransform = Matrix4x4.CreateFromQuaternion(envCell.Position.Orientation)
-                            * Matrix4x4.CreateTranslation(envCell.Position.Origin + lbOffset);
-
                         foreach (var stab in envCell.StaticObjects) {
-                            var localTransform = Matrix4x4.CreateFromQuaternion(stab.Frame.Orientation)
-                                * Matrix4x4.CreateTranslation(stab.Frame.Origin);
-                            var worldMatrix = localTransform * cellWorldTransform;
-
-                            // Decompose to get world position and orientation
-                            Matrix4x4.Decompose(worldMatrix, out _, out var worldRot, out var worldPos);
-
                             batch.DungeonStaticObjects.Add(new StaticObject {
                                 Id = stab.Id,
                                 IsSetup = (stab.Id & 0x02000000) != 0,
-                                Origin = worldPos,
-                                Orientation = worldRot,
+                                Origin = stab.Frame.Origin + lbOffset,
+                                Orientation = stab.Frame.Orientation,
                                 Scale = Vector3.One
                             });
                         }
