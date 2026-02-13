@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Silk.NET.OpenGL;
 using System;
 using System.Numerics;
@@ -10,7 +11,7 @@ using WorldBuilder.ViewModels;
 
 namespace WorldBuilder.Views.Components.Viewports {
     public partial class ViewportControl : Base3DView {
-        private ViewportViewModel? ViewModel => DataContext as ViewportViewModel;
+        private ViewportViewModel? _viewModel;
         private bool _didInit;
 
         public ViewportControl() {
@@ -22,58 +23,71 @@ namespace WorldBuilder.Views.Components.Viewports {
             AvaloniaXamlLoader.Load(this);
         }
 
+        protected override void OnDataContextChanged(EventArgs e) {
+            base.OnDataContextChanged(e);
+            _viewModel = DataContext as ViewportViewModel;
+        }
+
         protected override void OnGlInit(GL gl, PixelSize canvasSize) {
-            if (ViewModel != null) {
-                // Wait, Renderer property is only set after OnGlInitInternal calls OnGlInit
-                // And Renderer is set in Base3DView.OnGlInitInternal BEFORE calling OnGlInit.
-                // So Renderer property should be available here.
-                ViewModel.Renderer = Renderer;
+            if (_viewModel != null) {
+                // Dispatch update to UI thread as it triggers PropertyChanged
+                Dispatcher.UIThread.Post(() => {
+                    if (_viewModel != null) _viewModel.Renderer = Renderer;
+                });
                 _didInit = true;
             }
         }
 
         protected override void OnGlRender(double deltaTime) {
-            if (!_didInit || ViewModel == null) return;
-            // Re-set Renderer if needed (e.g. context loss/recreation)
-            if (ViewModel.Renderer != Renderer) {
-                ViewModel.Renderer = Renderer;
-            }
+            if (!_didInit || _viewModel == null) return;
 
-            ViewModel.RenderAction?.Invoke(deltaTime, new PixelSize((int)Bounds.Width, (int)Bounds.Height), InputState);
+            // Re-set Renderer if needed (e.g. context loss/recreation)
+            // Use local check to avoid cross-thread property read issues if any
+            // Actually reading Renderer property from ViewModel (which is ObservableObject)
+            // might not be thread safe if it raises events on read (it doesn't).
+            // But writing definitely needs Dispatcher.
+            // For safety, we can just skip the check and set it if we suspect it changed,
+            // or trust OnGlInit handled it.
+            // Context loss usually triggers OnGlInit again.
+            // So we rely on OnGlInit.
+
+            _viewModel.RenderAction?.Invoke(deltaTime, new PixelSize((int)Bounds.Width, (int)Bounds.Height), InputState);
         }
 
         protected override void OnGlResize(PixelSize canvasSize) {
-            ViewModel?.ResizeAction?.Invoke(canvasSize);
+            _viewModel?.ResizeAction?.Invoke(canvasSize);
         }
 
         protected override void OnGlDestroy() {
-            if (ViewModel != null) {
-                ViewModel.Renderer = null;
+            if (_viewModel != null) {
+                Dispatcher.UIThread.Post(() => {
+                    if (_viewModel != null) _viewModel.Renderer = null;
+                });
             }
         }
 
         protected override void OnGlKeyDown(KeyEventArgs e) {
-            ViewModel?.KeyAction?.Invoke(e, true);
+            _viewModel?.KeyAction?.Invoke(e, true);
         }
 
         protected override void OnGlKeyUp(KeyEventArgs e) {
-            ViewModel?.KeyAction?.Invoke(e, false);
+            _viewModel?.KeyAction?.Invoke(e, false);
         }
 
         protected override void OnGlPointerMoved(PointerEventArgs e, Vector2 mousePositionScaled) {
-             ViewModel?.PointerMovedAction?.Invoke(e, mousePositionScaled);
+             _viewModel?.PointerMovedAction?.Invoke(e, mousePositionScaled);
         }
 
         protected override void OnGlPointerWheelChanged(PointerWheelEventArgs e) {
-            ViewModel?.PointerWheelAction?.Invoke(e);
+            _viewModel?.PointerWheelAction?.Invoke(e);
         }
 
         protected override void OnGlPointerPressed(PointerPressedEventArgs e) {
-            ViewModel?.PointerPressedAction?.Invoke(e);
+            _viewModel?.PointerPressedAction?.Invoke(e);
         }
 
         protected override void OnGlPointerReleased(PointerReleasedEventArgs e) {
-            ViewModel?.PointerReleasedAction?.Invoke(e);
+            _viewModel?.PointerReleasedAction?.Invoke(e);
         }
     }
 }
