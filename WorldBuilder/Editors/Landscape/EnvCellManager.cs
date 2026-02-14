@@ -662,16 +662,19 @@ namespace WorldBuilder.Editors.Landscape {
                 }
             }
 
-            // Draw building interiors (no polygon offset — exterior models are
-            // drawn first as static objects and win the depth test at overlapping
-            // walls. Terrain is already pushed back by PolygonOffset(1,1) so
-            // interior floors naturally win over terrain.)
+            // Draw building interiors pushed BACK so exterior GfxObj always wins
+            // at overlapping walls/ceilings. Through door/window openings, interior
+            // renders fine since there's no exterior geometry competing.
+            // Terrain uses PolygonOffset(2,2) so interior floors still win over terrain.
+            gl.Enable(EnableCap.PolygonOffsetFill);
+            gl.PolygonOffset(1f, 1f);
             foreach (var (gpuKey, transforms) in _buildingCellGroupBuffer) {
                 if (transforms.Count == 0) continue;
                 if (!_gpuCache.TryGetValue(gpuKey, out var renderData)) continue;
                 if (renderData.Batches.Count == 0) continue;
                 RenderBatchedEnvCell(gl, renderData, transforms);
             }
+            gl.Disable(EnableCap.PolygonOffsetFill);
 
             // Draw dungeon cells (no offset needed — already -50 Z below terrain)
             foreach (var (gpuKey, transforms) in _cellGroupBuffer) {

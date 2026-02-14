@@ -1389,10 +1389,12 @@ namespace WorldBuilder.Editors.Landscape {
             var renderableChunks = GetRenderableChunks(frustum);
 
             // Render terrain (with brush preview).
-            // Polygon offset pushes terrain slightly back so building interior floors
-            // (+0.05 Z offset) and dungeon geometry always win the depth test.
+            // Terrain is pushed furthest back in the depth priority chain:
+            //   Terrain (2,2) < Building EnvCells (1,1) < Static objects (0)
+            // This ensures interior floors win over terrain, while exterior
+            // GfxObj models win over interior EnvCell walls/ceilings.
             _gl.Enable(EnableCap.PolygonOffsetFill);
-            _gl.PolygonOffset(1f, 1f);
+            _gl.PolygonOffset(2f, 2f);
             RenderTerrain(renderableChunks, model, camera, cameraDistance, width, height, editingContext);
             _gl.Disable(EnableCap.PolygonOffsetFill);
 
