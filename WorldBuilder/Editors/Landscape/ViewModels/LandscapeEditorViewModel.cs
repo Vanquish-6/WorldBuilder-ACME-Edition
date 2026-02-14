@@ -15,6 +15,7 @@ using System.Numerics;
 using System.Threading.Tasks;
 using WorldBuilder.Editors.Landscape;
 using WorldBuilder.Lib;
+using WorldBuilder.Lib.Input;
 using WorldBuilder.Lib.Settings;
 using WorldBuilder.Shared.Documents;
 using DatReaderWriter.DBObjs;
@@ -83,12 +84,14 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private IDatReaderWriter? _dats;
         public TerrainSystem? TerrainSystem { get; private set; }
         public WorldBuilderSettings Settings { get; }
+        public InputManager InputManager { get; }
 
         private readonly ILogger<TerrainSystem> _logger;
 
         public LandscapeEditorViewModel(WorldBuilderSettings settings, ILogger<TerrainSystem> logger) {
             Settings = settings;
             _logger = logger;
+            InputManager = InputManager.Instance ?? new InputManager(Settings);
         }
 
         internal void Init(Project project, OpenGLRenderer render, Avalonia.PixelSize canvasSize) {
