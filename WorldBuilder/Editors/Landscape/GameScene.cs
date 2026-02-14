@@ -85,6 +85,7 @@ namespace WorldBuilder.Editors.Landscape {
 
         // Expose object manager for tools (uses any available context)
         public StaticObjectManager? AnyObjectManager => _contexts.Values.FirstOrDefault()?.ObjectManager;
+        internal EnvCellManager? _envCellManager => _contexts.Values.FirstOrDefault()?.EnvCellManager;
 
         private record BackgroundLoadResult(ushort LbKey, string DocId, List<StaticObject> Scenery, HashSet<(uint Id, bool IsSetup)> UniqueObjectIds, long LoadMs, long SceneryMs, int SceneryCount, PreparedEnvCellBatch? EnvCellBatch = null);
 
