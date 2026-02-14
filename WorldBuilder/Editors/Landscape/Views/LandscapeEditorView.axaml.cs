@@ -187,7 +187,11 @@ namespace WorldBuilder.Editors.Landscape.Views {
                 Content = panel,
                 Width = 300,
                 Height = 400,
-                ShowInTaskbar = true
+                ShowInTaskbar = true,
+                SystemDecorations = SystemDecorations.BorderOnly,
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                ExtendClientAreaTitleBarHeightHint = 0
             };
 
             // Support dragging from floating window to main window
