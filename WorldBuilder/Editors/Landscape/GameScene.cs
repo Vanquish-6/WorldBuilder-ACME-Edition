@@ -588,7 +588,10 @@ namespace WorldBuilder.Editors.Landscape {
                                         }
                                     }
                                     if (envCells.Count > 0) {
-                                        envCellBatch = envCellManager.PrepareLandblockEnvCells(lbKey, lbId, envCells);
+                                        // Dungeon-only landblocks have cells but no buildings.
+                                        // Building interiors have cells AND buildings on the surface.
+                                        bool isDungeonOnly = lbi.Buildings == null || lbi.Buildings.Count == 0;
+                                        envCellBatch = envCellManager.PrepareLandblockEnvCells(lbKey, lbId, envCells, isDungeonOnly);
                                     }
                                 }
                             }
@@ -1301,10 +1304,11 @@ namespace WorldBuilder.Editors.Landscape {
                 if (ShowScenery) {
                     statics.AddRange(_sceneryObjects.Values.SelectMany(x => x));
                 }
-                if (ShowDungeons) {
-                    // Respect dungeon focus filter — only include statics from the focused landblock
+                if (ShowDungeons && focusedLB.HasValue) {
+                    // Only include dungeon statics when a specific dungeon is focused,
+                    // otherwise they render as floating objects in the overworld view.
                     foreach (var kvp in _dungeonStaticObjects) {
-                        if (focusedLB.HasValue && kvp.Key != focusedLB.Value) continue;
+                        if (kvp.Key != focusedLB.Value) continue;
                         statics.AddRange(kvp.Value);
                     }
                 }
@@ -1410,14 +1414,9 @@ namespace WorldBuilder.Editors.Landscape {
                 Console.WriteLine($"[GameScene.Render] Static objects: {renderStaticsMs}ms ({visibleObjects.Count} objects)");
             }
 
-            // Render dungeon EnvCell geometry.
-            // Use polygon offset to push dungeon geometry slightly forward in the depth
-            // buffer so it always wins over the terrain/water surface at the same Z level.
+            // Render dungeon EnvCell geometry
             if (ShowDungeons) {
-                _gl.Enable(EnableCap.PolygonOffsetFill);
-                _gl.PolygonOffset(-1f, -1f);
                 _envCellManager.Render(viewProjection, camera, LightDirection, AmbientLightIntensity, SpecularPower);
-                _gl.Disable(EnableCap.PolygonOffsetFill);
             }
 
             // Render selection highlight

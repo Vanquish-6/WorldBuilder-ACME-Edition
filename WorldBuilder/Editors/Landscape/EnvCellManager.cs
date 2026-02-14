@@ -113,7 +113,15 @@ namespace WorldBuilder.Editors.Landscape {
         /// textures, builds vertex/index arrays. Safe to call from a background thread.
         /// Returns a PreparedEnvCellBatch that must be finalized on the GL thread via FinalizeGpuUpload.
         /// </summary>
-        public PreparedEnvCellBatch? PrepareLandblockEnvCells(ushort lbKey, uint lbId, List<EnvCell> envCells) {
+        /// <summary>
+        /// ACViewer-style depth hack: push underground dungeon geometry well below the
+        /// terrain/water surface to eliminate Z-fighting. Dungeon-only landblocks (cells
+        /// at negative Z with no surface buildings) get bumped down by this amount.
+        /// Building interiors get a small +0.05 bump instead (applied in PrepareEnvCell).
+        /// </summary>
+        private const float DungeonDepthOffset = -50f;
+
+        public PreparedEnvCellBatch? PrepareLandblockEnvCells(ushort lbKey, uint lbId, List<EnvCell> envCells, bool isDungeonOnly = false) {
             if (envCells.Count == 0) return null;
 
             var batch = new PreparedEnvCellBatch {
@@ -125,24 +133,28 @@ namespace WorldBuilder.Editors.Landscape {
             var blockY = lbId & 0xFF;
             var lbOffset = new Vector3(blockX * 192f, blockY * 192f, 0f);
 
+            // Dungeon-only landblocks (no buildings on surface) get pushed well below the
+            // terrain/water to eliminate Z-fighting. Building interiors are left at their
+            // original Z since they need to align with the overworld surface.
+            float dungeonZBump = isDungeonOnly ? DungeonDepthOffset : 0f;
+
             foreach (var envCell in envCells) {
                 try {
-                    var prepared = PrepareEnvCell(envCell, lbOffset, lbKey);
+                    var prepared = PrepareEnvCell(envCell, lbOffset, lbKey, dungeonZBump);
                     if (prepared != null) {
                         batch.Cells.Add(prepared);
                     }
 
                     // Extract static objects (furniture, torches, etc.) from inside this EnvCell.
-                    // Stab Frame.Origin is in landblock-local space (confirmed by diagnostic:
-                    // dist_to_cell is always small, matching ACE's add_obj_to_cell which uses
-                    // the stab frame directly with no cell transform).
-                    // World position = stab.Frame.Origin + landblock offset.
+                    // Stab Frame.Origin is in landblock-local space (confirmed by diagnostic).
+                    // Apply same dungeon depth bump as cell geometry to keep them aligned.
                     if (envCell.StaticObjects != null && envCell.StaticObjects.Count > 0) {
+                        var stabZOffset = new Vector3(0, 0, dungeonZBump);
                         foreach (var stab in envCell.StaticObjects) {
                             batch.DungeonStaticObjects.Add(new StaticObject {
                                 Id = stab.Id,
                                 IsSetup = (stab.Id & 0x02000000) != 0,
-                                Origin = stab.Frame.Origin + lbOffset,
+                                Origin = stab.Frame.Origin + lbOffset + stabZOffset,
                                 Orientation = stab.Frame.Orientation,
                                 Scale = Vector3.One
                             });
@@ -160,7 +172,7 @@ namespace WorldBuilder.Editors.Landscape {
         }
 
 
-        private PreparedEnvCell? PrepareEnvCell(EnvCell envCell, Vector3 lbOffset, ushort lbKey = 0) {
+        private PreparedEnvCell? PrepareEnvCell(EnvCell envCell, Vector3 lbOffset, ushort lbKey = 0, float dungeonZBump = 0f) {
             // Load Environment from portal.dat
             uint envFileId = (uint)(envCell.EnvironmentId | 0x0D000000);
             if (_failedEnvironments.Contains(envFileId)) return null;
@@ -182,9 +194,10 @@ namespace WorldBuilder.Editors.Landscape {
             }
 
             // Build the world transform from EnvCell position + landblock offset.
-            // Small Z offset (+0.05) avoids z-fighting with building floors (matches ACViewer).
+            // For underground dungeons, apply depth bump to push well below terrain/water.
+            // For building interiors, small +0.05 avoids z-fighting with floors (matches ACViewer).
             var cellOrigin = envCell.Position.Origin + lbOffset;
-            cellOrigin.Z += 0.05f;
+            cellOrigin.Z += dungeonZBump != 0f ? dungeonZBump : 0.05f;
             var worldTransform = Matrix4x4.CreateFromQuaternion(envCell.Position.Orientation)
                 * Matrix4x4.CreateTranslation(cellOrigin);
 
