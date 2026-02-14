@@ -16,6 +16,7 @@ using System.Numerics;
 using System.Threading.Tasks;
 using WorldBuilder.Editors.Landscape;
 using WorldBuilder.Lib;
+using WorldBuilder.Lib.Docking;
 using WorldBuilder.Lib.Settings;
 using WorldBuilder.Shared.Documents;
 using DatReaderWriter.DBObjs;
@@ -55,6 +56,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
         [ObservableProperty]
         private string _currentPositionText = "";
+
+        public DockingManager DockingManager { get; } = new();
 
         // Overlay toggle properties (bound to toolbar buttons)
         public bool ShowGrid {
@@ -147,15 +150,67 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
             LeftPanelContent = ObjectBrowser;
             LeftPanelTitle = "Object Browser";
+
+            InitDocking();
+        }
+
+        private void InitDocking() {
+            var layouts = Settings.Landscape.UIState.DockingLayout;
+
+            void Register(string id, string title, object content, DockLocation defaultLoc) {
+                var panel = new DockablePanelViewModel(id, title, content, DockingManager);
+                var saved = layouts.FirstOrDefault(l => l.Id == id);
+                if (saved != null) {
+                    if (Enum.TryParse<DockLocation>(saved.Location, out var loc)) panel.Location = loc;
+                    panel.IsVisible = saved.IsVisible;
+                }
+                else {
+                    panel.Location = defaultLoc;
+                }
+                DockingManager.RegisterPanel(panel);
+            }
+
+            if (ObjectBrowser != null) Register("ObjectBrowser", "Object Browser", ObjectBrowser, DockLocation.Left);
+            if (TexturePalette != null) Register("TexturePalette", "Texture Palette", TexturePalette, DockLocation.Left);
+            if (LayersPanel != null) Register("Layers", "Layers", LayersPanel, DockLocation.Right);
+            if (HistorySnapshotPanel != null) Register("History", "History", HistorySnapshotPanel, DockLocation.Right);
+
+            Register("Toolbox", "Tools", new ToolboxViewModel(this), DockLocation.Right);
+
+            // Register Viewports
+            foreach (var vp in Viewports) {
+                // Use a sanitized ID
+                var id = "Viewport_" + vp.Title.Replace(" ", "");
+
+                // Default ortho to hidden to restore toggle behavior
+                bool defaultVisible = vp.IsActive; // Assuming IsActive is set correctly before InitDocking
+                // Correction: Viewports are added with IsActive=true (Perspective) and false (Ortho)
+
+                // Register
+                // Note: Register checks saved layout. If saved, it uses that.
+                // If not saved (first run), we want Perspective Visible, Ortho Hidden.
+
+                var panel = new DockablePanelViewModel(id, vp.Title, vp, DockingManager);
+                var saved = layouts.FirstOrDefault(l => l.Id == id);
+                if (saved != null) {
+                    if (Enum.TryParse<DockLocation>(saved.Location, out var loc)) panel.Location = loc;
+                    panel.IsVisible = saved.IsVisible;
+                }
+                else {
+                    panel.Location = DockLocation.Center;
+                    panel.IsVisible = vp.IsActive; // Default visibility matches initial active state
+                }
+                DockingManager.RegisterPanel(panel);
+            }
         }
 
         private void RenderViewport(ViewportViewModel viewport, double deltaTime, Avalonia.PixelSize canvasSize, AvaloniaInputState inputState) {
             if (TerrainSystem == null || viewport.Renderer == null || viewport.Camera == null) return;
 
-            // Handle input if this viewport is active or interacting
-            // For now, assume simple "if mouse over" or focused logic handled by ViewportControl
-            // But we need to update the camera
-            HandleViewportInput(viewport, inputState, deltaTime);
+            // Only process input if viewport is active
+            if (viewport.IsActive) {
+                HandleViewportInput(viewport, inputState, deltaTime);
+            }
 
             // Update System logic (loading, etc) based on this viewport's camera
             // Note: calling Update multiple times per frame is okay, as it just queues stuff
@@ -285,11 +340,54 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             var orthoCam = TerrainSystem.Scene.TopDownCamera;
 
             if (source == pCam) {
-                // Sync Ortho to Perspective (X, Y only)
-                orthoCam.SetPosition(new Vector3(pCam.Position.X, pCam.Position.Y, orthoCam.Position.Z));
+                // Sync Ortho to Perspective (Focus point)
+                // Raycast from perspective camera to ground to find focal point
+                var forward = pCam.Front;
+
+                // Plane intersection with Z = current ortho view height (approximate terrain level if we don't have exact raycast)
+                // Or simply intersect with Z=0 plane if Z is absolute.
+                // Assuming terrain is somewhat around Z=0 or we raycast against terrain?
+                // Let's assume ground plane at Z = GetHeightAt(pCam.X, pCam.Y)? No, that's under camera.
+
+                // Simple Plane Z=0 intersection:
+                // P = O + D * t
+                // P.z = 0 => O.z + D.z * t = 0 => t = -O.z / D.z
+
+                if (Math.Abs(forward.Z) > 0.001f) {
+                    // Find ground Z near the camera to be more accurate than 0?
+                    float groundZ = TerrainSystem.Scene.DataManager.GetHeightAtPosition(pCam.Position.X, pCam.Position.Y);
+
+                    float t = (groundZ - pCam.Position.Z) / forward.Z;
+                    if (t > 0) {
+                        var intersect = pCam.Position + forward * t;
+                        orthoCam.SetPosition(new Vector3(intersect.X, intersect.Y, orthoCam.Position.Z));
+                    }
+                }
             }
             else if (source == orthoCam) {
-                // Sync Perspective to Ortho (X, Y only)
+                // Sync Perspective to Ortho (X, Y only, keep offset)
+                // We want pCam to look at orthoCam.Position.X, Y
+                // But we don't want to change pCam's rotation/height necessarily, just slide it.
+                // Or do we?
+                // If we slide pCam, we keep its relative offset to the ground?
+
+                // Current P pos
+                var currentP = pCam.Position;
+
+                // We want the new "LookAt" on ground to be Ortho.X, Ortho.Y
+                // But calculating new position requires knowing the offset.
+
+                // Simplest: Just move X/Y to match. This moves the camera body.
+                // If camera is looking straight down, this is perfect.
+                // If looking at angle, it shifts the view.
+
+                // Let's stick to simple position sync for Ortho->Persp to avoid disorientation
+                // But adjust for the fact we sync'd TO the focal point before.
+                // If we sync'd Ortho to Focal Point, then Ortho.Pos IS the Focal Point (in X,Y).
+                // So if we move Persp.Pos to Ortho.Pos, we are moving the camera ON TOP of the focal point.
+                // Which is fine for TopDown behavior, but if angled, might feel weird?
+                // Actually, standard behavior for "Go To" is centering camera.
+                // Let's keep the simple sync for Ortho->Persp for now as it's predictable.
                 pCam.SetPosition(new Vector3(orthoCam.Position.X, orthoCam.Position.Y, pCam.Position.Z));
             }
         }
@@ -319,6 +417,9 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         }
 
         private void UpdateLeftPanel() {
+            var browserPanel = DockingManager.AllPanels.FirstOrDefault(p => p.Id == "ObjectBrowser");
+            var texturePanel = DockingManager.AllPanels.FirstOrDefault(p => p.Id == "TexturePalette");
+
             if (SelectedTool is TexturePaintingToolViewModel) {
                 // Sync palette to whatever the active sub-tool has selected
                 if (SelectedSubTool is BrushSubToolViewModel brush) {
@@ -327,10 +428,19 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 else if (SelectedSubTool is BucketFillSubToolViewModel fill) {
                     TexturePalette?.SyncSelection(fill.SelectedTerrainType);
                 }
+
+                if (texturePanel != null) texturePanel.IsVisible = true;
+                if (browserPanel != null && texturePanel != null && browserPanel.Location == texturePanel.Location) {
+                    // If they are in the same location, maybe hide the browser so texture palette is seen?
+                    // For now, let's just make sure TexturePalette is visible.
+                }
+
                 LeftPanelContent = TexturePalette;
                 LeftPanelTitle = "Terrain Textures";
             }
             else {
+                if (browserPanel != null) browserPanel.IsVisible = true;
+
                 LeftPanelContent = ObjectBrowser;
                 LeftPanelTitle = "Object Browser";
             }
@@ -509,7 +619,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                     textBox,
                     errorText,
                     new StackPanel {
-                        Orientation = Orientation.Horizontal,
+                        Orientation = Avalonia.Layout.Orientation.Horizontal,
                         HorizontalAlignment = HorizontalAlignment.Right,
                         Spacing = 10,
                         Children = {
@@ -611,6 +721,17 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 if (SelectedSubTool != null && SelectedTool.AllSubTools.Contains(SelectedSubTool)) {
                     uiState.LastSubToolIndex = SelectedTool.AllSubTools.IndexOf(SelectedSubTool);
                 }
+
+                // Save docking layout
+                uiState.DockingLayout.Clear();
+                foreach (var panel in DockingManager.AllPanels.OfType<DockablePanelViewModel>()) {
+                    uiState.DockingLayout.Add(new DockingPanelState {
+                        Id = panel.Id,
+                        Location = panel.Location.ToString(),
+                        IsVisible = panel.IsVisible
+                    });
+                }
+
                 Settings.Save();
             }
 
