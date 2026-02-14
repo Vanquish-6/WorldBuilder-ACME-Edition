@@ -37,7 +37,8 @@
             <MenuItem Command="{Binding OpenSettingsWindowCommand}" Header="Settings" />
             <MenuItem Header="Windows" ItemsSource="{Binding DockingPanels}">
                 <MenuItem.Styles>
-                    <Style Selector="MenuItem" x:DataType="docking:IDockable">
+                    <!-- Target only children MenuItems, not the parent "Windows" item -->
+                    <Style Selector="MenuItem > MenuItem" x:DataType="docking:IDockable">
                         <Setter Property="Header" Value="{Binding Title}" />
                         <Setter Property="Command" Value="{Binding $parent[Menu].((vm:MainViewModel)DataContext).TogglePanelVisibilityCommand}" />
                         <Setter Property="CommandParameter" Value="{Binding Id}" />
