@@ -25,6 +25,8 @@
                                  ToolTip.Tip="Drag to Dock">
                              <TextBlock Text="&#x2630;" FontSize="12" VerticalAlignment="Center" />
                          </Border>
+                         <Button Content="&lt;" ToolTip.Tip="Move Up/Left" Command="{Binding MoveUpCommand}" Padding="4,2" FontSize="10" />
+                         <Button Content="&gt;" ToolTip.Tip="Move Down/Right" Command="{Binding MoveDownCommand}" Padding="4,2" FontSize="10" />
                          <Button Content="^" ToolTip.Tip="Float" Command="{Binding FloatCommand}" Padding="4,2" FontSize="10" />
                          <Button Content="X" ToolTip.Tip="Close" Command="{Binding CloseCommand}" Padding="4,2" FontSize="10" />
                      </StackPanel>

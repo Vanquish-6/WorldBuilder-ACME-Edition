@@ -181,17 +181,36 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             foreach (var vp in Viewports) {
                 // Use a sanitized ID
                 var id = "Viewport_" + vp.Title.Replace(" ", "");
-                Register(id, vp.Title, vp, DockLocation.Center);
+
+                // Default ortho to hidden to restore toggle behavior
+                bool defaultVisible = vp.IsActive; // Assuming IsActive is set correctly before InitDocking
+                // Correction: Viewports are added with IsActive=true (Perspective) and false (Ortho)
+
+                // Register
+                // Note: Register checks saved layout. If saved, it uses that.
+                // If not saved (first run), we want Perspective Visible, Ortho Hidden.
+
+                var panel = new DockablePanelViewModel(id, vp.Title, vp, DockingManager);
+                var saved = layouts.FirstOrDefault(l => l.Id == id);
+                if (saved != null) {
+                    if (Enum.TryParse<DockLocation>(saved.Location, out var loc)) panel.Location = loc;
+                    panel.IsVisible = saved.IsVisible;
+                }
+                else {
+                    panel.Location = DockLocation.Center;
+                    panel.IsVisible = vp.IsActive; // Default visibility matches initial active state
+                }
+                DockingManager.RegisterPanel(panel);
             }
         }
 
         private void RenderViewport(ViewportViewModel viewport, double deltaTime, Avalonia.PixelSize canvasSize, AvaloniaInputState inputState) {
             if (TerrainSystem == null || viewport.Renderer == null || viewport.Camera == null) return;
 
-            // Handle input if this viewport is active or interacting
-            // For now, assume simple "if mouse over" or focused logic handled by ViewportControl
-            // But we need to update the camera
-            HandleViewportInput(viewport, inputState, deltaTime);
+            // Only process input if viewport is active
+            if (viewport.IsActive) {
+                HandleViewportInput(viewport, inputState, deltaTime);
+            }
 
             // Update System logic (loading, etc) based on this viewport's camera
             // Note: calling Update multiple times per frame is okay, as it just queues stuff

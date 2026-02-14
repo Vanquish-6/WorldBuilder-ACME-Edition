@@ -20,12 +20,18 @@ namespace WorldBuilder.Lib.Docking {
 
         public object Content { get; }
 
+        public IRelayCommand MoveUpCommand { get; }
+        public IRelayCommand MoveDownCommand { get; }
+
         public DockablePanelViewModel(string id, string title, object content, DockingManager manager) {
             Id = id;
             Title = title;
             Content = content;
             _manager = manager;
             _location = DockLocation.Left; // Default
+
+            MoveUpCommand = new RelayCommand(() => _manager.MovePanelUp(this));
+            MoveDownCommand = new RelayCommand(() => _manager.MovePanelDown(this));
         }
 
         partial void OnIsVisibleChanged(bool value) {

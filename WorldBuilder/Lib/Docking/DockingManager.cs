@@ -88,5 +88,35 @@ namespace WorldBuilder.Lib.Docking {
                 ? Orientation.Vertical
                 : Orientation.Horizontal;
         }
+
+        [RelayCommand]
+        public void MovePanelUp(IDockable panel) {
+            var list = GetCollectionForLocation(panel.Location);
+            int idx = list.IndexOf(panel);
+            if (idx > 0) {
+                list.Move(idx, idx - 1);
+            }
+        }
+
+        [RelayCommand]
+        public void MovePanelDown(IDockable panel) {
+            var list = GetCollectionForLocation(panel.Location);
+            int idx = list.IndexOf(panel);
+            if (idx < list.Count - 1) {
+                list.Move(idx, idx + 1);
+            }
+        }
+
+        private ObservableCollection<IDockable> GetCollectionForLocation(DockLocation location) {
+            return location switch {
+                DockLocation.Left => LeftPanels,
+                DockLocation.Right => RightPanels,
+                DockLocation.Top => TopPanels,
+                DockLocation.Bottom => BottomPanels,
+                DockLocation.Center => CenterPanels,
+                DockLocation.Floating => FloatingPanels,
+                _ => new ObservableCollection<IDockable>()
+            };
+        }
     }
 }
