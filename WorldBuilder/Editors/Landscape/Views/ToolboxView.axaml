@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:WorldBuilder.Editors.Landscape.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="400"
+             x:Class="WorldBuilder.Editors.Landscape.Views.ToolboxView"
+             x:DataType="vm:ToolboxViewModel">
+    <DockPanel LastChildFill="True">
+        <!--  Tool Bar - horizontal tool selector  -->
+        <Border Padding="6"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="0,0,0,1"
+                DockPanel.Dock="Top">
+            <ItemsControl ItemsSource="{Binding Tools}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Margin="0,0,4,0"
+                                Padding="8,4"
+                                Classes.selected="{Binding IsSelected}"
+                                Command="{Binding $parent[UserControl].((vm:ToolboxViewModel)DataContext).SelectToolCommand}"
+                                CommandParameter="{Binding}"
+                                Focusable="False"
+                                ToolTip.Tip="{Binding Name}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock FontSize="14" Text="{Binding IconGlyph}" />
+                                <TextBlock FontSize="11" VerticalAlignment="Center" Text="{Binding Name}" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+
+        <!--  Sub-Tool Bar - only shown for selected tool  -->
+        <Border Padding="6"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="0,0,0,1"
+                DockPanel.Dock="Top"
+                IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <ItemsControl ItemsSource="{Binding SelectedTool.AllSubTools}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Margin="0,0,4,4"
+                                Padding="6,3"
+                                Classes.selected="{Binding IsSelected}"
+                                Command="{Binding $parent[UserControl].((vm:ToolboxViewModel)DataContext).SelectSubToolCommand}"
+                                CommandParameter="{Binding}"
+                                Focusable="False"
+                                ToolTip.Tip="{Binding Name}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock FontSize="13" Text="{Binding IconGlyph}" />
+                                <TextBlock FontSize="11" VerticalAlignment="Center" Text="{Binding Name}" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+
+        <!--  Sub-Tool Settings - fills remaining space  -->
+        <ScrollViewer>
+            <StackPanel Margin="10" Spacing="10">
+                <ContentControl HorizontalContentAlignment="Stretch"
+                                Content="{Binding SelectedSubTool}"
+                                IsVisible="{Binding SelectedSubTool, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

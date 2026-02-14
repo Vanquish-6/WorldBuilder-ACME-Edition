@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:WorldBuilder.ViewModels"
+             xmlns:vp="using:WorldBuilder.Views.Components.Viewports"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="300"
+             x:Class="WorldBuilder.Views.Components.Viewports.ViewportPanel"
+             x:DataType="vm:ViewportViewModel">
+  <Grid>
+    <vp:ViewportControl />
+
+    <!-- Title Overlay -->
+    <Border Background="#80000000" VerticalAlignment="Top" HorizontalAlignment="Left" Padding="4" Margin="4" CornerRadius="4">
+      <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="Bold"/>
+    </Border>
+
+    <!-- Active Indicator -->
+    <Border BorderBrush="Cyan" BorderThickness="2" IsVisible="{Binding IsActive}" IsHitTestVisible="False"/>
+  </Grid>
+</UserControl>

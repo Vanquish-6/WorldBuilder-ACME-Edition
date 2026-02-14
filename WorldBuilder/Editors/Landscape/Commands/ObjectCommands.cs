@@ -157,7 +157,7 @@ namespace WorldBuilder.Editors.Landscape.Commands {
             _addedIndex = doc.AddStaticObject(_object);
 
             // Eagerly load render data so the object renders immediately
-            _context.TerrainSystem.Scene._objectManager.GetRenderData(_object.Id, _object.IsSetup);
+            _context.TerrainSystem.Scene.AnyObjectManager?.GetRenderData(_object.Id, _object.IsSetup);
 
             _context.TerrainSystem.Scene.InvalidateStaticObjectsCache();
             return true;

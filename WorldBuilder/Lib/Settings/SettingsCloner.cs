@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
@@ -30,7 +30,7 @@ namespace WorldBuilder.Lib.Settings {
 
             var type = typeof(T);
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.CanRead && p.CanWrite);
+                .Where(p => p.CanRead && p.CanWrite && p.GetIndexParameters().Length == 0);
 
             foreach (var prop in properties) {
                 var value = prop.GetValue(source);
@@ -63,7 +63,7 @@ namespace WorldBuilder.Lib.Settings {
 
             var type = source.GetType();
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.CanRead && p.CanWrite);
+                .Where(p => p.CanRead && p.CanWrite && p.GetIndexParameters().Length == 0);
 
             foreach (var prop in properties) {
                 var value = prop.GetValue(source);

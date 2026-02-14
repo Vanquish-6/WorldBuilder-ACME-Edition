@@ -228,7 +228,10 @@ namespace WorldBuilder.Lib {
         public Vector3 Right => right;
         public float OrthographicSize {
             get { return orthographicSize; }
-            set { orthographicSize = value; }
+            set {
+                orthographicSize = value;
+                position.Z = value;
+            }
         }
 
         public Vector2 ScreenSize { get; set; }
@@ -326,6 +329,9 @@ namespace WorldBuilder.Lib {
             float oldSize = orthographicSize;
             orthographicSize -= yOffset * zoomSensitivity;
             orthographicSize = MathF.Max(1.0f, MathF.Min(orthographicSize, 100000.0f));
+
+            // Sync Z position to orthographic size
+            position.Z = orthographicSize;
         }
 
         public void ProcessMouseScrollAtCursor(float yOffset, Vector2 mouseScreenPos, Vector2 screenSize) {
@@ -336,6 +342,9 @@ namespace WorldBuilder.Lib {
 
             orthographicSize -= yOffset * zoomSensitivity;
             orthographicSize = MathF.Max(1.0f, MathF.Min(orthographicSize, 100000.0f));
+
+            // Sync Z position to orthographic size
+            position.Z = orthographicSize;
 
             // Calculate the world position under the mouse cursor before zoom
             Vector2 normalizedMousePos = new Vector2(
