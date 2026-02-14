@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using WorldBuilder.Lib.Input;
 using WorldBuilder.Lib.Settings;
 
 namespace WorldBuilder.Lib {
@@ -15,6 +16,9 @@ namespace WorldBuilder.Lib {
     [JsonSerializable(typeof(RecentProject))]
     [JsonSerializable(typeof(LandscapeEditorSettings))]
     [JsonSerializable(typeof(AppSettings))]
+    [JsonSerializable(typeof(InputSettings))]
+    [JsonSerializable(typeof(List<InputBinding>))]
+    [JsonSerializable(typeof(InputBinding))]
     [JsonSerializable(typeof(CameraSettings))]
     [JsonSerializable(typeof(RenderingSettings))]
     [JsonSerializable(typeof(GridSettings))]
