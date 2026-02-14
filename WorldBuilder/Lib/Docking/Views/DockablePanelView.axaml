@@ -11,13 +11,20 @@
              BorderThickness="0,0,0,1"
              Margin="0,0,0,0">
          <DockPanel LastChildFill="True">
-             <!-- Header / Drag Handle -->
+             <!-- Header -->
              <Border DockPanel.Dock="Top"
                      Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
                      Padding="6,4"
-                     Name="DragHandle">
+                     Name="HeaderBorder">
                  <DockPanel>
                      <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Spacing="4">
+                         <!-- Drag to Dock Handle -->
+                         <Border Name="DockDragHandle"
+                                 Background="Transparent"
+                                 Padding="4,2"
+                                 ToolTip.Tip="Drag to Dock">
+                             <TextBlock Text="&#x2630;" FontSize="12" VerticalAlignment="Center" />
+                         </Border>
                          <Button Content="^" ToolTip.Tip="Float" Command="{Binding FloatCommand}" Padding="4,2" FontSize="10" />
                          <Button Content="X" ToolTip.Tip="Close" Command="{Binding CloseCommand}" Padding="4,2" FontSize="10" />
                      </StackPanel>

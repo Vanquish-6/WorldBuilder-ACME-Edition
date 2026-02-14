@@ -8,13 +8,28 @@ namespace WorldBuilder.Lib.Docking {
         public DockablePanelView() {
             InitializeComponent();
 
-            var dragHandle = this.FindControl<Border>("DragHandle");
-            if (dragHandle != null) {
-                dragHandle.PointerPressed += DragHandle_PointerPressed;
+            var headerBorder = this.FindControl<Border>("HeaderBorder");
+            if (headerBorder != null) {
+                headerBorder.PointerPressed += Header_PointerPressed;
+            }
+
+            var dockDragHandle = this.FindControl<Border>("DockDragHandle");
+            if (dockDragHandle != null) {
+                dockDragHandle.PointerPressed += DockDragHandle_PointerPressed;
             }
         }
 
-        private async void DragHandle_PointerPressed(object? sender, PointerPressedEventArgs e) {
+        private void Header_PointerPressed(object? sender, PointerPressedEventArgs e) {
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) {
+                // If this is inside a window (floating), drag the window
+                var window = TopLevel.GetTopLevel(this) as Window;
+                if (window != null && window.SystemDecorations == SystemDecorations.BorderOnly) {
+                    window.BeginMoveDrag(e);
+                }
+            }
+        }
+
+        private async void DockDragHandle_PointerPressed(object? sender, PointerPressedEventArgs e) {
             if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) {
                 var dragData = new DataObject();
                 // Pass the ViewModel as the data
@@ -23,6 +38,7 @@ namespace WorldBuilder.Lib.Docking {
 
                     var result = await DragDrop.DoDragDrop(e, dragData, DragDropEffects.Move);
                 }
+                e.Handled = true; // Prevent bubbling to header move
             }
         }
 

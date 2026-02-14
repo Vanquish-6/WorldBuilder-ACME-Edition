@@ -145,7 +145,9 @@ namespace WorldBuilder.Editors.Landscape.Views {
                  panel.IsVisible = true;
             }
             else {
-                 _viewModel.DockingManager.MovePanel(panel, DockLocation.Floating);
+                 // Check if dropped in center zone (not edge)
+                 // If not edge, dock to Center
+                 _viewModel.DockingManager.MovePanel(panel, DockLocation.Center);
                  panel.IsVisible = true;
             }
         }
