@@ -80,7 +80,6 @@ namespace WorldBuilder.Views {
 
             if (_autoRotate) {
                 _rotationAngle += _autoRotateSpeed * (float)deltaTime;
-                Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Background);
             }
 
             RenderPreview(gl, new PixelSize((int)Bounds.Width, (int)Bounds.Height));
