@@ -4,19 +4,21 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:docking="clr-namespace:WorldBuilder.Lib.Docking;assembly=WorldBuilder"
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="200"
-             x:Class="WorldBuilder.Lib.Docking.DockablePanelView"
+             x:Class="WorldBuilder.Lib.Docking.Views.DockablePanelView"
              x:DataType="docking:DockablePanelViewModel">
      <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
              BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
              BorderThickness="0,0,0,1"
              Margin="0,0,0,0">
          <DockPanel LastChildFill="True">
-             <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}" Padding="6,4">
+             <!-- Header / Drag Handle -->
+             <Border DockPanel.Dock="Top"
+                     Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                     Padding="6,4"
+                     Name="DragHandle">
                  <DockPanel>
                      <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Spacing="4">
                          <Button Content="^" ToolTip.Tip="Float" Command="{Binding FloatCommand}" Padding="4,2" FontSize="10" />
-                         <Button Content="&lt;" ToolTip.Tip="Dock Left" Command="{Binding DockToCommand}" CommandParameter="Left" Padding="4,2" FontSize="10" />
-                         <Button Content="&gt;" ToolTip.Tip="Dock Right" Command="{Binding DockToCommand}" CommandParameter="Right" Padding="4,2" FontSize="10" />
                          <Button Content="X" ToolTip.Tip="Close" Command="{Binding CloseCommand}" Padding="4,2" FontSize="10" />
                      </StackPanel>
                      <TextBlock Text="{Binding Title}" FontWeight="Bold" VerticalAlignment="Center" />

@@ -6,6 +6,10 @@ using WorldBuilder.Lib.Docking;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using Avalonia.Input;
+using Avalonia;
+using Avalonia.Media;
+using System.Linq;
 
 namespace WorldBuilder.Editors.Landscape.Views {
     public partial class LandscapeEditorView : UserControl {
@@ -13,10 +17,24 @@ namespace WorldBuilder.Editors.Landscape.Views {
         private Avalonia.Controls.Grid? _mainGrid;
         private readonly Dictionary<IDockable, Window> _floatingWindows = new();
 
+        private Border? _leftGhost;
+        private Border? _rightGhost;
+        private Border? _topGhost;
+        private Border? _bottomGhost;
+
         public LandscapeEditorView() {
             InitializeComponent();
 
             if (Design.IsDesignMode) return;
+
+            _leftGhost = this.FindControl<Border>("LeftGhost");
+            _rightGhost = this.FindControl<Border>("RightGhost");
+            _topGhost = this.FindControl<Border>("TopGhost");
+            _bottomGhost = this.FindControl<Border>("BottomGhost");
+
+            AddHandler(DragDrop.DragOverEvent, OnDragOver);
+            AddHandler(DragDrop.DropEvent, OnDrop);
+            AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
 
             _viewModel = ProjectManager.Instance.GetProjectService<LandscapeEditorViewModel>()
                 ?? throw new Exception("Failed to get LandscapeEditorViewModel");
@@ -53,6 +71,92 @@ namespace WorldBuilder.Editors.Landscape.Views {
             }
         }
 
+        private void OnDragOver(object? sender, DragEventArgs e) {
+            var panel = e.Data.Get("DockablePanel");
+            if (panel == null) {
+                e.DragEffects = DragDropEffects.None;
+                return;
+            }
+
+            e.DragEffects = DragDropEffects.Move;
+
+            // Determine drop zone based on position relative to the whole view
+            var pos = e.GetPosition(this);
+            var bounds = Bounds;
+
+            HideGhosts();
+
+            // Thresholds
+            double leftThreshold = 200;
+            double rightThreshold = bounds.Width - 200;
+            double topThreshold = 100;
+            double bottomThreshold = bounds.Height - 100;
+
+            if (pos.X < leftThreshold) {
+                if (_leftGhost != null) _leftGhost.IsVisible = true;
+            }
+            else if (pos.X > rightThreshold) {
+                if (_rightGhost != null) _rightGhost.IsVisible = true;
+            }
+            else if (pos.Y < topThreshold) {
+                if (_topGhost != null) _topGhost.IsVisible = true;
+            }
+            else if (pos.Y > bottomThreshold) {
+                 if (_bottomGhost != null) _bottomGhost.IsVisible = true;
+            }
+        }
+
+        private void OnDragLeave(object? sender, DragEventArgs e) {
+            HideGhosts();
+        }
+
+        private void OnDrop(object? sender, DragEventArgs e) {
+            HideGhosts();
+            var panel = e.Data.Get("DockablePanel") as IDockable;
+            if (panel == null) return;
+
+            if (_viewModel?.DockingManager == null) return;
+
+            var pos = e.GetPosition(this);
+            var bounds = Bounds;
+
+            double leftThreshold = 200;
+            double rightThreshold = bounds.Width - 200;
+            double topThreshold = 100;
+            double bottomThreshold = bounds.Height - 100;
+
+            DockLocation? newLocation = null;
+
+            if (pos.X < leftThreshold) {
+                newLocation = DockLocation.Left;
+            }
+            else if (pos.X > rightThreshold) {
+                newLocation = DockLocation.Right;
+            }
+            else if (pos.Y < topThreshold) {
+                newLocation = DockLocation.Top;
+            }
+            else if (pos.Y > bottomThreshold) {
+                newLocation = DockLocation.Bottom;
+            }
+
+            if (newLocation.HasValue) {
+                 _viewModel.DockingManager.MovePanel(panel, newLocation.Value);
+                 panel.IsVisible = true;
+            }
+            else {
+                 _viewModel.DockingManager.MovePanel(panel, DockLocation.Floating);
+                 panel.IsVisible = true;
+            }
+        }
+
+        private void HideGhosts() {
+            if (_leftGhost != null) _leftGhost.IsVisible = false;
+            if (_rightGhost != null) _rightGhost.IsVisible = false;
+            if (_topGhost != null) _topGhost.IsVisible = false;
+            if (_bottomGhost != null) _bottomGhost.IsVisible = false;
+        }
+
         private void OnFloatingPanelsChanged(object? sender, NotifyCollectionChangedEventArgs e) {
             if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems != null) {
                 foreach (IDockable panel in e.NewItems) {
@@ -62,14 +166,11 @@ namespace WorldBuilder.Editors.Landscape.Views {
             else if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems != null) {
                 foreach (IDockable panel in e.OldItems) {
                     if (_floatingWindows.TryGetValue(panel, out var window)) {
-                        // Close window if it's open (and not already closing)
-                        // Note: Avalonia Window.Close() is safe to call multiple times usually
                         window.Close();
                         _floatingWindows.Remove(panel);
                     }
                 }
             }
-            // Handle Reset?
              else if (e.Action == NotifyCollectionChangedAction.Reset) {
                  foreach(var window in _floatingWindows.Values) {
                      window.Close();
@@ -83,19 +184,24 @@ namespace WorldBuilder.Editors.Landscape.Views {
 
             var window = new Window {
                 Title = panel.Title,
-                Content = panel, // Use the panel VM as content so DataTemplate applies
+                Content = panel,
                 Width = 300,
                 Height = 400,
                 ShowInTaskbar = true
             };
 
+            // Support dragging from floating window to main window
+            // The content is the VM. When data template is applied, it will use DockablePanelView.
+            // DockablePanelView handles the Drag logic.
+            // Since the floating window is a separate top-level window, we need to ensure DragDrop works across windows.
+            // Avalonia handles this natively if DragDrop is initiated correctly.
+
             window.Closing += (s, e) => {
-                if (panel.Location == DockLocation.Floating) {
-                    // If closed by user, hide the panel
-                    // We must ensure this doesn't cause loop if triggered by Remove
-                    if (_floatingWindows.ContainsKey(panel)) {
-                         panel.IsVisible = false;
-                    }
+                if (_floatingWindows.ContainsKey(panel)) {
+                    _floatingWindows.Remove(panel);
+                }
+                if (panel.IsVisible) {
+                    panel.IsVisible = false;
                 }
             };
 
@@ -110,7 +216,6 @@ namespace WorldBuilder.Editors.Landscape.Views {
         protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e) {
             base.OnDetachedFromVisualTree(e);
 
-            // Close all floating windows
             foreach(var window in _floatingWindows.Values) {
                 window.Close();
             }

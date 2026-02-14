@@ -11,6 +11,7 @@ namespace WorldBuilder.Lib.Docking {
 
         public ObservableCollection<IDockable> LeftPanels { get; } = new();
         public ObservableCollection<IDockable> RightPanels { get; } = new();
+        public ObservableCollection<IDockable> TopPanels { get; } = new();
         public ObservableCollection<IDockable> BottomPanels { get; } = new();
         public ObservableCollection<IDockable> FloatingPanels { get; } = new();
 
@@ -39,6 +40,9 @@ namespace WorldBuilder.Lib.Docking {
                 case DockLocation.Right:
                     RightPanels.Add(panel);
                     break;
+                case DockLocation.Top:
+                    TopPanels.Add(panel);
+                    break;
                 case DockLocation.Bottom:
                     BottomPanels.Add(panel);
                     break;
@@ -51,6 +55,7 @@ namespace WorldBuilder.Lib.Docking {
         private void RemoveFromCollections(IDockable panel) {
             LeftPanels.Remove(panel);
             RightPanels.Remove(panel);
+            TopPanels.Remove(panel);
             BottomPanels.Remove(panel);
             FloatingPanels.Remove(panel);
         }

@@ -5,57 +5,71 @@
              xmlns:vm="using:WorldBuilder.Editors.Landscape.ViewModels"
              xmlns:vp="using:WorldBuilder.Views.Components.Viewports"
              xmlns:docking="clr-namespace:WorldBuilder.Lib.Docking;assembly=WorldBuilder"
+             xmlns:dockingViews="clr-namespace:WorldBuilder.Lib.Docking.Views;assembly=WorldBuilder"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="WorldBuilder.Editors.Landscape.Views.LandscapeEditorView"
-             x:DataType="vm:LandscapeEditorViewModel">
-    <Grid x:Name="MainGrid">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="280" MinWidth="200" MaxWidth="500" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="250" MinWidth="200" MaxWidth="500" />
-        </Grid.ColumnDefinitions>
+             x:DataType="vm:LandscapeEditorViewModel"
+             DragDrop.AllowDrop="True">
 
-        <!-- Left Panels -->
-        <Border Grid.Column="0"
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Top Panels -->
+        <Border Grid.Row="0"
                 Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                BorderThickness="0,0,1,0">
-            <ScrollViewer>
-                <ItemsControl ItemsSource="{Binding DockingManager.LeftPanels}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Spacing="5" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="docking:DockablePanelViewModel">
-                            <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                                    BorderThickness="0,0,0,1"
-                                    Margin="0,0,0,0">
-                                <DockPanel LastChildFill="True">
-                                    <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}" Padding="6,4">
-                                        <DockPanel>
-                                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Spacing="4">
-                                                <Button Content="^" ToolTip.Tip="Float" Command="{Binding FloatCommand}" Padding="4,2" FontSize="10" />
-                                                <Button Content="&gt;" ToolTip.Tip="Dock Right" Command="{Binding DockToCommand}" CommandParameter="Right" Padding="4,2" FontSize="10" />
-                                                <Button Content="X" ToolTip.Tip="Close" Command="{Binding CloseCommand}" Padding="4,2" FontSize="10" />
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" VerticalAlignment="Center" />
-                                        </DockPanel>
-                                    </Border>
-                                    <ContentControl Content="{Binding Content}" Margin="0" />
-                                </DockPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+                BorderThickness="0,0,0,1"
+                IsVisible="{Binding DockingManager.TopPanels.Count}">
+            <ItemsControl ItemsSource="{Binding DockingManager.TopPanels}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="5" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="docking:DockablePanelViewModel">
+                        <dockingViews:DockablePanelView />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </Border>
 
-        <!--  Splitter between left panel and viewport  -->
+        <Grid x:Name="MainGrid" Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" MinWidth="200" MaxWidth="500" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="250" MinWidth="200" MaxWidth="500" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Panels -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                    BorderThickness="0,0,1,0"
+                    IsVisible="{Binding DockingManager.LeftPanels.Count}">
+                <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding DockingManager.LeftPanels}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="5" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="docking:DockablePanelViewModel">
+                                <dockingViews:DockablePanelView />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+
+            <!--  Splitter between left panel and viewport  -->
         <GridSplitter Grid.Column="1"
                       Width="5"
                       HorizontalAlignment="Center"
@@ -191,49 +205,60 @@
             </Border>
         </Grid>
 
-        <!--  Splitter for tools panel  -->
-        <GridSplitter Grid.Column="3"
-                      Width="5"
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Stretch"
-                      Background="Transparent" />
+            <!--  Splitter for tools panel  -->
+            <GridSplitter Grid.Column="3"
+                          Width="5"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          Background="Transparent" />
 
-        <!-- Right Panels -->
-        <Border Grid.Column="4"
+            <!-- Right Panels -->
+            <Border Grid.Column="4"
+                    Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                    BorderThickness="1,0,0,0"
+                    IsVisible="{Binding DockingManager.RightPanels.Count}">
+                <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding DockingManager.RightPanels}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="5" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="docking:DockablePanelViewModel">
+                                <docking:DockablePanelView />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- Bottom Panels -->
+        <Border Grid.Row="2"
                 Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                BorderThickness="1,0,0,0">
-            <ScrollViewer>
-                <ItemsControl ItemsSource="{Binding DockingManager.RightPanels}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Spacing="5" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="docking:DockablePanelViewModel">
-                            <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                                    BorderThickness="0,0,0,1"
-                                    Margin="0,0,0,0">
-                                <DockPanel LastChildFill="True">
-                                    <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}" Padding="6,4">
-                                        <DockPanel>
-                                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Spacing="4">
-                                                <Button Content="^" ToolTip.Tip="Float" Command="{Binding FloatCommand}" Padding="4,2" FontSize="10" />
-                                                <Button Content="&lt;" ToolTip.Tip="Dock Left" Command="{Binding DockToCommand}" CommandParameter="Left" Padding="4,2" FontSize="10" />
-                                                <Button Content="X" ToolTip.Tip="Close" Command="{Binding CloseCommand}" Padding="4,2" FontSize="10" />
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" VerticalAlignment="Center" />
-                                        </DockPanel>
-                                    </Border>
-                                    <ContentControl Content="{Binding Content}" Margin="0" />
-                                </DockPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+                BorderThickness="0,1,0,0"
+                IsVisible="{Binding DockingManager.BottomPanels.Count}">
+            <ItemsControl ItemsSource="{Binding DockingManager.BottomPanels}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="5" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="docking:DockablePanelViewModel">
+                        <dockingViews:DockablePanelView />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </Border>
+
+        <!-- Drop Ghosts -->
+        <Border Name="LeftGhost" Grid.RowSpan="3" HorizontalAlignment="Left" Width="200" Background="#4400FFFF" IsVisible="False" IsHitTestVisible="False" />
+        <Border Name="RightGhost" Grid.RowSpan="3" HorizontalAlignment="Right" Width="200" Background="#4400FFFF" IsVisible="False" IsHitTestVisible="False" />
+        <Border Name="TopGhost" Grid.Row="0" VerticalAlignment="Top" Height="100" Background="#4400FFFF" IsVisible="False" IsHitTestVisible="False" />
+        <Border Name="BottomGhost" Grid.Row="2" VerticalAlignment="Bottom" Height="100" Background="#4400FFFF" IsVisible="False" IsHitTestVisible="False" />
     </Grid>
 </UserControl>
