@@ -15,6 +15,7 @@ namespace WorldBuilder.Views {
     public partial class AssetPreviewWidget : Base3DView {
         private uint _objectId;
         private bool _isSetup;
+        private StaticObjectManager? _cachedObjectManager;
         private float _rotationAngle = 0f;
         private bool _autoRotate = true;
         private float _autoRotateSpeed = 0.5f; // radians per second
@@ -84,6 +85,10 @@ namespace WorldBuilder.Views {
                 _isSetup = change.GetNewValue<bool>();
                 Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Background);
             }
+            else if (change.Property == ObjectManagerProperty) {
+                _cachedObjectManager = change.GetNewValue<StaticObjectManager?>();
+                Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Background);
+            }
         }
 
         public void SetObject(uint objectId, bool isSetup) {
@@ -104,7 +109,7 @@ namespace WorldBuilder.Views {
         }
 
         protected override void OnGlRender(double deltaTime) {
-            if (ObjectManager == null) return;
+            if (_cachedObjectManager == null) return;
             var gl = Renderer?.GraphicsDevice.GL;
             if (gl == null) return;
 
@@ -116,14 +121,15 @@ namespace WorldBuilder.Views {
         }
 
         private void RenderPreview(GL gl, PixelSize size) {
-            if (ObjectManager == null) return;
+            var objectManager = _cachedObjectManager;
+            if (objectManager == null) return;
 
-            var renderData = ObjectManager.GetRenderData(_objectId, _isSetup);
+            var renderData = objectManager.GetRenderData(_objectId, _isSetup);
             if (renderData == null) return;
 
-            var bounds = ObjectManager.GetBounds(_objectId, _isSetup);
+            var bounds = objectManager.GetBounds(_objectId, _isSetup);
             if (!bounds.HasValue) {
-                ObjectManager.ReleaseRenderData(_objectId, _isSetup);
+                objectManager.ReleaseRenderData(_objectId, _isSetup);
                 return;
             }
 
@@ -132,7 +138,7 @@ namespace WorldBuilder.Views {
             var radius = (boundsMax - boundsMin).Length() * 0.5f;
 
             if (radius < 0.001f) {
-                ObjectManager.ReleaseRenderData(_objectId, _isSetup);
+                objectManager.ReleaseRenderData(_objectId, _isSetup);
                 return;
             }
 
@@ -163,7 +169,7 @@ namespace WorldBuilder.Views {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
 
             // Setup Shader
-            var shader = ObjectManager._objectShader;
+            var shader = objectManager._objectShader;
             shader.Bind();
             shader.SetUniform("uViewProjection", view * projection);
             shader.SetUniform("uCameraPosition", viewPos);
@@ -180,13 +186,13 @@ namespace WorldBuilder.Views {
             // Render with rotation applied to the object
             if (_isSetup && renderData.IsSetup) {
                 foreach (var (partId, partTransform) in renderData.SetupParts) {
-                    var partRenderData = ObjectManager.GetRenderData(partId, false);
+                    var partRenderData = objectManager.GetRenderData(partId, false);
                     if (partRenderData == null) continue;
 
                     // Apply rotation to the part transform
                     var rotatedTransform = partTransform * objectRotation;
                     RenderSingleObject(gl, partRenderData, rotatedTransform, shader);
-                    ObjectManager.ReleaseRenderData(partId, false);
+                    objectManager.ReleaseRenderData(partId, false);
                 }
             }
             else {
@@ -194,7 +200,7 @@ namespace WorldBuilder.Views {
                 RenderSingleObject(gl, renderData, objectRotation, shader);
             }
 
-            ObjectManager.ReleaseRenderData(_objectId, _isSetup);
+            objectManager.ReleaseRenderData(_objectId, _isSetup);
         }
 
         private unsafe void RenderSingleObject(GL gl, StaticObjectRenderData renderData, Matrix4x4 transform, IShader shader) {
