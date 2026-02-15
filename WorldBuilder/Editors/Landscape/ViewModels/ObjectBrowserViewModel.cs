@@ -95,17 +95,14 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         /// Saves to disk cache and dispatches bitmap update to the UI thread.
         /// </summary>
         private void OnThumbnailReady(uint objectId, byte[] rgbaPixels, int frameCount) {
-            // Save to disk cache (fire-and-forget background thread)
-            // TODO: Update cache to support sprite sheets or just cache first frame for now?
-            // For now, we only cache single-frame thumbnails in the existing cache structure.
-            if (frameCount == 1) {
-                _thumbnailCache.SaveAsync(objectId, rgbaPixels, ThumbnailRenderService.ThumbnailSize, ThumbnailRenderService.ThumbnailSize);
-            }
-
-            // Create bitmap from pixels
             var width = ThumbnailRenderService.ThumbnailSize * frameCount;
             var height = ThumbnailRenderService.ThumbnailSize;
 
+            // Save to disk cache (fire-and-forget background thread)
+            // Note: We always cache now, because ThumbnailCache handles versioning via filename dimensions
+            _thumbnailCache.SaveAsync(objectId, rgbaPixels, width, height);
+
+            // Create bitmap from pixels
             var bitmap = ThumbnailCache.CreateBitmapFromRgba(rgbaPixels, width, height);
 
             // Dispatch to UI thread to update the item

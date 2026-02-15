@@ -237,10 +237,8 @@ namespace WorldBuilder.Editors.Landscape {
 
                 float angle = (i / (float)frameCount) * MathF.PI * 2f;
 
-                // Match rotation style: X-axis tilt (90 deg) then Y-axis spin (Z in our coord system)
-                // This gives an isometric-like view where we see top/side
-                var rotationMatrix = Matrix4x4.CreateRotationX(MathF.PI / 2f) *
-                                   Matrix4x4.CreateRotationY(angle);
+                // Simple Z-axis rotation (vertical spin) matching AssetPreviewWidget
+                var rotationMatrix = Matrix4x4.CreateRotationZ(angle);
 
                 // Transform to object center
                 var objectRotation = Matrix4x4.CreateTranslation(-center) *
