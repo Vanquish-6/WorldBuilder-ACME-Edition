@@ -31,12 +31,17 @@ namespace WorldBuilder.Editors.Landscape {
         private readonly HashSet<uint> _failedIds = new(); // Never retry objects that failed
 
         // Current job state for time-sliced rendering
+        private enum JobState { Pending, Loading, Uploading, Rendering, Finished }
+
         private class Job {
             public uint Id;
             public bool IsSetup;
             public int TargetFrameCount;
             public int CompletedFrames;
             public byte[] Buffer = Array.Empty<byte>();
+
+            public JobState State = JobState.Pending;
+            public System.Threading.Tasks.Task<PreparedModelData?>? PreparationTask;
 
             // Granular state for intra-frame time slicing
             public bool IsFrameStarted;
@@ -137,19 +142,10 @@ namespace WorldBuilder.Editors.Landscape {
                 // Render as many frames for the current job as time allows
                 if (_currentJob != null) {
                     try {
-                        bool finished = RenderJobStep(_currentJob, sw);
-                        framesRendered++;
-
-                        if (finished) {
-                            ThumbnailReady?.Invoke(_currentJob.Id, _currentJob.Buffer, _currentJob.TargetFrameCount);
-                            lock (_queue) {
-                                _queued.Remove((_currentJob.Id, _currentJob.TargetFrameCount));
-                            }
-                            _currentJob = null;
-                        }
+                        ProcessCurrentJob(_currentJob, sw);
                     }
                     catch (Exception ex) {
-                        Console.WriteLine($"[ThumbnailRender] Error rendering 0x{_currentJob.Id:X8}: {ex}");
+                        Console.WriteLine($"[ThumbnailRender] Error processing 0x{_currentJob.Id:X8}: {ex}");
                         _failedIds.Add(_currentJob.Id);
                         lock (_queue) {
                             _queued.Remove((_currentJob.Id, _currentJob.TargetFrameCount));
@@ -165,16 +161,55 @@ namespace WorldBuilder.Editors.Landscape {
             }
         }
 
-        private unsafe bool RenderJobStep(Job job, Stopwatch sw) {
-            // Initialize job-level data if needed (first run only)
-            if (job.MainRenderData == null) {
-                job.MainRenderData = _objectManager.GetRenderData(job.Id, job.IsSetup);
-                // Even if null, we mark initialization done. If null, we'll abort cleanly.
-                if (job.MainRenderData == null) {
-                    return true; // Job finished (failed)
-                }
-            }
+        private unsafe void ProcessCurrentJob(Job job, Stopwatch sw) {
+            switch (job.State) {
+                case JobState.Pending:
+                    // Start background loading
+                    job.PreparationTask = System.Threading.Tasks.Task.Run(() =>
+                        _objectManager.PrepareModelData(job.Id, job.IsSetup));
+                    job.State = JobState.Loading;
+                    break;
 
+                case JobState.Loading:
+                    // Check if done
+                    if (job.PreparationTask?.IsCompleted == true) {
+                        job.State = JobState.Uploading;
+                    }
+                    break;
+
+                case JobState.Uploading:
+                    // Upload to GPU (must be on render thread)
+                    var preparedData = job.PreparationTask?.Result;
+                    if (preparedData != null) {
+                        job.MainRenderData = _objectManager.FinalizeGpuUpload(preparedData);
+                    }
+
+                    if (job.MainRenderData == null) {
+                        // Failed to load
+                        FinishJob(job);
+                    } else {
+                        job.State = JobState.Rendering;
+                    }
+                    break;
+
+                case JobState.Rendering:
+                    bool finished = RenderJobStep(job, sw);
+                    if (finished) {
+                        ThumbnailReady?.Invoke(job.Id, job.Buffer, job.TargetFrameCount);
+                        FinishJob(job);
+                    }
+                    break;
+            }
+        }
+
+        private void FinishJob(Job job) {
+            lock (_queue) {
+                _queued.Remove((job.Id, job.TargetFrameCount));
+            }
+            _currentJob = null;
+        }
+
+        private unsafe bool RenderJobStep(Job job, Stopwatch sw) {
             // Safety check
             if (job.MainRenderData == null) return true;
 
