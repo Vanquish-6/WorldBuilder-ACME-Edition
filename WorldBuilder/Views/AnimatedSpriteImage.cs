@@ -51,6 +51,8 @@ namespace WorldBuilder.Views {
         private int _currentFrame = 0;
         private DispatcherTimer? _animationTimer;
         private bool _isHovering;
+        private double _currentFps;
+        private bool _isSlowingDown;
 
         public AnimatedSpriteImage() {
             AffectsRender<AnimatedSpriteImage>(SourceProperty);
@@ -61,23 +63,31 @@ namespace WorldBuilder.Views {
         protected override void OnPointerEntered(PointerEventArgs e) {
             base.OnPointerEntered(e);
             _isHovering = true;
+            _isSlowingDown = false;
+            _currentFps = FramesPerSecond;
             UpdateAnimationState();
         }
 
         protected override void OnPointerExited(PointerEventArgs e) {
             base.OnPointerExited(e);
             _isHovering = false;
+            _isSlowingDown = true;
             UpdateAnimationState();
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e) {
+            if (_animationTimer != null) {
+                _animationTimer.Stop();
+                _animationTimer.Tick -= OnAnimationTick;
+                _animationTimer = null;
+            }
+            base.OnDetachedFromVisualTree(e);
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change) {
             base.OnPropertyChanged(change);
             if (change.Property == SourceProperty) {
-                // Keep the current frame if possible, or reset if it's a completely new load context
-                // But for "progressive upgrading" (static -> animated), we might want to start animating immediately
-                // if we are currently hovering.
-                // _currentFrame = 0; // Don't strictly reset, allowing seamless transition if frame 0 matches
-
+                // Keep the current frame if possible, allowing seamless transition if frame 0 matches
                 InvalidateVisual();
                 UpdateAnimationState(); // Re-evaluate animation eligibility (e.g. now we have more frames)
             }
@@ -87,19 +97,18 @@ namespace WorldBuilder.Views {
         }
 
         private void UpdateAnimationState() {
-            bool shouldAnimate = AnimateOnHover && _isHovering && Source != null && FrameCount > 1;
+            bool canAnimate = Source != null && FrameCount > 1;
+            bool shouldAnimate = canAnimate && (_isHovering || _isSlowingDown);
 
             if (shouldAnimate) {
                 if (_animationTimer == null) {
-                    _animationTimer = new DispatcherTimer {
-                        Interval = TimeSpan.FromSeconds(1.0 / FramesPerSecond)
-                    };
-                    _animationTimer.Tick += (s, e) => {
-                        _currentFrame = (_currentFrame + 1) % FrameCount;
-                        InvalidateVisual();
-                    };
+                    _animationTimer = new DispatcherTimer();
+                    _animationTimer.Tick += OnAnimationTick;
                 }
+
                 if (!_animationTimer.IsEnabled) {
+                    _currentFps = FramesPerSecond;
+                    _animationTimer.Interval = TimeSpan.FromSeconds(1.0 / _currentFps);
                     _animationTimer.Start();
                 }
             }
@@ -107,9 +116,27 @@ namespace WorldBuilder.Views {
                 if (_animationTimer != null && _animationTimer.IsEnabled) {
                     _animationTimer.Stop();
                 }
-                _currentFrame = 0; // Reset to first frame when not animating
+                _currentFrame = 0; // Reset to first frame when fully stopped
                 InvalidateVisual();
             }
+        }
+
+        private void OnAnimationTick(object? sender, EventArgs e) {
+            if (_isSlowingDown) {
+                // Decay FPS
+                _currentFps *= 0.90; // Reduce speed by 10% each frame
+                if (_currentFps < 2.0) { // Stop if too slow
+                    _isSlowingDown = false;
+                    UpdateAnimationState(); // This will stop the timer
+                    return;
+                }
+                if (_animationTimer != null) {
+                    _animationTimer.Interval = TimeSpan.FromSeconds(1.0 / _currentFps);
+                }
+            }
+
+            _currentFrame = (_currentFrame + 1) % FrameCount;
+            InvalidateVisual();
         }
 
         public override void Render(DrawingContext context) {

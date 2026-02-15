@@ -28,7 +28,7 @@ namespace WorldBuilder.Editors.Landscape {
 
         // Request queue: (objectId, isSetup, frameCount)
         private readonly Queue<(uint Id, bool IsSetup, int FrameCount)> _queue = new();
-        private readonly HashSet<uint> _queued = new(); // Avoid duplicate entries
+        private readonly HashSet<(uint Id, int FrameCount)> _queued = new(); // Avoid duplicate entries for same config
         private readonly HashSet<uint> _failedIds = new(); // Never retry objects that failed
 
         /// <summary>
@@ -53,7 +53,7 @@ namespace WorldBuilder.Editors.Landscape {
         public void RequestThumbnail(uint id, bool isSetup, int frameCount = 1) {
             if (_failedIds.Contains(id)) return;
             lock (_queue) {
-                if (_queued.Add(id)) {
+                if (_queued.Add((id, frameCount))) {
                     _queue.Enqueue((id, isSetup, frameCount));
                 }
             }
@@ -133,7 +133,7 @@ namespace WorldBuilder.Editors.Landscape {
                 }
 
                 lock (_queue) {
-                    _queued.Remove(request.id);
+                    _queued.Remove((request.id, request.frameCount));
                 }
             }
 
