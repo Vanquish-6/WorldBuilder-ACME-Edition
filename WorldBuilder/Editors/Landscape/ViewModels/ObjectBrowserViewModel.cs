@@ -309,48 +309,58 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         /// <summary>
         /// For each item without a thumbnail, try the disk cache first.
         /// If not cached, queue for rendering via the ThumbnailRenderService.
+        /// Runs on a background thread to avoid blocking the UI thread during disk I/O.
         /// </summary>
-        private void RequestThumbnails(ObservableCollection<ObjectBrowserItem> items) {
-            int cached = 0, queued = 0, skipped = 0;
-            const int frameCount = 16; // Request 16 frames for smoother rotation
-            int width = ThumbnailRenderService.ThumbnailSize * frameCount;
-            int height = ThumbnailRenderService.ThumbnailSize;
+        private void RequestThumbnails(IEnumerable<ObjectBrowserItem> items) {
+            // Snapshot the list to avoid collection modification issues
+            var itemsList = items.ToList();
 
-            foreach (var item in items) {
-                if (item.Thumbnail != null) {
-                    // Check if we need to upgrade to high-res
-                    if (item.Thumbnail.Size.Width < width) {
-                        // Already have a thumbnail but it's low-res, queue upgrade
-                        _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
+            // Run on background thread
+            Task.Run(async () => {
+                int cached = 0, queued = 0, skipped = 0;
+                const int frameCount = 16; // Request 16 frames for smoother rotation
+                int width = ThumbnailRenderService.ThumbnailSize * frameCount;
+                int height = ThumbnailRenderService.ThumbnailSize;
+
+                foreach (var item in itemsList) {
+                    if (item.Thumbnail != null) {
+                        // Check if we need to upgrade to high-res
+                        if (item.Thumbnail.Size.Width < width) {
+                            // Already have a thumbnail but it's low-res, queue upgrade
+                            _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
+                        }
+                        skipped++;
+                        continue;
                     }
-                    skipped++;
-                    continue;
-                }
 
-                // Pass 1: Try to load fast single-frame static thumbnail first
-                var staticBitmap = _thumbnailCache.TryLoadCached(item.Id, ThumbnailRenderService.ThumbnailSize, ThumbnailRenderService.ThumbnailSize);
-                if (staticBitmap != null) {
-                    item.Thumbnail = staticBitmap;
-                    // Queue background upgrade to animated version
+                    // Pass 1: Try to load fast single-frame static thumbnail first
+                    var staticBitmap = await _thumbnailCache.TryLoadCachedAsync(item.Id, ThumbnailRenderService.ThumbnailSize, ThumbnailRenderService.ThumbnailSize);
+                    if (staticBitmap != null) {
+                        Dispatcher.UIThread.Post(() => item.Thumbnail = staticBitmap);
+                        // Queue background upgrade to animated version
+                        _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
+                        cached++;
+                        continue;
+                    }
+
+                    // Pass 2: Try to load full animated sprite sheet
+                    var cachedBitmap = await _thumbnailCache.TryLoadCachedAsync(item.Id, width, height);
+                    if (cachedBitmap != null) {
+                        Dispatcher.UIThread.Post(() => item.Thumbnail = cachedBitmap);
+                        cached++;
+                        continue;
+                    }
+
+                    // Not in cache: Queue single frame for immediate feedback, then upgrade
+                    _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, 1);
                     _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
-                    cached++;
-                    continue;
+                    queued++;
                 }
 
-                // Pass 2: Try to load full animated sprite sheet
-                var cachedBitmap = _thumbnailCache.TryLoadCached(item.Id, width, height);
-                if (cachedBitmap != null) {
-                    item.Thumbnail = cachedBitmap;
-                    cached++;
-                    continue;
+                if (cached > 0 || queued > 0) {
+                    Console.WriteLine($"[ObjectBrowser] RequestThumbnails: {itemsList.Count} items, {cached} from cache, {queued} queued for render, {skipped} already have thumbnails");
                 }
-
-                // Not in cache: Queue single frame for immediate feedback, then upgrade
-                _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, 1);
-                _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
-                queued++;
-            }
-            Console.WriteLine($"[ObjectBrowser] RequestThumbnails: {items.Count} items, {cached} from cache, {queued} queued for render, {skipped} already have thumbnails");
+            });
         }
 
         private void ApplyFilter() {

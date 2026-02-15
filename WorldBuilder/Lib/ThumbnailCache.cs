@@ -56,6 +56,41 @@ namespace WorldBuilder.Lib {
         }
 
         /// <summary>
+        /// Try to load a cached thumbnail from disk asynchronously.
+        /// Returns null if no cached thumbnail exists for the given ID.
+        /// </summary>
+        public async Task<Bitmap?> TryLoadCachedAsync(uint objectId, int width = 96, int height = 96) {
+            var path = GetCachePath(objectId, width, height);
+            if (!File.Exists(path)) {
+                // Backward compatibility: try legacy filename if requesting default size
+                if (width == 96 && height == 96) {
+                    path = GetCachePath(objectId, 0, 0); // Force legacy name
+                    if (!File.Exists(path)) return null;
+                }
+                else {
+                    return null;
+                }
+            }
+
+            try {
+                // Use async I/O to read the file bytes
+                byte[] data = await File.ReadAllBytesAsync(path);
+
+                // Decode the bitmap on a background thread to keep the UI responsive
+                return await Task.Run(() => {
+                    using var ms = new MemoryStream(data);
+                    return new Bitmap(ms);
+                });
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"[ThumbnailCache] Failed to load cached thumbnail 0x{objectId:X8}: {ex.Message}");
+                // Delete corrupt cache file
+                try { File.Delete(path); } catch { }
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Save RGBA pixel data as a PNG to the cache directory.
         /// Runs on a background thread (fire-and-forget).
         /// </summary>
