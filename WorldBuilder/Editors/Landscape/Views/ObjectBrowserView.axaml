@@ -95,7 +95,7 @@
                         Name="PreviewWidget"
                         ObjectId="{Binding SelectedObject.Id}"
                         IsSetup="{Binding SelectedObject.IsSetup}"
-                        ObjectManager="{Binding $parent[UserControl].((vm:ObjectBrowserViewModel)DataContext).Context.StaticObjectManager}" />
+                        ObjectManager="{Binding $parent[UserControl].((vm:ObjectBrowserViewModel)DataContext).StaticObjectManager}" />
                 </Grid>
             </Border>
         </Grid>

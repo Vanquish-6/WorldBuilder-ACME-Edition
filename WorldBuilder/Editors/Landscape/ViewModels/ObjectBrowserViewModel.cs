@@ -50,6 +50,13 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         /// </summary>
         public ObjectTagIndex TagIndex => _tagIndex;
 
+        /// <summary>
+        /// Gets the editing context (exposed for View access to StaticObjectManager).
+        /// </summary>
+        public TerrainEditingContext Context => _context;
+
+        public StaticObjectManager StaticObjectManager => _context.TerrainSystem.Scene._objectManager;
+
         public ObjectBrowserViewModel(TerrainEditingContext context, IDatReaderWriter dats,
             ThumbnailRenderService? thumbnailService = null, ThumbnailCache? thumbnailCache = null) {
             _context = context;
