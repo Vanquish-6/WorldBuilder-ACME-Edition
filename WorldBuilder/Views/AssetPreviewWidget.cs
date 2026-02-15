@@ -106,22 +106,17 @@ namespace WorldBuilder.Views {
                 return;
             }
 
-            var rotation = Matrix4x4.CreateRotationZ(_rotationAngle);
-
-            // Camera setup
+            // Fixed camera position (no rotation applied to camera)
             var cameraOffset = new Vector3(
                 MathF.Cos(_elevation) * MathF.Sin(_azimuth),
                 MathF.Cos(_elevation) * MathF.Cos(_azimuth),
                 MathF.Sin(_elevation)
             );
 
-            // Apply auto-rotation to the camera position
-            var finalCameraOffset = Vector3.Transform(cameraOffset, rotation);
-
             float zoomFactor = _distance / 10f;
             float dist = radius * 2.8f * zoomFactor;
 
-            var viewPos = center + finalCameraOffset * dist;
+            var viewPos = center + cameraOffset * dist;
 
             var view = Matrix4x4.CreateLookAt(viewPos, center, Vector3.UnitZ);
             var projection = Matrix4x4.CreatePerspectiveFieldOfView(
@@ -134,7 +129,7 @@ namespace WorldBuilder.Views {
             // GL State
             gl.Enable(EnableCap.DepthTest);
             gl.Enable(EnableCap.CullFace);
-            gl.ClearColor(0f, 0f, 0f, 0f);
+            gl.ClearColor(0.1f, 0.1f, 0.12f, 1.0f); // Dark gray background instead of transparent
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
 
             // Setup Shader
@@ -146,17 +141,27 @@ namespace WorldBuilder.Views {
             shader.SetUniform("uAmbientIntensity", 0.6f);
             shader.SetUniform("uSpecularPower", 32f);
 
-            // Render
+            // Create rotation matrix for the object around Z axis (vertical spin)
+            // We rotate around the object center
+            var objectRotation = Matrix4x4.CreateTranslation(-center) *
+                               Matrix4x4.CreateRotationZ(_rotationAngle) *
+                               Matrix4x4.CreateTranslation(center);
+
+            // Render with rotation applied to the object
             if (_isSetup && renderData.IsSetup) {
                 foreach (var (partId, partTransform) in renderData.SetupParts) {
                     var partRenderData = ObjectManager.GetRenderData(partId, false);
                     if (partRenderData == null) continue;
-                    RenderSingleObject(gl, partRenderData, partTransform, shader);
+
+                    // Apply rotation to the part transform
+                    var rotatedTransform = partTransform * objectRotation;
+                    RenderSingleObject(gl, partRenderData, rotatedTransform, shader);
                     ObjectManager.ReleaseRenderData(partId, false);
                 }
             }
             else {
-                RenderSingleObject(gl, renderData, Matrix4x4.Identity, shader);
+                // Apply rotation to the object
+                RenderSingleObject(gl, renderData, objectRotation, shader);
             }
 
             ObjectManager.ReleaseRenderData(_objectId, _isSetup);
