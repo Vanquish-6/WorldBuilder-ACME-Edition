@@ -304,14 +304,32 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         /// </summary>
         private void RequestThumbnails(ObservableCollection<ObjectBrowserItem> items) {
             int cached = 0, queued = 0, skipped = 0;
-            const int frameCount = 8; // Request 8 frames for sprite sheet
+            const int frameCount = 16; // Request 16 frames for smoother rotation
             int width = ThumbnailRenderService.ThumbnailSize * frameCount;
             int height = ThumbnailRenderService.ThumbnailSize;
 
             foreach (var item in items) {
-                if (item.Thumbnail != null) { skipped++; continue; }
+                if (item.Thumbnail != null) {
+                    // Check if we need to upgrade to high-res
+                    if (item.Thumbnail.Size.Width < width) {
+                        // Already have a thumbnail but it's low-res, queue upgrade
+                        _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
+                    }
+                    skipped++;
+                    continue;
+                }
 
-                // Try disk cache first with dimensions for sprite sheet
+                // Pass 1: Try to load fast single-frame static thumbnail first
+                var staticBitmap = _thumbnailCache.TryLoadCached(item.Id, ThumbnailRenderService.ThumbnailSize, ThumbnailRenderService.ThumbnailSize);
+                if (staticBitmap != null) {
+                    item.Thumbnail = staticBitmap;
+                    // Queue background upgrade to animated version
+                    _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
+                    cached++;
+                    continue;
+                }
+
+                // Pass 2: Try to load full animated sprite sheet
                 var cachedBitmap = _thumbnailCache.TryLoadCached(item.Id, width, height);
                 if (cachedBitmap != null) {
                     item.Thumbnail = cachedBitmap;
@@ -319,7 +337,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                     continue;
                 }
 
-                // Queue for rendering
+                // Not in cache: Queue single frame for immediate feedback, then upgrade
+                _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, 1);
                 _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
                 queued++;
             }

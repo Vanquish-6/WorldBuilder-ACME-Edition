@@ -67,29 +67,45 @@ namespace WorldBuilder.Editors.Landscape {
         public unsafe void ProcessQueue() {
             if (_queue.Count == 0) return;
 
-            // Ensure FBO is initialized. For now, we use a single size suitable for single frames.
-            // When we render sprite sheets, we'll resize or reallocate if needed, or render tile by tile.
-            // Given the requirement, rendering tile-by-tile into a larger CPU buffer is safer for FBO size limits.
+            // Ensure FBO is initialized
             EnsureFBO();
 
             var sw = Stopwatch.StartNew();
             int rendered = 0;
 
             while (true) {
-                (uint id, bool isSetup, int frameCount) request;
+                (uint id, bool isSetup, int frameCount) request = default;
                 lock (_queue) {
                     if (_queue.Count == 0) break;
-                    request = _queue.Dequeue();
+
+                    // Priority handling: Scan queue for single-frame requests first
+                    // This ensures the grid populates quickly before processing expensive sprite sheets
+                    bool foundPriority = false;
+                    int count = _queue.Count;
+                    for (int i = 0; i < count; i++) {
+                        var item = _queue.Dequeue();
+                        if (!foundPriority && item.FrameCount == 1) {
+                            request = item;
+                            foundPriority = true;
+                        } else {
+                            _queue.Enqueue(item);
+                        }
+                    }
+
+                    if (foundPriority) {
+                        // 'request' is already set
+                    } else {
+                        // No priority items found, take the next one
+                        request = _queue.Dequeue();
+                    }
                 }
 
                 if (rendered > 0 && sw.ElapsedMilliseconds >= TimeBudgetMs) {
                     // Re-enqueue for next frame
                     lock (_queue) {
-                        var temp = new Queue<(uint, bool, int)>();
-                        temp.Enqueue(request);
-                        while (_queue.Count > 0) temp.Enqueue(_queue.Dequeue());
-                        _queue.Clear();
-                        foreach (var item in temp) _queue.Enqueue(item);
+                        // Put it back at the front if possible, or just re-add
+                        // Since we have a priority queue logic now, just re-enqueueing is fine
+                        _queue.Enqueue(request);
                     }
                     break;
                 }

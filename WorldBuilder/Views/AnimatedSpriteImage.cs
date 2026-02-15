@@ -41,7 +41,7 @@ namespace WorldBuilder.Views {
         }
 
         public static readonly StyledProperty<double> FramesPerSecondProperty =
-            AvaloniaProperty.Register<AnimatedSpriteImage, double>(nameof(FramesPerSecond), defaultValue: 12.0);
+            AvaloniaProperty.Register<AnimatedSpriteImage, double>(nameof(FramesPerSecond), defaultValue: 24.0);
 
         public double FramesPerSecond {
             get => GetValue(FramesPerSecondProperty);
@@ -73,10 +73,13 @@ namespace WorldBuilder.Views {
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change) {
             base.OnPropertyChanged(change);
             if (change.Property == SourceProperty) {
-                // Reset frame when source changes
-                _currentFrame = 0;
+                // Keep the current frame if possible, or reset if it's a completely new load context
+                // But for "progressive upgrading" (static -> animated), we might want to start animating immediately
+                // if we are currently hovering.
+                // _currentFrame = 0; // Don't strictly reset, allowing seamless transition if frame 0 matches
+
                 InvalidateVisual();
-                UpdateAnimationState(); // Check if we should be animating (e.g. if already hovering)
+                UpdateAnimationState(); // Re-evaluate animation eligibility (e.g. now we have more frames)
             }
             else if (change.Property == AnimateOnHoverProperty) {
                 UpdateAnimationState();

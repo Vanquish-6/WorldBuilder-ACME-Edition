@@ -63,8 +63,8 @@
                                         Width="80"
                                         Height="80"
                                         FrameWidth="96"
-                                        FrameCount="8"
-                                        FramesPerSecond="12"
+                                        FrameCount="16"
+                                        FramesPerSecond="24"
                                         AnimateOnHover="True"
                                         Source="{Binding Thumbnail}"
                                         IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNotNull}}" />
