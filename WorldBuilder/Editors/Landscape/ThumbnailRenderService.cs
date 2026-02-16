@@ -249,7 +249,7 @@ namespace WorldBuilder.Editors.Landscape {
             _objectManager._objectShader.SetUniform("uSpecularPower", SpecularPower);
         }
 
-        private void RenderObjectAtAngle(StaticObjectRenderData renderData, (Vector3 Min, Vector3 Max) bounds, float angle) {
+        private unsafe void RenderObjectAtAngle(StaticObjectRenderData renderData, (Vector3 Min, Vector3 Max) bounds, float angle) {
             var center = (bounds.Min + bounds.Max) * 0.5f;
             var rotationMatrix = Matrix4x4.CreateRotationZ(angle);
             var objectRotation = Matrix4x4.CreateTranslation(-center) * rotationMatrix * Matrix4x4.CreateTranslation(center);
