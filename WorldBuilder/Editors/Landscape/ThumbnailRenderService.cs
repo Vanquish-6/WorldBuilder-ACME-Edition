@@ -291,7 +291,7 @@ namespace WorldBuilder.Editors.Landscape {
             _gl.BindVertexArray(0);
         }
 
-        private void EnsureFBO() {
+        private unsafe void EnsureFBO() {
             if (_fboInitialized) return;
             _colorTexture = _gl.GenTexture();
             _gl.BindTexture(TextureTarget.Texture2D, _colorTexture);
