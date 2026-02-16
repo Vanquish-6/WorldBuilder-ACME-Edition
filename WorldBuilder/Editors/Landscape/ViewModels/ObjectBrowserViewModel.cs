@@ -318,32 +318,18 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             // Run on background thread
             Task.Run(async () => {
                 int cached = 0, queued = 0, skipped = 0;
-                const int frameCount = 16; // Request 16 frames for smoother rotation
+                // Reverted to single frame for performance stability
+                const int frameCount = 1;
                 int width = ThumbnailRenderService.ThumbnailSize * frameCount;
                 int height = ThumbnailRenderService.ThumbnailSize;
 
                 foreach (var item in itemsList) {
                     if (item.Thumbnail != null) {
-                        // Check if we need to upgrade to high-res
-                        if (item.Thumbnail.Size.Width < width) {
-                            // Already have a thumbnail but it's low-res, queue upgrade
-                            _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
-                        }
                         skipped++;
                         continue;
                     }
 
-                    // Pass 1: Try to load fast single-frame static thumbnail first
-                    var staticBitmap = await _thumbnailCache.TryLoadCachedAsync(item.Id, ThumbnailRenderService.ThumbnailSize, ThumbnailRenderService.ThumbnailSize);
-                    if (staticBitmap != null) {
-                        Dispatcher.UIThread.Post(() => item.Thumbnail = staticBitmap);
-                        // Queue background upgrade to animated version
-                        _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
-                        cached++;
-                        continue;
-                    }
-
-                    // Pass 2: Try to load full animated sprite sheet
+                    // Try to load cached thumbnail
                     var cachedBitmap = await _thumbnailCache.TryLoadCachedAsync(item.Id, width, height);
                     if (cachedBitmap != null) {
                         Dispatcher.UIThread.Post(() => item.Thumbnail = cachedBitmap);
@@ -351,8 +337,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                         continue;
                     }
 
-                    // Not in cache: Queue single frame for immediate feedback, then upgrade
-                    _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, 1);
+                    // Not in cache: Queue for rendering
                     _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
                     queued++;
                 }
