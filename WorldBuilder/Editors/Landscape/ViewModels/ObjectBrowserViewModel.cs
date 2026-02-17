@@ -36,6 +36,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private readonly Dictionary<uint, ObjectBrowserItem> _itemLookup = new();
 
         [ObservableProperty] private ObservableCollection<ObjectBrowserItem> _filteredItems = new();
+        [ObservableProperty] private ObjectBrowserItem? _selectedObject;
         [ObservableProperty] private string _searchText = "";
         [ObservableProperty] private string _status = "Search by name or hex ID";
 
@@ -48,6 +49,13 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         /// Gets the tag index for use by the view (e.g., tooltips).
         /// </summary>
         public ObjectTagIndex TagIndex => _tagIndex;
+
+        /// <summary>
+        /// Gets the editing context (exposed for View access to StaticObjectManager).
+        /// </summary>
+        public TerrainEditingContext Context => _context;
+
+        public StaticObjectManager StaticObjectManager => _context.TerrainSystem.Scene._objectManager;
 
         public ObjectBrowserViewModel(TerrainEditingContext context, IDatReaderWriter dats,
             ThumbnailRenderService? thumbnailService = null, ThumbnailCache? thumbnailCache = null) {
@@ -94,13 +102,16 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         /// Called on the GL thread when a thumbnail has been rendered.
         /// Saves to disk cache and dispatches bitmap update to the UI thread.
         /// </summary>
-        private void OnThumbnailReady(uint objectId, byte[] rgbaPixels) {
+        private void OnThumbnailReady(uint objectId, byte[] rgbaPixels, int frameCount) {
+            var width = ThumbnailRenderService.ThumbnailSize * frameCount;
+            var height = ThumbnailRenderService.ThumbnailSize;
+
             // Save to disk cache (fire-and-forget background thread)
-            _thumbnailCache.SaveAsync(objectId, rgbaPixels, ThumbnailRenderService.ThumbnailSize, ThumbnailRenderService.ThumbnailSize);
+            // Note: We always cache now, because ThumbnailCache handles versioning via filename dimensions
+            _thumbnailCache.SaveAsync(objectId, rgbaPixels, width, height);
 
             // Create bitmap from pixels
-            var bitmap = ThumbnailCache.CreateBitmapFromRgba(rgbaPixels,
-                ThumbnailRenderService.ThumbnailSize, ThumbnailRenderService.ThumbnailSize);
+            var bitmap = ThumbnailCache.CreateBitmapFromRgba(rgbaPixels, width, height);
 
             // Dispatch to UI thread to update the item
             Dispatcher.UIThread.Post(() => {
@@ -298,25 +309,43 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         /// <summary>
         /// For each item without a thumbnail, try the disk cache first.
         /// If not cached, queue for rendering via the ThumbnailRenderService.
+        /// Runs on a background thread to avoid blocking the UI thread during disk I/O.
         /// </summary>
-        private void RequestThumbnails(ObservableCollection<ObjectBrowserItem> items) {
-            int cached = 0, queued = 0, skipped = 0;
-            foreach (var item in items) {
-                if (item.Thumbnail != null) { skipped++; continue; }
+        private void RequestThumbnails(IEnumerable<ObjectBrowserItem> items) {
+            // Snapshot the list to avoid collection modification issues
+            var itemsList = items.ToList();
 
-                // Try disk cache first
-                var cachedBitmap = _thumbnailCache.TryLoadCached(item.Id);
-                if (cachedBitmap != null) {
-                    item.Thumbnail = cachedBitmap;
-                    cached++;
-                    continue;
+            // Run on background thread
+            Task.Run(async () => {
+                int cached = 0, queued = 0, skipped = 0;
+                // Reverted to single frame for performance stability
+                const int frameCount = 1;
+                int width = ThumbnailRenderService.ThumbnailSize * frameCount;
+                int height = ThumbnailRenderService.ThumbnailSize;
+
+                foreach (var item in itemsList) {
+                    if (item.Thumbnail != null) {
+                        skipped++;
+                        continue;
+                    }
+
+                    // Try to load cached thumbnail
+                    var cachedBitmap = await _thumbnailCache.TryLoadCachedAsync(item.Id, width, height);
+                    if (cachedBitmap != null) {
+                        Dispatcher.UIThread.Post(() => item.Thumbnail = cachedBitmap);
+                        cached++;
+                        continue;
+                    }
+
+                    // Not in cache: Queue for rendering
+                    _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup, frameCount);
+                    queued++;
                 }
 
-                // Queue for rendering
-                _thumbnailService?.RequestThumbnail(item.Id, item.IsSetup);
-                queued++;
-            }
-            Console.WriteLine($"[ObjectBrowser] RequestThumbnails: {items.Count} items, {cached} from cache, {queued} queued for render, {skipped} already have thumbnails");
+                if (cached > 0 || queued > 0) {
+                    Console.WriteLine($"[ObjectBrowser] RequestThumbnails: {itemsList.Count} items, {cached} from cache, {queued} queued for render, {skipped} already have thumbnails");
+                }
+            });
         }
 
         private void ApplyFilter() {
@@ -380,6 +409,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
         [RelayCommand]
         private void SelectForPlacement(ObjectBrowserItem item) {
+            SelectedObject = item; // Update selection for preview
+
             _context.ObjectSelection.IsPlacementMode = true;
             _context.ObjectSelection.PlacementPreview = new StaticObject {
                 Id = item.Id,
@@ -393,6 +424,11 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             Console.WriteLine($"[ObjectBrowser] Selected 0x{item.Id:X8} for placement (IsSetup={item.IsSetup})");
 
             PlacementRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        [RelayCommand]
+        private void ClosePreview() {
+            SelectedObject = null;
         }
     }
 }

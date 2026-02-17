@@ -366,7 +366,8 @@ namespace WorldBuilder.Views {
             private AvaloniaInputState _inputState => _parent.InputState;
             private readonly Base3DView _parent;
 
-            public DateTime LastRenderTime { get; private set; } = DateTime.MinValue;
+            private readonly System.Diagnostics.Stopwatch _stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            private double _lastFrameTime;
             public GL? SilkGl { get; private set; }
 
             public GlVisual(Base3DView parent) {
@@ -375,7 +376,10 @@ namespace WorldBuilder.Views {
 
             public override void OnRender(ImmediateDrawingContext drawingContext) {
                 try {
-                    var frameTime = CalculateFrameTime();
+                    var currentTime = _stopwatch.Elapsed.TotalSeconds;
+                    var frameTime = currentTime - _lastFrameTime;
+                    _lastFrameTime = currentTime;
+
                     _inputState.OnFrame();
                     RegisterForNextAnimationFrameUpdate();
 
@@ -523,13 +527,6 @@ namespace WorldBuilder.Views {
 
                 gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
-            }
-
-            private double CalculateFrameTime() {
-                var now = DateTime.Now;
-                var frameTime = LastRenderTime == DateTime.MinValue ? 0 : (now - LastRenderTime).TotalSeconds;
-                LastRenderTime = now;
-                return frameTime;
             }
 
             public override void OnAnimationFrameUpdate() {

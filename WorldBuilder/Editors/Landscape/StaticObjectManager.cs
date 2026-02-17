@@ -310,7 +310,8 @@ namespace WorldBuilder.Editors.Landscape {
 
                 if (vertId >= gfxObj.VertexArray.Vertices.Count) continue;
                 if (uvIdx >= gfxObj.VertexArray.Vertices[vertId].UVs.Count) {
-                    Console.WriteLine($"Warning: UV index {uvIdx} out of range for vertex {vertId}. Using 0.");
+                    // This warning is common for some DAT models (empty UVs), suppress to avoid spam
+                    // Console.WriteLine($"Warning: UV index {uvIdx} out of range for vertex {vertId}. Using 0.");
                     uvIdx = 0;
                 }
 

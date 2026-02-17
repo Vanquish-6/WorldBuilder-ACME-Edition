@@ -31,12 +31,56 @@ namespace WorldBuilder.Lib {
         /// Try to load a cached thumbnail from disk.
         /// Returns null if no cached thumbnail exists for the given ID.
         /// </summary>
-        public Bitmap? TryLoadCached(uint objectId) {
-            var path = GetCachePath(objectId);
-            if (!File.Exists(path)) return null;
+        public Bitmap? TryLoadCached(uint objectId, int width = 96, int height = 96) {
+            var path = GetCachePath(objectId, width, height);
+            if (!File.Exists(path)) {
+                // Backward compatibility: try legacy filename if requesting default size
+                if (width == 96 && height == 96) {
+                    path = GetCachePath(objectId, 0, 0); // Force legacy name
+                    if (!File.Exists(path)) return null;
+                }
+                else {
+                    return null;
+                }
+            }
 
             try {
                 return new Bitmap(path);
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"[ThumbnailCache] Failed to load cached thumbnail 0x{objectId:X8}: {ex.Message}");
+                // Delete corrupt cache file
+                try { File.Delete(path); } catch { }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Try to load a cached thumbnail from disk asynchronously.
+        /// Returns null if no cached thumbnail exists for the given ID.
+        /// </summary>
+        public async Task<Bitmap?> TryLoadCachedAsync(uint objectId, int width = 96, int height = 96) {
+            var path = GetCachePath(objectId, width, height);
+            if (!File.Exists(path)) {
+                // Backward compatibility: try legacy filename if requesting default size
+                if (width == 96 && height == 96) {
+                    path = GetCachePath(objectId, 0, 0); // Force legacy name
+                    if (!File.Exists(path)) return null;
+                }
+                else {
+                    return null;
+                }
+            }
+
+            try {
+                // Use async I/O to read the file bytes
+                byte[] data = await File.ReadAllBytesAsync(path);
+
+                // Decode the bitmap on a background thread to keep the UI responsive
+                return await Task.Run(() => {
+                    using var ms = new MemoryStream(data);
+                    return new Bitmap(ms);
+                });
             }
             catch (Exception ex) {
                 Console.WriteLine($"[ThumbnailCache] Failed to load cached thumbnail 0x{objectId:X8}: {ex.Message}");
@@ -53,7 +97,7 @@ namespace WorldBuilder.Lib {
         public void SaveAsync(uint objectId, byte[] rgbaPixels, int width, int height) {
             Task.Run(() => {
                 try {
-                    var path = GetCachePath(objectId);
+                    var path = GetCachePath(objectId, width, height);
                     SaveRgbaAsPng(rgbaPixels, width, height, path);
                 }
                 catch (Exception ex) {
@@ -77,7 +121,10 @@ namespace WorldBuilder.Lib {
             return bitmap;
         }
 
-        private string GetCachePath(uint objectId) {
+        private string GetCachePath(uint objectId, int width, int height) {
+            if (width > 96 || height > 96) {
+                return Path.Combine(_cacheDir, $"{objectId:X8}_{width}x{height}.png");
+            }
             return Path.Combine(_cacheDir, $"{objectId:X8}.png");
         }
 
