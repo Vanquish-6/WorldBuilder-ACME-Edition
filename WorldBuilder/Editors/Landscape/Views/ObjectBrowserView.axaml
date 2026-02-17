@@ -59,16 +59,12 @@
                                             Background="#FF2A2A2A"
                                             CornerRadius="2"
                                             IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNull}}" />
-                                        <!-- Animated sprite sheet viewer -->
-                                        <views:AnimatedSpriteImage
+                                        <Image
                                             Width="80"
                                             Height="80"
-                                            FrameWidth="96"
-                                            FrameCount="16"
-                                            FramesPerSecond="24"
-                                            AnimateOnHover="True"
                                             Source="{Binding Thumbnail}"
-                                            IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                            IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                            Stretch="Uniform" />
                                     </Panel>
                                     <!-- Object ID label -->
                                     <TextBlock
