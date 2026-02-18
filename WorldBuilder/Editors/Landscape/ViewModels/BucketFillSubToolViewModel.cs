@@ -125,7 +125,13 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             // Revert preview first so the command captures clean original values
             RevertPreview();
 
-            var command = new FillCommand(Context, mouseState.TerrainHit.Value, SelectedTerrainType);
+            // Use the hit from MouseState, or fallback to current tracked hit if valid
+            var hit = mouseState.TerrainHit.Value;
+            if (hit.NearestVertice == Vector3.Zero && _currentHitPosition.NearestVertice != Vector3.Zero) {
+                hit = _currentHitPosition;
+            }
+
+            var command = new FillCommand(Context, hit, SelectedTerrainType);
             _commandHistory.ExecuteCommand(command);
 
             return true;

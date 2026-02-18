@@ -267,7 +267,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             else if (camera is OrthographicTopDownCamera orthoCamera) {
                 orthoCamera.ProcessMouseScroll((float)e.Delta.Y);
             }
-            SyncCameras(camera);
+            // SyncCameras(camera);
         }
 
         private void HandleViewportInput(ViewportViewModel viewport, AvaloniaInputState inputState, double deltaTime) {
@@ -331,7 +331,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             SelectedTool?.HandleMouseMove(inputState.MouseState);
             SelectedTool?.Update(deltaTime);
 
-            SyncCameras(camera);
+            // SyncCameras(camera);
         }
 
         private void SyncCameras(ICamera source) {
