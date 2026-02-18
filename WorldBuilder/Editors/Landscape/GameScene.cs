@@ -16,14 +16,21 @@ using System.Threading;
 using System.Threading.Tasks;
 using WorldBuilder.Lib;
 using WorldBuilder.Lib.Settings;
+using WorldBuilder.Rendering;
 using WorldBuilder.Shared.Documents;
 using WorldBuilder.Shared.Lib;
+using WorldBuilder.Shared.Models;
 
 namespace WorldBuilder.Editors.Landscape {
     public class GameScene : IDisposable {
         private const float PerspectiveProximityThreshold = 500f; // 2D distance for perspective camera
         private const int MaxLoadedLandblocks = 200; // Cap to prevent memory explosion when zoomed out
         private const float SceneryDistanceThreshold = 600f; // Beyond this, skip scenery (trees/rocks) — too small to see
+        private PreviewMeshData? _currentStampPreview;
+        private uint _previewVAO;
+        private uint _previewVBO;
+        private uint _previewEBO;
+        private float _previewOpacity = 0.5f;
         private const float DungeonDistanceThreshold = 400f; // Beyond this, skip dungeon EnvCell loading — tighter than surface objects
         private const int MaxBatchSize = 30; // Max landblocks to load per background batch
 
@@ -1469,6 +1476,11 @@ namespace WorldBuilder.Editors.Landscape {
                 RenderSelectionBounds(editingContext.ObjectSelection.SelectionPreviewBounds.Value, camera, viewProjection, editingContext);
             }
 
+            // Render stamp preview (Paste tool)
+            if (_currentStampPreview != null) {
+                RenderStampPreview(camera, viewProjection);
+            }
+
             // Process thumbnail rendering at end of Render() where GL state is known-good.
             // Running during Update() produced blank FBOs because Avalonia's UI renderer
             // leaves GL state (programs, attributes, etc.) in an unknown configuration.
@@ -1588,6 +1600,114 @@ namespace WorldBuilder.Editors.Landscape {
             _gl.DrawElementsInstanced(GLEnum.Triangles, (uint)_sphereIndexCount, GLEnum.UnsignedInt, null, (uint)instanceArray.Length);
             _gl.BindVertexArray(0);
             _gl.UseProgram(0);
+            _gl.Disable(EnableCap.Blend);
+        }
+
+        public void SetStampPreview(TerrainStamp? stamp, Vector2 worldPosition, float zOffset) {
+            if (stamp == null) {
+                _currentStampPreview = null;
+                return;
+            }
+
+            var heightTable = _terrainSystem.Region.LandDefs.LandHeightTable;
+            _currentStampPreview = WorldBuilder.Rendering.PreviewMeshGenerator.GenerateStampPreview(
+                stamp, worldPosition, zOffset, heightTable);
+
+            UploadPreviewMesh();
+        }
+
+        private unsafe void UploadPreviewMesh() {
+            if (_currentStampPreview == null) return;
+
+            // Create VAO/VBO/EBO if needed
+            if (_previewVAO == 0) {
+                _gl.GenVertexArrays(1, out _previewVAO);
+                _gl.GenBuffers(1, out _previewVBO);
+                _gl.GenBuffers(1, out _previewEBO);
+            }
+
+            _gl.BindVertexArray(_previewVAO);
+
+            // Upload vertex data
+            _gl.BindBuffer(GLEnum.ArrayBuffer, _previewVBO);
+            unsafe {
+                fixed (PreviewVertex* ptr = _currentStampPreview.Vertices) {
+                    _gl.BufferData(
+                        GLEnum.ArrayBuffer,
+                        (nuint)(_currentStampPreview.Vertices.Length * sizeof(PreviewVertex)),
+                        ptr,
+                        GLEnum.DynamicDraw);
+                }
+            }
+
+            // Upload index data
+            _gl.BindBuffer(GLEnum.ElementArrayBuffer, _previewEBO);
+            unsafe {
+                fixed (uint* ptr = _currentStampPreview.Indices) {
+                    _gl.BufferData(
+                        GLEnum.ElementArrayBuffer,
+                        (nuint)(_currentStampPreview.Indices.Length * sizeof(uint)),
+                        ptr,
+                        GLEnum.DynamicDraw);
+                }
+            }
+
+            // Configure vertex attributes
+            // Position (location 0)
+            _gl.VertexAttribPointer(0, 3, GLEnum.Float, false,
+                (uint)sizeof(PreviewVertex), (void*)0);
+            _gl.EnableVertexAttribArray(0);
+
+            // TexCoords (location 1)
+            _gl.VertexAttribPointer(1, 2, GLEnum.Float, false,
+                (uint)sizeof(PreviewVertex), (void*)sizeof(Vector3));
+            _gl.EnableVertexAttribArray(1);
+
+            // TextureIndex (location 2) - using float for now as shader expects float
+            _gl.VertexAttribPointer(2, 1, GLEnum.Float, false,
+                (uint)sizeof(PreviewVertex), (void*)(sizeof(Vector3) + sizeof(Vector2)));
+            _gl.EnableVertexAttribArray(2);
+
+            _gl.BindVertexArray(0);
+        }
+
+        private void RenderStampPreview(ICamera camera, Matrix4x4 viewProjection) {
+            if (_currentStampPreview == null || _previewVAO == 0) return;
+
+            _terrainShader.Bind();
+
+            // Reuse terrain shader but with special uniforms or state
+            _terrainShader.SetUniform("xAmbient", AmbientLightIntensity);
+            _terrainShader.SetUniform("xWorld", Matrix4x4.Identity);
+            _terrainShader.SetUniform("xView", camera.GetViewMatrix());
+            _terrainShader.SetUniform("xProjection", camera.GetProjectionMatrix());
+            _terrainShader.SetUniform("uAlpha", 0.6f); // Semi-transparent
+
+            // Disable grid/overlays for the preview mesh
+            _terrainShader.SetUniform("uShowLandblockGrid", 0);
+            _terrainShader.SetUniform("uShowCellGrid", 0);
+            _terrainShader.SetUniform("uShowSlopeHighlight", 0);
+            _terrainShader.SetUniform("uBrushActive", 0);
+            _terrainShader.SetUniform("uPreviewActive", 0); // This is for brush texture preview
+
+            SurfaceManager.TerrainAtlas.Bind(0);
+            _terrainShader.SetUniform("xOverlays", 0);
+            SurfaceManager.AlphaAtlas.Bind(1);
+            _terrainShader.SetUniform("xAlphas", 1);
+
+            _gl.Enable(EnableCap.Blend);
+            _gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);
+
+            _gl.BindVertexArray(_previewVAO);
+            unsafe {
+                _gl.DrawElements(
+                    GLEnum.Triangles,
+                    (uint)_currentStampPreview.Indices.Length,
+                    GLEnum.UnsignedInt,
+                    null);
+            }
+            _gl.BindVertexArray(0);
+
             _gl.Disable(EnableCap.Blend);
         }
 

@@ -12,6 +12,7 @@ namespace WorldBuilder.Editors.Landscape.Commands {
         private readonly Vector2 _pastePosition;
         private readonly bool _includeObjects;
         private readonly bool _blendEdges;
+        private readonly float _zOffset;
 
         // Store original data for undo
         private Dictionary<ushort, Dictionary<byte, uint>>? _originalTerrainData;
@@ -27,13 +28,15 @@ namespace WorldBuilder.Editors.Landscape.Commands {
             TerrainStamp stamp,
             Vector2 pastePosition,
             bool includeObjects,
-            bool blendEdges) {
+            bool blendEdges,
+            float zOffset = 0f) {
 
             _context = context;
             _stamp = stamp;
             _pastePosition = pastePosition;
             _includeObjects = includeObjects;
             _blendEdges = blendEdges;
+            _zOffset = zOffset;
         }
 
         public bool Execute() {
@@ -84,6 +87,13 @@ namespace WorldBuilder.Editors.Landscape.Commands {
                     byte type = (byte)((terrainWord >> 2) & 0x1F);
                     byte scenery = (byte)((terrainWord >> 11) & 0x1F);
                     byte height = _stamp.Heights[stampIndex];
+
+                    // Apply Z offset
+                    if (_zOffset != 0) {
+                        float heightUnits = _context.TerrainSystem.Region.LandDefs.LandHeightTable[height];
+                        heightUnits += _zOffset;
+                        height = FindNearestHeightIndex(heightUnits);
+                    }
 
                     // Blend edges if requested
                     if (_blendEdges && IsEdgeVertex(vx, vy)) {
@@ -163,11 +173,27 @@ namespace WorldBuilder.Editors.Landscape.Commands {
             return (byte)((stampHeight + existingHeight) / 2);
         }
 
+        private byte FindNearestHeightIndex(float height) {
+            var table = _context.TerrainSystem.Region.LandDefs.LandHeightTable;
+            byte bestIndex = 0;
+            float bestDiff = float.MaxValue;
+
+            for (int i = 0; i < table.Length; i++) {
+                float diff = MathF.Abs(table[i] - height);
+                if (diff < bestDiff) {
+                    bestDiff = diff;
+                    bestIndex = (byte)i;
+                }
+            }
+            return bestIndex;
+        }
+
         private void PlaceObjects() {
             foreach (var obj in _stamp.Objects) {
                 // Transform to world position
                 float worldX = _pastePosition.X + obj.Origin.X;
                 float worldY = _pastePosition.Y + obj.Origin.Y;
+                float worldZ = obj.Origin.Z + _zOffset;
 
                 int lbX = (int)MathF.Floor(worldX / 192f);
                 int lbY = (int)MathF.Floor(worldY / 192f);
@@ -176,7 +202,7 @@ namespace WorldBuilder.Editors.Landscape.Commands {
                 var worldObj = new StaticObject {
                     Id = obj.Id,
                     IsSetup = obj.IsSetup,
-                    Origin = new Vector3(worldX, worldY, obj.Origin.Z),
+                    Origin = new Vector3(worldX, worldY, worldZ),
                     Orientation = obj.Orientation,
                     Scale = obj.Scale
                 };

@@ -34,7 +34,16 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private bool _blendEdges = false;
 
         private Vector2 _previewPosition;
+        private float _zOffset;
         private TerrainStamp? _rotatedStamp;
+        private PlacementStage _currentStage = PlacementStage.Positioning;
+        private Vector2 _dragStartMousePos;
+        private float _dragStartZOffset;
+
+        private enum PlacementStage {
+            Positioning,
+            Blending
+        }
 
         public PasteSubToolViewModel(
             TerrainEditingContext context,
@@ -48,6 +57,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         partial void OnSelectedStampChanged(TerrainStamp? value) {
             if (value != null) {
                 UpdateRotatedStamp();
+                _currentStage = PlacementStage.Positioning;
+                _zOffset = 0;
             }
         }
 
@@ -58,6 +69,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private void UpdateRotatedStamp() {
             if (SelectedStamp == null) {
                 _rotatedStamp = null;
+                Context.TerrainSystem.Scene.SetStampPreview(null, Vector2.Zero, 0);
                 return;
             }
 
@@ -71,24 +83,39 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
         public override void OnActivated() {
             Context.BrushActive = false;
+            _currentStage = PlacementStage.Positioning;
+            _zOffset = 0;
         }
 
         public override void OnDeactivated() {
-            // Clear preview
+            Context.TerrainSystem.Scene.SetStampPreview(null, Vector2.Zero, 0);
+            _currentStage = PlacementStage.Positioning;
         }
 
         public override bool HandleMouseMove(MouseState mouseState) {
-            if (!mouseState.TerrainHit.HasValue || _rotatedStamp == null)
+            if (_rotatedStamp == null) {
+                Context.TerrainSystem.Scene.SetStampPreview(null, Vector2.Zero, 0);
                 return false;
+            }
 
-            var hit = mouseState.TerrainHit.Value;
+            if (_currentStage == PlacementStage.Positioning) {
+                if (!mouseState.TerrainHit.HasValue) return false;
 
-            // Snap to cell grid (24 units)
-            _previewPosition = new Vector2(
-                MathF.Floor(hit.HitPosition.X / 24f) * 24f,
-                MathF.Floor(hit.HitPosition.Y / 24f) * 24f);
+                var hit = mouseState.TerrainHit.Value;
 
-            // TODO Sprint 4: Show ghostly preview overlay
+                // Snap to cell grid (24 units)
+                _previewPosition = new Vector2(
+                    MathF.Floor(hit.HitPosition.X / 24f) * 24f,
+                    MathF.Floor(hit.HitPosition.Y / 24f) * 24f);
+            }
+            else if (_currentStage == PlacementStage.Blending) {
+                // Adjust Z offset based on vertical mouse movement
+                float deltaY = _dragStartMousePos.Y - mouseState.Position.Y;
+                _zOffset = _dragStartZOffset + (deltaY * 0.1f); // Sensitivity scaling
+            }
+
+            // Update preview
+            Context.TerrainSystem.Scene.SetStampPreview(_rotatedStamp, _previewPosition, _zOffset);
 
             return true;
         }
@@ -97,15 +124,29 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             if (!mouseState.LeftPressed || _rotatedStamp == null)
                 return false;
 
-            // Paste the stamp
-            var command = new PasteStampCommand(
-                Context, _rotatedStamp, _previewPosition,
-                IncludeObjects, BlendEdges);
-            _commandHistory.ExecuteCommand(command);
+            if (_currentStage == PlacementStage.Positioning) {
+                // First click: Lock X/Y, start blending Z
+                _currentStage = PlacementStage.Blending;
+                _dragStartMousePos = mouseState.Position;
+                _dragStartZOffset = _zOffset;
+                return true;
+            }
+            else if (_currentStage == PlacementStage.Blending) {
+                // Second click: Finalize placement
+                var command = new PasteStampCommand(
+                    Context, _rotatedStamp, _previewPosition,
+                    IncludeObjects, BlendEdges, _zOffset);
+                _commandHistory.ExecuteCommand(command);
 
-            Console.WriteLine($"[Paste] Stamped {_rotatedStamp.WidthInVertices}x{_rotatedStamp.HeightInVertices} at ({_previewPosition.X}, {_previewPosition.Y})");
+                Console.WriteLine($"[Paste] Stamped {_rotatedStamp.WidthInVertices}x{_rotatedStamp.HeightInVertices} at ({_previewPosition.X}, {_previewPosition.Y}) Z+{_zOffset}");
 
-            return true;
+                // Reset for next stamp
+                _currentStage = PlacementStage.Positioning;
+                _zOffset = 0;
+                return true;
+            }
+
+            return false;
         }
 
         public override bool HandleMouseUp(MouseState mouseState) {
