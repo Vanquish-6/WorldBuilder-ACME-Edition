@@ -76,7 +76,8 @@ namespace WorldBuilder.Services {
             if (width < targetSize || height < targetSize) {
                 image.Mutate(x => x.Resize(new ResizeOptions {
                     Size = new Size(targetSize, targetSize),
-                    Mode = ResizeMode.NearestNeighbor // Keep pixelated look for terrain grid
+                    Mode = ResizeMode.Stretch,
+                    Sampler = KnownResamplers.NearestNeighbor // Keep pixelated look for terrain grid
                 }));
             }
 
