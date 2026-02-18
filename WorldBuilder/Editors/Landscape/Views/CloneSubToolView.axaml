@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:WorldBuilder.Editors.Landscape.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="400"
+             x:Class="WorldBuilder.Editors.Landscape.Views.CloneSubToolView"
+             x:DataType="vm:CloneSubToolViewModel">
+    <StackPanel Spacing="8">
+        <TextBlock Text="Clone Tool" FontWeight="Bold" FontSize="14"/>
+
+        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.8">
+            Click and drag on the terrain to capture a rectangular region as a stamp.
+        </TextBlock>
+
+        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.8">
+            Captured stamps will appear in the Paste tool library.
+        </TextBlock>
+
+        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.8">
+            Stamps capture terrain height, textures, and static objects within the selection.
+        </TextBlock>
+    </StackPanel>
+</UserControl>
