@@ -59,6 +59,10 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 UpdateRotatedStamp();
                 _currentStage = PlacementStage.Positioning;
                 _zOffset = 0;
+                // Force preview update immediately (e.g. if mouse is already in view)
+                if (_rotatedStamp != null) {
+                    Context.TerrainSystem.Scene.SetStampPreview(_rotatedStamp, _previewPosition, _zOffset);
+                }
             }
         }
 
@@ -85,6 +89,10 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             Context.BrushActive = false;
             _currentStage = PlacementStage.Positioning;
             _zOffset = 0;
+            // Restore preview if we have a selection
+            if (_rotatedStamp != null) {
+                Context.TerrainSystem.Scene.SetStampPreview(_rotatedStamp, _previewPosition, _zOffset);
+            }
         }
 
         public override void OnDeactivated() {

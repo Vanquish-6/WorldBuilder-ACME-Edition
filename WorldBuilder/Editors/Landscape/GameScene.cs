@@ -1680,6 +1680,9 @@ namespace WorldBuilder.Editors.Landscape {
 
             _previewShader.Bind();
 
+            // Check errors after bind
+            GLHelpers.CheckErrors();
+
             _previewShader.SetUniform("xAmbient", AmbientLightIntensity);
             _previewShader.SetUniform("xWorld", Matrix4x4.Identity);
             _previewShader.SetUniform("xView", camera.GetViewMatrix());
