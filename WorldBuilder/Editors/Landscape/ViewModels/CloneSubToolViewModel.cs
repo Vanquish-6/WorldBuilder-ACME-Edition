@@ -174,6 +174,10 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                             (data[vertexIndex].Road << 0) |
                             (data[vertexIndex].Type << 2) |
                             (data[vertexIndex].Scenery << 11));
+
+                        // Console.WriteLine($"[Clone] Captured ({vx},{vy}): Height={data[vertexIndex].Height}, Type={data[vertexIndex].Type}");
+                    } else {
+                        // Console.WriteLine($"[Clone] Missed ({vx},{vy}): LB={lbKey:X4}, LocalV={vertexIndex}");
                     }
                 }
             }

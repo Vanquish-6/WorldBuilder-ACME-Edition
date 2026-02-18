@@ -1,5 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Linq;
 using System.Numerics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -19,10 +21,10 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private readonly CommandHistory _commandHistory;
 
         [ObservableProperty]
-        private ObservableCollection<TerrainStamp> _availableStamps;
+        private ObservableCollection<StampViewModel> _availableStamps = new();
 
         [ObservableProperty]
-        private TerrainStamp? _selectedStamp;
+        private StampViewModel? _selectedStamp;
 
         [ObservableProperty]
         private int _rotationDegrees = 0; // 0, 90, 180, 270
@@ -52,14 +54,45 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             CommandHistory commandHistory) : base(context) {
             _stampLibrary = stampLibrary;
             _commandHistory = commandHistory;
-            _availableStamps = _stampLibrary.Stamps;
+
+            // Sync initial list
+            foreach (var stamp in _stampLibrary.Stamps) {
+                AvailableStamps.Add(new StampViewModel(stamp));
+            }
+
+            // Keep synced
+            _stampLibrary.Stamps.CollectionChanged += OnStampsCollectionChanged;
         }
 
-        partial void OnSelectedStampChanged(TerrainStamp? value) {
+        private void OnStampsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) {
+            if (e.Action == NotifyCollectionChangedAction.Add) {
+                if (e.NewItems != null) {
+                    foreach (TerrainStamp newItem in e.NewItems) {
+                        AvailableStamps.Insert(0, new StampViewModel(newItem));
+                    }
+                }
+            }
+            else if (e.Action == NotifyCollectionChangedAction.Remove) {
+                if (e.OldItems != null) {
+                    foreach (TerrainStamp oldItem in e.OldItems) {
+                        var vm = AvailableStamps.FirstOrDefault(x => x.Stamp == oldItem);
+                        if (vm != null) AvailableStamps.Remove(vm);
+                    }
+                }
+            }
+            else if (e.Action == NotifyCollectionChangedAction.Reset) {
+                AvailableStamps.Clear();
+                foreach (var stamp in _stampLibrary.Stamps) {
+                    AvailableStamps.Add(new StampViewModel(stamp));
+                }
+            }
+        }
+
+        partial void OnSelectedStampChanged(StampViewModel? value) {
             if (value != null) {
                 // Reset rotation to default when selecting a new stamp
                 RotationDegrees = 0;
-                _rotatedStamp = value; // Default rotation
+                _rotatedStamp = value.Stamp; // Default rotation
                 UpdateRotatedStamp();
 
                 _currentStage = PlacementStage.Positioning;
@@ -83,10 +116,10 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             }
 
             _rotatedStamp = RotationDegrees switch {
-                90 => StampTransforms.Rotate90Clockwise(SelectedStamp),
-                180 => StampTransforms.Rotate180(SelectedStamp),
-                270 => StampTransforms.Rotate270Clockwise(SelectedStamp),
-                _ => SelectedStamp
+                90 => StampTransforms.Rotate90Clockwise(SelectedStamp.Stamp),
+                180 => StampTransforms.Rotate180(SelectedStamp.Stamp),
+                270 => StampTransforms.Rotate270Clockwise(SelectedStamp.Stamp),
+                _ => SelectedStamp.Stamp
             };
         }
 
@@ -185,6 +218,15 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         [RelayCommand]
         private void RotateCounterClockwise() {
             RotationDegrees = (RotationDegrees + 270) % 360;
+        }
+
+        [RelayCommand]
+        private void DeleteStamp(StampViewModel? stamp) {
+            if (stamp == null) return;
+            _stampLibrary.DeleteStamp(stamp.Stamp);
+            if (SelectedStamp == stamp) {
+                SelectedStamp = null;
+            }
         }
     }
 }

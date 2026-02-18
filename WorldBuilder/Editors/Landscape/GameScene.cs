@@ -27,6 +27,7 @@ namespace WorldBuilder.Editors.Landscape {
         private const int MaxLoadedLandblocks = 200; // Cap to prevent memory explosion when zoomed out
         private const float SceneryDistanceThreshold = 600f; // Beyond this, skip scenery (trees/rocks) — too small to see
         private PreviewMeshData? _currentStampPreview;
+        private bool _previewDirty;
         private uint _previewVAO;
         private uint _previewVBO;
         private uint _previewEBO;
@@ -1611,6 +1612,7 @@ namespace WorldBuilder.Editors.Landscape {
             if (stamp == null) {
                 if (_currentStampPreview != null) Console.WriteLine("[Preview] Clearing preview");
                 _currentStampPreview = null;
+                _previewDirty = true;
                 return;
             }
 
@@ -1620,7 +1622,7 @@ namespace WorldBuilder.Editors.Landscape {
 
             Console.WriteLine($"[Preview] Set preview: {stamp.WidthInVertices}x{stamp.HeightInVertices} at {worldPosition}, Z+{zOffset}. Verts: {_currentStampPreview.Vertices.Length}, Indices: {_currentStampPreview.Indices.Length}");
 
-            UploadPreviewMesh();
+            _previewDirty = true;
         }
 
         private unsafe void UploadPreviewMesh() {
@@ -1679,7 +1681,14 @@ namespace WorldBuilder.Editors.Landscape {
         }
 
         private void RenderStampPreview(ICamera camera, Matrix4x4 viewProjection) {
-            if (_currentStampPreview == null || _previewVAO == 0) return;
+            if (_previewDirty) {
+                UploadPreviewMesh();
+                _previewDirty = false;
+            }
+
+            if (_currentStampPreview == null || _previewVAO == 0) {
+                 return;
+            }
 
             _gl.Enable(EnableCap.Blend);
             _gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);

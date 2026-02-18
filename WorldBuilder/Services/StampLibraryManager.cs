@@ -24,9 +24,18 @@ namespace WorldBuilder.Services {
         public void SaveStamp(TerrainStamp stamp, string filename) {
             Directory.CreateDirectory(StampDirectory);
             var path = Path.Combine(StampDirectory, $"{filename}.stamp");
+            var thumbPath = Path.Combine(StampDirectory, $"{filename}.png");
 
             // Set filename on the stamp object so we can delete it later
             stamp.Filename = path;
+
+            // Generate thumbnail
+            try {
+                StampThumbnailGenerator.GenerateThumbnail(stamp, thumbPath);
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"[StampLibrary] Failed to generate thumbnail: {ex.Message}");
+            }
 
             using (var writer = new BinaryWriter(File.OpenWrite(path))) {
                 // Header
@@ -68,13 +77,39 @@ namespace WorldBuilder.Services {
                 var oldest = _stamps[_stamps.Count - 1];
                 _stamps.RemoveAt(_stamps.Count - 1);
 
-                if (!string.IsNullOrEmpty(oldest.Filename) && File.Exists(oldest.Filename)) {
-                    try {
-                        File.Delete(oldest.Filename);
-                    }
-                    catch (Exception ex) {
-                        Console.WriteLine($"[StampLibrary] Failed to delete old stamp {oldest.Filename}: {ex.Message}");
-                    }
+                if (!string.IsNullOrEmpty(oldest.Filename)) {
+                    DeleteStampFiles(oldest.Filename);
+                }
+            }
+        }
+
+        public void DeleteStamp(TerrainStamp stamp) {
+            if (_stamps.Contains(stamp)) {
+                _stamps.Remove(stamp);
+            }
+
+            if (!string.IsNullOrEmpty(stamp.Filename)) {
+                DeleteStampFiles(stamp.Filename);
+            }
+        }
+
+        private void DeleteStampFiles(string stampPath) {
+            if (File.Exists(stampPath)) {
+                try {
+                    File.Delete(stampPath);
+                }
+                catch (Exception ex) {
+                    Console.WriteLine($"[StampLibrary] Failed to delete stamp file {stampPath}: {ex.Message}");
+                }
+            }
+
+            var thumbPath = Path.ChangeExtension(stampPath, ".png");
+            if (File.Exists(thumbPath)) {
+                try {
+                    File.Delete(thumbPath);
+                }
+                catch (Exception ex) {
+                    Console.WriteLine($"[StampLibrary] Failed to delete thumbnail {thumbPath}: {ex.Message}");
                 }
             }
         }

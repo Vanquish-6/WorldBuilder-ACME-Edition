@@ -24,18 +24,34 @@
                  SelectedItem="{Binding SelectedStamp}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <StackPanel>
-                        <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
-                        <TextBlock Text="{Binding Description}" FontSize="10"/>
-                        <TextBlock>
-                            <Run Text="{Binding WidthInVertices}"/>
-                            <Run Text="x"/>
-                            <Run Text="{Binding HeightInVertices}"/>
-                            <Run Text=" vertices"/>
-                        </TextBlock>
-                        <TextBlock Text="{Binding Created, StringFormat='Created: {0:g}'}"
-                                   FontSize="10" Foreground="Gray"/>
-                    </StackPanel>
+                    <Grid ColumnDefinitions="Auto, *, Auto">
+                        <!-- Thumbnail -->
+                        <Border Grid.Column="0" Width="48" Height="48" Margin="0,0,8,0"
+                                BorderBrush="Gray" BorderThickness="1" Background="Black">
+                            <Image Source="{Binding Thumbnail}" Stretch="Uniform" />
+                        </Border>
+
+                        <!-- Metadata -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Description}" FontSize="10" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock FontSize="10">
+                                <Run Text="{Binding WidthInVertices}"/>
+                                <Run Text="x"/>
+                                <Run Text="{Binding HeightInVertices}"/>
+                                <Run Text=" vertices"/>
+                            </TextBlock>
+                            <TextBlock Text="{Binding Created, StringFormat='{}{0:g}'}"
+                                       FontSize="10" Foreground="Gray"/>
+                        </StackPanel>
+
+                        <!-- Delete Button -->
+                        <Button Grid.Column="2" Content="❌"
+                                Margin="4,0,0,0" VerticalAlignment="Center"
+                                Command="{Binding $parent[UserControl].((vm:PasteSubToolViewModel)DataContext).DeleteStampCommand}"
+                                CommandParameter="{Binding}"
+                                ToolTip.Tip="Delete Stamp"/>
+                    </Grid>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
