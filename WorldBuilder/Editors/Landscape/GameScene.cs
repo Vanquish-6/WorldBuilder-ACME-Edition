@@ -462,7 +462,10 @@ namespace WorldBuilder.Editors.Landscape {
         }
 
         private void UnloadOutOfRangeLandblocks(Vector3 cameraPosition) {
-            var keepLoadedSet = GetUnloadBoundaryLandblocks(cameraPosition);
+            // Check both cameras to prevent one camera unloading what the other needs
+            var keepLoadedSet = GetUnloadBoundaryLandblocks(PerspectiveCamera.Position);
+            keepLoadedSet.UnionWith(GetUnloadBoundaryLandblocks(TopDownCamera.Position));
+
             var currentLoaded = _documentManager.ActiveDocs.Keys.Where(k => k.StartsWith("landblock_")).ToHashSet();
 
             var toUnload = currentLoaded
@@ -527,15 +530,21 @@ namespace WorldBuilder.Editors.Landscape {
 
         private void UnloadDistantDungeons(Vector3 cameraPosition) {
             float unloadThreshold = DungeonDistanceThreshold * 1.5f;
-            var camPos2D = new Vector2(cameraPosition.X, cameraPosition.Y);
+
+            var pCamPos2D = new Vector2(PerspectiveCamera.Position.X, PerspectiveCamera.Position.Y);
+            var tCamPos2D = new Vector2(TopDownCamera.Position.X, TopDownCamera.Position.Y);
 
             var manager = _contexts.Values.FirstOrDefault()?.EnvCellManager;
             if (manager == null) return;
 
             var toUnload = new List<ushort>();
             foreach (var lbKey in manager.GetLoadedLandblockKeys()) {
-                float dist = Vector2.Distance(camPos2D, LandblockCenter(lbKey));
-                if (dist > unloadThreshold) {
+                var center = LandblockCenter(lbKey);
+                float distP = Vector2.Distance(pCamPos2D, center);
+                float distT = Vector2.Distance(tCamPos2D, center);
+
+                // Only unload if distant from BOTH cameras
+                if (distP > unloadThreshold && distT > unloadThreshold) {
                     toUnload.Add(lbKey);
                 }
             }
@@ -566,8 +575,29 @@ namespace WorldBuilder.Editors.Landscape {
         }
 
         private void UnloadDistantChunks(Vector3 cameraPosition) {
-            var chunksToUnload = DataManager.GetChunksToUnload(cameraPosition);
-            foreach (var chunkId in chunksToUnload) {
+            // Get chunks to unload based on Perspective camera
+            var chunksToUnloadP = DataManager.GetChunksToUnload(PerspectiveCamera.Position);
+
+            // Filter out chunks that are still needed by TopDown camera
+            var camChunkX = (int)(TopDownCamera.Position.X / DataManager.Metrics.WorldSize);
+            var camChunkY = (int)(TopDownCamera.Position.Y / DataManager.Metrics.WorldSize);
+            var unloadRange = DataManager.UnloadRange;
+
+            var finalUnloadList = new List<ulong>();
+            foreach (var chunkId in chunksToUnloadP) {
+                var chunk = DataManager.GetChunk(chunkId);
+                if (chunk == null) continue;
+
+                int dx = Math.Abs((int)chunk.ChunkX - camChunkX);
+                int dy = Math.Abs((int)chunk.ChunkY - camChunkY);
+
+                // If also distant from TopDown camera, then unload
+                if (dx > unloadRange || dy > unloadRange) {
+                    finalUnloadList.Add(chunkId);
+                }
+            }
+
+            foreach (var chunkId in finalUnloadList) {
                 foreach (var context in _contexts.Values) {
                     context.ChunksInFlight.Remove(chunkId);
                     context.GPUManager.DisposeChunkResources(chunkId);
