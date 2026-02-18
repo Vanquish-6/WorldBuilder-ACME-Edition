@@ -12,10 +12,11 @@ out vec4 FragColor;
 
 void main() {
     vec4 color = texture(xOverlays, vTexCoord);
-    vec3 litColor = color.rgb * (1.0 + xAmbient); // Simple lighting
-    FragColor = vec4(litColor, color.a * uAlpha);
-    // Debug fallback: if alpha is unexpectedly 0 but uAlpha > 0, show magenta
-    if (color.a == 0.0 && uAlpha > 0.0) {
-        // FragColor = vec4(1.0, 0.0, 1.0, uAlpha); // Uncomment for debug if needed
-    }
+    // Use a greenish tint to make it visible against terrain, ignoring lighting for now
+    vec3 tintedColor = color.rgb * vec3(0.8, 1.0, 0.8);
+
+    // Ensure we can see something even if texture alpha is low (e.g. grass)
+    float alpha = max(color.a, 0.3) * uAlpha;
+
+    FragColor = vec4(tintedColor, alpha);
 }

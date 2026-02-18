@@ -34,7 +34,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private bool _blendEdges = false;
 
         private Vector2 _previewPosition;
-        private float _zOffset;
+        private float _manualZOffset; // User-adjustable offset
+        private float _autoZOffset;   // Automatically calculated alignment offset
         private TerrainStamp? _rotatedStamp;
         private PlacementStage _currentStage = PlacementStage.Positioning;
         private Vector2 _dragStartMousePos;
@@ -62,10 +63,10 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 UpdateRotatedStamp();
 
                 _currentStage = PlacementStage.Positioning;
-                _zOffset = 0;
+                _manualZOffset = 0;
                 // Force preview update immediately (e.g. if mouse is already in view)
                 if (_rotatedStamp != null) {
-                    Context.TerrainSystem.Scene.SetStampPreview(_rotatedStamp, _previewPosition, _zOffset);
+                    Context.TerrainSystem.Scene.SetStampPreview(_rotatedStamp, _previewPosition, _autoZOffset + _manualZOffset);
                 }
             }
         }
@@ -92,10 +93,10 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         public override void OnActivated() {
             Context.BrushActive = false;
             _currentStage = PlacementStage.Positioning;
-            _zOffset = 0;
+            _manualZOffset = 0;
             // Restore preview if we have a selection
             if (_rotatedStamp != null) {
-                Context.TerrainSystem.Scene.SetStampPreview(_rotatedStamp, _previewPosition, _zOffset);
+                Context.TerrainSystem.Scene.SetStampPreview(_rotatedStamp, _previewPosition, _autoZOffset + _manualZOffset);
             }
         }
 
@@ -119,15 +120,26 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 _previewPosition = new Vector2(
                     MathF.Floor(hit.HitPosition.X / 24f) * 24f,
                     MathF.Floor(hit.HitPosition.Y / 24f) * 24f);
+
+                // Calculate auto Z offset to align stamp's base to current terrain height
+                if (_rotatedStamp != null && _rotatedStamp.Heights.Length > 0) {
+                    float targetZ = Context.GetHeightAtPosition(_previewPosition.X, _previewPosition.Y);
+
+                    // Get base height of stamp (first vertex / corner)
+                    byte stampBaseHeightIndex = _rotatedStamp.Heights[0];
+                    float stampBaseZ = Context.TerrainSystem.Region.LandDefs.LandHeightTable[stampBaseHeightIndex];
+
+                    _autoZOffset = targetZ - stampBaseZ;
+                }
             }
             else if (_currentStage == PlacementStage.Blending) {
-                // Adjust Z offset based on vertical mouse movement
+                // Adjust manual Z offset based on vertical mouse movement
                 float deltaY = _dragStartMousePos.Y - mouseState.Position.Y;
-                _zOffset = _dragStartZOffset + (deltaY * 0.1f); // Sensitivity scaling
+                _manualZOffset = _dragStartZOffset + (deltaY * 0.1f); // Sensitivity scaling
             }
 
             // Update preview
-            Context.TerrainSystem.Scene.SetStampPreview(_rotatedStamp, _previewPosition, _zOffset);
+            Context.TerrainSystem.Scene.SetStampPreview(_rotatedStamp, _previewPosition, _autoZOffset + _manualZOffset);
 
             return true;
         }
@@ -140,21 +152,21 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 // First click: Lock X/Y, start blending Z
                 _currentStage = PlacementStage.Blending;
                 _dragStartMousePos = mouseState.Position;
-                _dragStartZOffset = _zOffset;
+                _dragStartZOffset = _manualZOffset;
                 return true;
             }
             else if (_currentStage == PlacementStage.Blending) {
                 // Second click: Finalize placement
                 var command = new PasteStampCommand(
                     Context, _rotatedStamp, _previewPosition,
-                    IncludeObjects, BlendEdges, _zOffset);
+                    IncludeObjects, BlendEdges, _autoZOffset + _manualZOffset);
                 _commandHistory.ExecuteCommand(command);
 
-                Console.WriteLine($"[Paste] Stamped {_rotatedStamp.WidthInVertices}x{_rotatedStamp.HeightInVertices} at ({_previewPosition.X}, {_previewPosition.Y}) Z+{_zOffset}");
+                Console.WriteLine($"[Paste] Stamped {_rotatedStamp.WidthInVertices}x{_rotatedStamp.HeightInVertices} at ({_previewPosition.X}, {_previewPosition.Y}) Z+{_autoZOffset + _manualZOffset}");
 
                 // Reset for next stamp
                 _currentStage = PlacementStage.Positioning;
-                _zOffset = 0;
+                _manualZOffset = 0;
                 return true;
             }
 
