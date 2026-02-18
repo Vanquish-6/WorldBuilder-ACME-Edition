@@ -56,7 +56,11 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
         partial void OnSelectedStampChanged(TerrainStamp? value) {
             if (value != null) {
+                // Reset rotation to default when selecting a new stamp
+                RotationDegrees = 0;
+                _rotatedStamp = value; // Default rotation
                 UpdateRotatedStamp();
+
                 _currentStage = PlacementStage.Positioning;
                 _zOffset = 0;
                 // Force preview update immediately (e.g. if mouse is already in view)

@@ -1684,6 +1684,7 @@ namespace WorldBuilder.Editors.Landscape {
             GLHelpers.CheckErrors();
 
             _previewShader.SetUniform("xAmbient", AmbientLightIntensity);
+            _previewShader.SetUniform("uAlpha", 0.6f); // Ensure alpha is set
             _previewShader.SetUniform("xWorld", Matrix4x4.Identity);
             _previewShader.SetUniform("xView", camera.GetViewMatrix());
             _previewShader.SetUniform("xProjection", camera.GetProjectionMatrix());
