@@ -85,20 +85,27 @@ namespace WorldBuilder.Views.Components.Viewports {
 
         protected override void OnGlPointerPressed(PointerPressedEventArgs e) {
             _viewModel?.PointerPressedAction?.Invoke(e);
+            e.Pointer.Capture(this);
         }
 
         protected override void OnGlPointerReleased(PointerReleasedEventArgs e) {
             _viewModel?.PointerReleasedAction?.Invoke(e);
+            e.Pointer.Capture(null);
         }
 
         protected override void UpdateMouseState(Point position, PointerPointProperties properties) {
             if (_viewModel?.TerrainSystem == null || _viewModel.Camera == null) return;
 
+            var width = (int)(Bounds.Width * InputScale.X);
+            var height = (int)(Bounds.Height * InputScale.Y);
+            if (width == 0) width = (int)Bounds.Width;
+            if (height == 0) height = (int)Bounds.Height;
+
             InputState.UpdateMouseState(
                 position,
                 properties,
-                (int)Bounds.Width,
-                (int)Bounds.Height,
+                width,
+                height,
                 InputScale,
                 _viewModel.Camera,
                 _viewModel.TerrainSystem
