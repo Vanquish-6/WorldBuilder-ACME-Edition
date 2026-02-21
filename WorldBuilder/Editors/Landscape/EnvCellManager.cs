@@ -60,10 +60,15 @@ namespace WorldBuilder.Editors.Landscape {
         public ushort? FocusedDungeonLB { get; set; }
 
         /// <summary>
-        /// Controls whether dungeon-only cells are rendered. Building interior cells
-        /// always render regardless of this flag.
+        /// Controls whether dungeon-only cells are rendered.
         /// </summary>
         public bool ShowDungeonCells { get; set; } = true;
+
+        /// <summary>
+        /// When true, building interior cells render even when the camera is outside
+        /// (using frustum culling instead of portal filtering). Useful for top-down editing.
+        /// </summary>
+        public bool AlwaysShowBuildingInteriors { get; set; } = false;
 
         /// <summary>
         /// Returns all landblock keys that have loaded dungeon cells, sorted.
@@ -737,12 +742,11 @@ namespace WorldBuilder.Editors.Landscape {
                     if (!ShowDungeonCells) continue;
                     if (FocusedDungeonLB.HasValue && kvp.Key != FocusedDungeonLB.Value) continue;
                 } else {
-                    // Building interiors: only render when camera is inside a building cell
-                    // in this landblock. When camera is outside all cells, or inside a dungeon,
-                    // the exterior GfxObj model handles it.
+                    // Building interiors: render when camera is inside a building cell
+                    // in this landblock, OR when AlwaysShowBuildingInteriors is enabled
+                    // (force-show for top-down editing with frustum culling).
                     bool cameraInThisBuilding = visibility != null && !cameraInDungeon && kvp.Key == cameraLbKey;
-                    if (!cameraInThisBuilding) continue;
-                    if (!ShowDungeonCells) continue;
+                    if (!cameraInThisBuilding && !AlwaysShowBuildingInteriors) continue;
                 }
 
                 // Portal filtering only applies to the landblock the camera is in.

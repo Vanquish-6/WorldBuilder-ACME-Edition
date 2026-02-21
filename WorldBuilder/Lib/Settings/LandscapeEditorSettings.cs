@@ -143,28 +143,33 @@ namespace WorldBuilder.Lib.Settings {
         private bool _showDungeons = true;
         public bool ShowDungeons { get => _showDungeons; set => SetProperty(ref _showDungeons, value); }
 
-        [SettingDescription("Highlight unwalkable slopes with a color overlay")]
+        [SettingDescription("Always show building interior geometry, even when the camera is outside the building")]
         [SettingOrder(3)]
+        private bool _showBuildingInteriors = false;
+        public bool ShowBuildingInteriors { get => _showBuildingInteriors; set => SetProperty(ref _showBuildingInteriors, value); }
+
+        [SettingDescription("Highlight unwalkable slopes with a color overlay")]
+        [SettingOrder(4)]
         private bool _showSlopeHighlight = false;
         public bool ShowSlopeHighlight { get => _showSlopeHighlight; set => SetProperty(ref _showSlopeHighlight, value); }
 
         [SettingDescription("Slope angle threshold in degrees above which terrain is considered unwalkable")]
         [SettingRange(5.0, 85.0, 1.0, 5.0)]
         [SettingFormat("{0:F0}°")]
-        [SettingOrder(4)]
+        [SettingOrder(5)]
         private float _slopeThreshold = 45f;
         public float SlopeThreshold { get => _slopeThreshold; set => SetProperty(ref _slopeThreshold, value); }
 
         [SettingDescription("Color for unwalkable slope highlighting (RGB values 0-1)")]
         [SettingDisplayName("Slope Highlight Color")]
-        [SettingOrder(5)]
+        [SettingOrder(6)]
         private Vector3 _slopeHighlightColor = new(1.0f, 0.2f, 0.2f);
         public Vector3 SlopeHighlightColor { get => _slopeHighlightColor; set => SetProperty(ref _slopeHighlightColor, value); }
 
         [SettingDescription("Opacity of the slope highlight overlay")]
         [SettingRange(0.0, 1.0, 0.05, 0.1)]
         [SettingFormat("{0:P0}")]
-        [SettingOrder(6)]
+        [SettingOrder(7)]
         private float _slopeHighlightOpacity = 0.5f;
         public float SlopeHighlightOpacity { get => _slopeHighlightOpacity; set => SetProperty(ref _slopeHighlightOpacity, value); }
     }

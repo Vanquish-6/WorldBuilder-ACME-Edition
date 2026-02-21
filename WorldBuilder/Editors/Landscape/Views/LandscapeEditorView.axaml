@@ -182,6 +182,18 @@
                         </StackPanel>
                     </ToggleButton>
                     <ToggleButton
+                        IsChecked="{Binding ShowBuildingInteriors}"
+                        ToolTip.Tip="Always show building interior geometry (even when camera is outside)"
+                        Padding="6,4"
+                        FontSize="11"
+                        MinWidth="0"
+                        Focusable="False">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="&#x1F3DB;" FontSize="13" />
+                            <TextBlock Text="Interiors" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ToggleButton>
+                    <ToggleButton
                         IsChecked="{Binding ShowSlopeHighlight}"
                         ToolTip.Tip="Highlight Unwalkable Slopes"
                         Padding="6,4"

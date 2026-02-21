@@ -81,6 +81,11 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             set { Settings.Landscape.Overlay.ShowDungeons = value; OnPropertyChanged(); }
         }
 
+        public bool ShowBuildingInteriors {
+            get => Settings.Landscape.Overlay.ShowBuildingInteriors;
+            set { Settings.Landscape.Overlay.ShowBuildingInteriors = value; OnPropertyChanged(); }
+        }
+
         public bool ShowSlopeHighlight {
             get => Settings.Landscape.Overlay.ShowSlopeHighlight;
             set { Settings.Landscape.Overlay.ShowSlopeHighlight = value; OnPropertyChanged(); }

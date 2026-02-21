@@ -75,6 +75,7 @@ namespace WorldBuilder.Editors.Landscape {
         private bool _cachedShowStaticObjects = true;
         private bool _cachedShowScenery = true;
         private bool _cachedShowDungeons = true;
+        private bool _cachedShowBuildingInteriors = false;
         private ushort? _cachedFocusedDungeonLB = null;
 
         // Reusable collections
@@ -90,6 +91,7 @@ namespace WorldBuilder.Editors.Landscape {
         private readonly ConcurrentQueue<BackgroundLoadResult> _backgroundLoadResults = new();
         private readonly HashSet<ushort> _pendingLoadLandblocks = new();
         private readonly HashSet<ushort> _pendingSceneryRegen = new();
+        private Task? _envCellRetryTask;
         private HashSet<ushort>? _lastVisibleLandblocks;
 
         public HashSet<ushort>? VisibleLandblocks => _lastVisibleLandblocks;
@@ -157,6 +159,11 @@ namespace WorldBuilder.Editors.Landscape {
         public bool ShowDungeons {
             get => _settings.Landscape.Overlay.ShowDungeons;
             set => _settings.Landscape.Overlay.ShowDungeons = value;
+        }
+
+        public bool ShowBuildingInteriors {
+            get => _settings.Landscape.Overlay.ShowBuildingInteriors;
+            set => _settings.Landscape.Overlay.ShowBuildingInteriors = value;
         }
 
         public bool ShowSlopeHighlight {
@@ -246,6 +253,7 @@ namespace WorldBuilder.Editors.Landscape {
             var requiredChunks = DataManager.GetRequiredChunks(cameraPosition);
 
             IntegrateBackgroundLoadResults();
+            RetryMissingEnvCells(cameraPosition);
             ProcessPendingSceneryRegen();
 
             float docUpdateThreshold = DocUpdateDistanceThresholdBase;
@@ -312,7 +320,11 @@ namespace WorldBuilder.Editors.Landscape {
         private void IntegrateBackgroundLoadResults() {
             int integrated = 0;
             while (integrated < MaxIntegratePerFrame && _backgroundLoadResults.TryDequeue(out var result)) {
-                _sceneryObjects[result.LbKey] = result.Scenery;
+                // Only overwrite scenery when the result carries scenery data
+                // (retry results for missing EnvCells have empty scenery lists).
+                if (result.Scenery.Count > 0 || !_sceneryObjects.ContainsKey(result.LbKey)) {
+                    _sceneryObjects[result.LbKey] = result.Scenery;
+                }
                 _pendingLoadLandblocks.Remove(result.LbKey);
 
                 foreach (var (id, isSetup) in result.UniqueObjectIds) {
@@ -360,6 +372,74 @@ namespace WorldBuilder.Editors.Landscape {
             }
         }
 
+        /// <summary>
+        /// Picks up landblocks that were loaded before the render context existed and
+        /// therefore had their EnvCell preparation skipped. Runs at most one retry
+        /// task at a time and only while there are missing cells.
+        /// </summary>
+        private void RetryMissingEnvCells(Vector3 cameraPosition) {
+            if (_envCellRetryTask != null && !_envCellRetryTask.IsCompleted) return;
+
+            var envCellManager = _contexts.Values.FirstOrDefault()?.EnvCellManager;
+            if (envCellManager == null) return;
+
+            var dungeonThreshold = GetEffectiveDungeonThreshold();
+            var camPos2D = new Vector2(cameraPosition.X, cameraPosition.Y);
+
+            var missing = new List<ushort>();
+            foreach (var docId in _documentManager.ActiveDocs.Keys) {
+                if (!docId.StartsWith("landblock_")) continue;
+                var lbKey = ushort.Parse(docId.Replace("landblock_", ""), System.Globalization.NumberStyles.HexNumber);
+                if (envCellManager.HasLoadedCells(lbKey)) continue;
+
+                float dist = Vector2.Distance(camPos2D, LandblockCenter(lbKey));
+                if (dist <= dungeonThreshold) {
+                    missing.Add(lbKey);
+                }
+            }
+
+            if (missing.Count == 0) return;
+
+            var dats = _dats;
+            var resultQueue = _backgroundLoadResults;
+            var contexts = _contexts;
+
+            _envCellRetryTask = Task.Run(() => {
+                var mgr = contexts.Values.FirstOrDefault()?.EnvCellManager;
+                if (mgr == null) return;
+
+                foreach (var lbKey in missing) {
+                    if (mgr.HasLoadedCells(lbKey)) continue;
+                    try {
+                        uint lbId = (uint)lbKey;
+                        uint infoId = lbId << 16 | 0xFFFE;
+                        if (!dats.TryGet<LandBlockInfo>(infoId, out var lbi) || lbi.NumCells == 0) continue;
+
+                        var envCells = new List<EnvCell>();
+                        for (uint c = 0x0100; c < 0x0100 + lbi.NumCells; c++) {
+                            uint cellId = (lbId << 16) | c;
+                            if (dats.TryGet<EnvCell>(cellId, out var envCell)) {
+                                envCells.Add(envCell);
+                            }
+                        }
+                        if (envCells.Count == 0) continue;
+
+                        bool isDungeonOnly = lbi.Buildings == null || lbi.Buildings.Count == 0;
+                        var batch = mgr.PrepareLandblockEnvCells(lbKey, lbId, envCells, isDungeonOnly);
+                        if (batch != null) {
+                            // Route through the normal integration path for thread safety
+                            var docId = $"landblock_{lbKey:X4}";
+                            resultQueue.Enqueue(new BackgroundLoadResult(lbKey, docId, new List<StaticObject>(), new HashSet<(uint, bool)>(), 0, 0, 0, batch));
+                            Console.WriteLine($"[EnvCellRetry] Prepared missing EnvCells for LB 0x{lbKey:X4}");
+                        }
+                    }
+                    catch (Exception ex) {
+                        Console.WriteLine($"[EnvCellRetry] Error for LB 0x{lbKey:X4}: {ex.Message}");
+                    }
+                }
+            });
+        }
+
         private void KickOffBackgroundLoads(Vector3 cameraPosition) {
             if (_backgroundLoadTask != null && !_backgroundLoadTask.IsCompleted) return;
 
@@ -375,6 +455,8 @@ namespace WorldBuilder.Editors.Landscape {
 
             var camPos2D = new Vector2(cameraPosition.X, cameraPosition.Y);
             toLoad.Sort((a, b) => {
+                                        // Dungeon-only landblocks have cells but no buildings.
+                                        // Building interiors have cells AND buildings on the surface.
                 float distA = Vector2.Distance(camPos2D, LandblockCenter(a));
                 float distB = Vector2.Distance(camPos2D, LandblockCenter(b));
                 return distA.CompareTo(distB);
@@ -396,11 +478,14 @@ namespace WorldBuilder.Editors.Landscape {
             var sceneryThreshold = GetEffectiveSceneryThreshold();
             var dungeonThreshold = GetEffectiveDungeonThreshold();
             var camPosCapture = cameraPosition;
-            var envCellManager = _contexts.Values.FirstOrDefault()?.EnvCellManager;
+            // Resolve lazily inside the task — _contexts may be empty on
+            // the first frame because Render() hasn't created a context yet.
+            var contexts = _contexts;
 
             _backgroundLoadTask = Task.Run(() => {
                 var batchSw = Stopwatch.StartNew();
                 int loaded = 0;
+                EnvCellManager? envCellManager = null;
 
                 foreach (var lbKey in toLoad) {
                     var docId = $"landblock_{lbKey:X4}";
@@ -434,6 +519,9 @@ namespace WorldBuilder.Editors.Landscape {
                             }
 
                             PreparedEnvCellBatch? envCellBatch = null;
+                            // Resolve EnvCellManager lazily — on the first batch it may not
+                            // exist yet until the GL thread creates a render context.
+                            envCellManager ??= contexts.Values.FirstOrDefault()?.EnvCellManager;
                             if (envCellManager != null && distFromCamera <= dungeonThreshold && !envCellManager.HasLoadedCells(lbKey)) {
                                 uint lbId = (uint)lbKey;
                                 uint infoId = lbId << 16 | 0xFFFE;
@@ -446,8 +534,6 @@ namespace WorldBuilder.Editors.Landscape {
                                         }
                                     }
                                     if (envCells.Count > 0) {
-                                        // Dungeon-only landblocks have cells but no buildings.
-                                        // Building interiors have cells AND buildings on the surface.
                                         bool isDungeonOnly = lbi.Buildings == null || lbi.Buildings.Count == 0;
                                         envCellBatch = envCellManager.PrepareLandblockEnvCells(lbKey, lbId, envCells, isDungeonOnly);
                                     }
@@ -1107,6 +1193,7 @@ namespace WorldBuilder.Editors.Landscape {
                 || _cachedShowStaticObjects != ShowStaticObjects
                 || _cachedShowScenery != ShowScenery
                 || _cachedShowDungeons != ShowDungeons
+                || _cachedShowBuildingInteriors != ShowBuildingInteriors
                 || _cachedFocusedDungeonLB != focusedLB
                 || visibility != null) {
                 var statics = new List<StaticObject>();
@@ -1119,20 +1206,21 @@ namespace WorldBuilder.Editors.Landscape {
                     statics.AddRange(_sceneryObjects.Values.SelectMany(x => x));
                 }
 
-                if (ShowDungeons) {
+                if (ShowDungeons || ShowBuildingInteriors) {
                     ushort? cameraLbKey = visibility?.CameraCell?.LoadedLandblockKey;
                     bool cameraInDungeon = _envCellManager != null && cameraLbKey.HasValue &&
                         _contexts.Values.Any(c => c.EnvCellManager.IsDungeonLandblock(cameraLbKey.Value));
 
-                    // Building interior statics: only shown when camera is inside a building cell
-                    // (not a dungeon cell). When outside or in a dungeon, the exterior model handles it.
-                    if (visibility != null && !cameraInDungeon) {
+                    // Building interior statics: shown when camera is inside a building cell
+                    // (portal-filtered), or always when ShowBuildingInteriors is enabled.
+                    bool showBuildingStatics = ShowBuildingInteriors || (visibility != null && !cameraInDungeon);
+                    if (showBuildingStatics) {
                         foreach (var kvp in _buildingStaticObjects) {
-                            bool filterByPortal = kvp.Key == cameraLbKey;
+                            bool filterByPortal = !ShowBuildingInteriors && kvp.Key == cameraLbKey;
                             var parentCells = filterByPortal ? _buildingStaticParentCells.GetValueOrDefault(kvp.Key) : null;
                             for (int i = 0; i < kvp.Value.Count; i++) {
                                 if (filterByPortal && parentCells != null && i < parentCells.Count) {
-                                    if (!visibility.VisibleCellIds.Contains(parentCells[i])) continue;
+                                    if (!visibility!.VisibleCellIds.Contains(parentCells[i])) continue;
                                 }
                                 statics.Add(kvp.Value[i]);
                             }
@@ -1141,7 +1229,7 @@ namespace WorldBuilder.Editors.Landscape {
 
                     // Dungeon statics: always shown when focused, filtered by
                     // portal visibility only in the camera's own landblock
-                    if (focusedLB.HasValue) {
+                    if (ShowDungeons && focusedLB.HasValue) {
                         foreach (var kvp in _dungeonStaticObjects) {
                             if (kvp.Key != focusedLB.Value) continue;
                             bool filterByPortal = visibility != null && kvp.Key == cameraLbKey;
@@ -1159,6 +1247,7 @@ namespace WorldBuilder.Editors.Landscape {
                 _cachedShowStaticObjects = ShowStaticObjects;
                 _cachedShowScenery = ShowScenery;
                 _cachedShowDungeons = ShowDungeons;
+                _cachedShowBuildingInteriors = ShowBuildingInteriors;
                 _cachedFocusedDungeonLB = focusedLB;
                 _staticObjectsDirty = false;
             }
@@ -1286,9 +1375,8 @@ namespace WorldBuilder.Editors.Landscape {
                 Console.WriteLine($"[GameScene.Render] Static objects: {renderStaticsMs}ms ({visibleObjects.Count} objects)");
             }
 
-            // Render EnvCell geometry ? building interiors always render,
-            // dungeon cells are gated by ShowDungeons toggle + focus filter.
             context.EnvCellManager.ShowDungeonCells = ShowDungeons;
+            context.EnvCellManager.AlwaysShowBuildingInteriors = ShowBuildingInteriors;
             context.EnvCellManager.Render(viewProjection, camera, LightDirection, AmbientLightIntensity, SpecularPower);
 
             if (editingContext.ObjectSelection.HasSelection) {
