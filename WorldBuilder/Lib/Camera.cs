@@ -83,7 +83,7 @@ namespace WorldBuilder.Lib {
             return Matrix4x4.CreatePerspectiveFieldOfViewLeftHanded(
                 MathHelper.DegreesToRadians(fov),
                 ScreenSize.X / ScreenSize.Y,
-                0.1f,
+                1.0f,
                 settings.Landscape.Camera.MaxDrawDistance);
         }
 
