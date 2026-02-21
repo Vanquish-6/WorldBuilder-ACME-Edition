@@ -13,8 +13,8 @@ namespace WorldBuilder.Editors {
         protected readonly ConcurrentDictionary<string, BaseDocument> ActiveDocuments = new();
         public DocumentManager DocumentManager { get; }
         public CommandHistory History { get; }
-        public event EventHandler<DocumentEventArgs> DocumentLoaded;
-        public event EventHandler<DocumentEventArgs> DocumentUnloaded;
+        public event EventHandler<DocumentEventArgs>? DocumentLoaded;
+        public event EventHandler<DocumentEventArgs>? DocumentUnloaded;
 
         protected EditorBase(DocumentManager docManager, WorldBuilderSettings settings, ILogger logger) {
             DocumentManager = docManager;

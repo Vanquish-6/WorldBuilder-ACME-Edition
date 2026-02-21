@@ -24,14 +24,13 @@ namespace WorldBuilder.Editors.Landscape {
         public TerrainDocument TerrainDoc { get; private set; }
         public TerrainEditingContext EditingContext { get; private set; }
         public Region Region { get; private set; }
-        public OpenGLRenderer Renderer { get; }
         public GameScene Scene { get; private set; }
         public IServiceProvider Services { get; private set; }
         public IDatReaderWriter Dats { get; private set; }
         public string BaseDatDirectory { get; private set; }
         private bool _layerRefreshPending;
 
-        public TerrainSystem(OpenGLRenderer renderer, Project project, IDatReaderWriter dats,
+        public TerrainSystem(Project project, IDatReaderWriter dats,
             WorldBuilderSettings settings, ILogger<TerrainSystem> logger)
             : base(project.DocumentManager, settings, logger) {
             if (!dats.TryGet<Region>(0x13000000, out var region)) {
@@ -42,7 +41,6 @@ namespace WorldBuilder.Editors.Landscape {
             Settings = settings ?? throw new ArgumentNullException(nameof(settings));
             EditingContext = new TerrainEditingContext(project.DocumentManager, this);
             Region = region;
-            Renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
             Dats = dats ?? throw new ArgumentNullException(nameof(dats));
             BaseDatDirectory = project.BaseDatDirectory;
 
@@ -70,7 +68,6 @@ namespace WorldBuilder.Editors.Landscape {
             collection.AddSingleton(TerrainDoc ?? throw new ArgumentNullException(nameof(TerrainDoc)));
             collection.AddSingleton(dats);
             collection.AddSingleton(project);
-            collection.AddSingleton(renderer);
             collection.AddSingleton(History ?? throw new ArgumentNullException(nameof(History)));
             collection.AddSingleton<HistorySnapshotPanelViewModel>();
             collection.AddTransient<PerspectiveCamera>();
@@ -242,7 +239,14 @@ namespace WorldBuilder.Editors.Landscape {
         }
 
         public int GetLoadedChunkCount() => Scene.GetLoadedChunkCount();
-        public int GetVisibleChunkCount(Frustum frustum) => Scene.GetVisibleChunkCount(frustum);
+        public int GetVisibleChunkCount(Frustum frustum) {
+            // Count chunks that geometrically intersect the frustum and are loaded in memory
+            int count = 0;
+            foreach (var chunk in Scene.DataManager.GetAllChunks()) {
+                if (frustum.IntersectsBoundingBox(chunk.Bounds)) count++;
+            }
+            return count;
+        }
 
         public override void Dispose() {
             base.Dispose();

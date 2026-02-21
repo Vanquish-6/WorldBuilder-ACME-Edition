@@ -118,7 +118,7 @@ namespace WorldBuilder.Editors.Landscape {
         /// <summary>
         /// Updates specific landblocks within a chunk
         /// </summary>
-        public void UpdateLandblocks(TerrainChunk chunk, IEnumerable<uint> landblockIds, TerrainSystem terrainSystem) {
+        public void UpdateLandblocks(TerrainChunk chunk, IEnumerable<uint> landblockIds, TerrainSystem terrainSystem, bool clearDirty = true) {
 
             var chunkId = chunk.GetChunkId();
             if (!_renderData.TryGetValue(chunkId, out var renderData)) {
@@ -131,7 +131,9 @@ namespace WorldBuilder.Editors.Landscape {
                 UpdateSingleLandblock(landblockId, chunk, renderData, terrainSystem);
             }
 
-            chunk.ClearDirty();
+            if (clearDirty) {
+                chunk.ClearDirty();
+            }
         }
 
         /// <summary>

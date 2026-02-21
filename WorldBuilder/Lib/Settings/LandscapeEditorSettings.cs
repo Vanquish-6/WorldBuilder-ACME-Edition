@@ -185,5 +185,14 @@ namespace WorldBuilder.Lib.Settings {
         public double LeftPanelWidth { get; set; } = 280;
         /// <summary>Width of the right panel (tools / layers / history)</summary>
         public double RightPanelWidth { get; set; } = 250;
+
+        /// <summary>Persisted state of dockable panels.</summary>
+        public System.Collections.Generic.List<DockingPanelState> DockingLayout { get; set; } = new();
+    }
+
+    public class DockingPanelState {
+        public string Id { get; set; } = "";
+        public string Location { get; set; } = "Left";
+        public bool IsVisible { get; set; } = true;
     }
 }

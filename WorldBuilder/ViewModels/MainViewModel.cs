@@ -5,9 +5,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using WorldBuilder.Editors.Landscape.ViewModels;
 using WorldBuilder.Lib;
+using WorldBuilder.Lib.Docking;
 using WorldBuilder.Lib.Settings;
 using WorldBuilder.Views;
 
@@ -18,12 +20,33 @@ public partial class MainViewModel : ViewModelBase {
 
     private bool _settingsOpen;
 
+    // We expose a collection of dockable panels for the Windows menu
+    public IEnumerable<IDockable> DockingPanels {
+        get {
+            var landscapeEditor = ProjectManager.Instance.GetProjectService<LandscapeEditorViewModel>();
+            if (landscapeEditor != null) {
+                return landscapeEditor.DockingManager.AllPanels;
+            }
+            return new List<IDockable>();
+        }
+    }
+
     public MainViewModel() {
         _settings = new WorldBuilderSettings();
     }
 
     public MainViewModel(WorldBuilderSettings settings) {
         _settings = settings;
+    }
+
+    [RelayCommand]
+    private void TogglePanelVisibility(object? parameter) {
+        if (parameter is string id) {
+             var landscapeEditor = ProjectManager.Instance.GetProjectService<LandscapeEditorViewModel>();
+             if (landscapeEditor != null) {
+                 landscapeEditor.DockingManager.TogglePanelVisibility(id);
+             }
+        }
     }
 
     [RelayCommand]

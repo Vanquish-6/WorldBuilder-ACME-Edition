@@ -70,7 +70,8 @@ namespace WorldBuilder.Lib {
                 }
 
                 // EnvCell (dungeon cell) raycast — build ray the same way as ObjectRaycast
-                if (provider.Scene._envCellManager.LoadedCellCount > 0) {
+                var envMgr = provider.Scene._envCellManager;
+                if (envMgr != null && envMgr.LoadedCellCount > 0) {
                     float ndcX = 2.0f * relativePos.X / Width - 1.0f;
                     float ndcY = 2.0f * relativePos.Y / Height - 1.0f;
                     Matrix4x4 projection = camera.GetProjectionMatrix();
@@ -82,7 +83,7 @@ namespace WorldBuilder.Lib {
                         farW /= farW.W;
                         var rayOrigin = new Vector3(nearW.X, nearW.Y, nearW.Z);
                         var rayDir = Vector3.Normalize(new Vector3(farW.X, farW.Y, farW.Z) - rayOrigin);
-                        var cellHitResult = provider.Scene._envCellManager.Raycast(rayOrigin, rayDir);
+                        var cellHitResult = envMgr.Raycast(rayOrigin, rayDir);
                         if (cellHitResult.Hit) {
                             // Only use EnvCell hit if no object was closer
                             if (!objectHit.HasValue || cellHitResult.Distance < objectHit.Value.Distance) {

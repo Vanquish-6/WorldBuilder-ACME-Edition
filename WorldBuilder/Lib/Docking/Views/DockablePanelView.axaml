@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:docking="clr-namespace:WorldBuilder.Lib.Docking;assembly=WorldBuilder"
+             mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="200"
+             x:Class="WorldBuilder.Lib.Docking.DockablePanelView"
+             x:DataType="docking:DockablePanelViewModel">
+     <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+             BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+             BorderThickness="0,0,0,1"
+             Margin="0,0,0,0">
+         <DockPanel LastChildFill="True">
+             <!-- Header -->
+             <Border DockPanel.Dock="Top"
+                     Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                     Padding="6,4"
+                     Name="HeaderBorder">
+                 <DockPanel>
+                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Spacing="4">
+                         <!-- Drag to Dock Handle -->
+                         <Border Name="DockDragHandle"
+                                 Background="Transparent"
+                                 Padding="4,2"
+                                 ToolTip.Tip="Drag to Dock">
+                             <TextBlock Text="&#x2630;" FontSize="12" VerticalAlignment="Center" />
+                         </Border>
+                         <Button Content="&lt;" ToolTip.Tip="Move Up/Left" Command="{Binding MoveUpCommand}" Padding="4,2" FontSize="10" />
+                         <Button Content="&gt;" ToolTip.Tip="Move Down/Right" Command="{Binding MoveDownCommand}" Padding="4,2" FontSize="10" />
+                         <Button Content="^" ToolTip.Tip="Float" Command="{Binding FloatCommand}" Padding="4,2" FontSize="10" />
+                         <Button Content="X" ToolTip.Tip="Close" Command="{Binding CloseCommand}" Padding="4,2" FontSize="10" />
+                     </StackPanel>
+                     <TextBlock Text="{Binding Title}" FontWeight="Bold" VerticalAlignment="Center" />
+                 </DockPanel>
+             </Border>
+             <ContentControl Content="{Binding Content}" Margin="0" />
+         </DockPanel>
+     </Border>
+</UserControl>

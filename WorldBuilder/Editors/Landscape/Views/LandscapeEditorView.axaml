@@ -1,66 +1,134 @@
-<views:Base3DView
-    x:Class="WorldBuilder.Editors.Landscape.Views.LandscapeEditorView"
-    xmlns="https://github.com/avaloniaui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:views="using:WorldBuilder.Views"
-    xmlns:vm="using:WorldBuilder.Editors.Landscape.ViewModels"
-    x:CompileBindings="True"
-    x:DataType="vm:LandscapeEditorViewModel">
-    <Grid x:Name="MainGrid">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition
-                Width="280"
-                MinWidth="180"
-                MaxWidth="500" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition
-                Width="250"
-                MinWidth="150"
-                MaxWidth="500" />
-        </Grid.ColumnDefinitions>
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:WorldBuilder.Editors.Landscape.ViewModels"
+             xmlns:vp="using:WorldBuilder.Views.Components.Viewports"
+             xmlns:docking="clr-namespace:WorldBuilder.Lib.Docking;assembly=WorldBuilder"
+             xmlns:dockingViews="clr-namespace:WorldBuilder.Lib.Docking.Views;assembly=WorldBuilder"
+             xmlns:converters="clr-namespace:WorldBuilder.Lib.Converters;assembly=WorldBuilder"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="WorldBuilder.Editors.Landscape.Views.LandscapeEditorView"
+             x:DataType="vm:LandscapeEditorViewModel"
+             DragDrop.AllowDrop="True">
 
-        <!--  Left Panel: Contextual (Object Browser or Texture Palette)  -->
-        <Border
-            Grid.Column="0"
-            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-            BorderThickness="0,0,1,0">
-            <ContentControl Content="{Binding LeftPanelContent}" />
+    <UserControl.Resources>
+        <converters:OrientationToColumnsConverter x:Key="OrientationToColumns" />
+        <converters:OrientationToRowsConverter x:Key="OrientationToRows" />
+    </UserControl.Resources>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Top Panels -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="0,0,0,1"
+                IsVisible="{Binding DockingManager.TopPanels.Count}">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding DockingManager.TopPanels}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="5" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="docking:DockablePanelViewModel">
+                            <docking:DockablePanelView />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
         </Border>
 
-        <!--  Splitter between left panel and viewport  -->
-        <GridSplitter
-            Grid.Column="1"
-            Width="5"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Stretch"
-            Background="Transparent" />
+        <Grid x:Name="MainGrid" Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" MinWidth="200" MaxWidth="500" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="250" MinWidth="200" MaxWidth="500" />
+            </Grid.ColumnDefinitions>
 
-        <!--  Main 3D viewport area  -->
-        <Grid Grid.Column="2">
-            <Panel
-                x:Name="Viewport"
-                Background="Transparent" />
+            <!-- Left Panels -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                    BorderThickness="0,0,1,0"
+                    IsVisible="{Binding DockingManager.LeftPanels.Count}">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding DockingManager.LeftPanels}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="5" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="docking:DockablePanelViewModel">
+                                <docking:DockablePanelView />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
 
-            <!--  Marquee select overlay  -->
-            <Border
-                x:Name="MarqueeRect"
-                IsVisible="False"
-                IsHitTestVisible="False"
-                Background="#220078D7"
-                BorderBrush="#880078D7"
-                BorderThickness="1"
-                CornerRadius="1"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top" />
+            <!--  Splitter between left panel and viewport  -->
+        <GridSplitter Grid.Column="1"
+                      Width="5"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Stretch"
+                      Background="Transparent" />
+
+        <!--  Main Viewport Area  -->
+        <Grid Grid.Column="2" Background="Black">
+            <!-- Center Panels -->
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <!-- Toggle Orientation Button (Only visible if multiple panels) -->
+                <Button Grid.Row="0"
+                        HorizontalAlignment="Right"
+                        Margin="4"
+                        ZIndex="10"
+                        Command="{Binding DockingManager.ToggleCenterOrientationCommand}"
+                        IsVisible="{Binding DockingManager.CenterPanels.Count, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="&#x21BA;" ToolTip.Tip="Rotate Layout" />
+                </Button>
+
+                <ContentControl Grid.Row="1" Content="{Binding DockingManager.CenterPanels}">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate>
+                            <ItemsControl ItemsSource="{Binding}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid
+                                            Columns="{Binding $parent[UserControl].((vm:LandscapeEditorViewModel)DataContext).DockingManager.CenterOrientation, Converter={StaticResource OrientationToColumns}}"
+                                            Rows="{Binding $parent[UserControl].((vm:LandscapeEditorViewModel)DataContext).DockingManager.CenterOrientation, Converter={StaticResource OrientationToRows}}" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="docking:DockablePanelViewModel">
+                                        <docking:DockablePanelView />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
+            </Grid>
 
             <!--  Overlay toggle toolbar  -->
             <Border
-                Margin="8"
+                Margin="0,8,0,0"
                 Padding="4,2"
-                HorizontalAlignment="Left"
+                HorizontalAlignment="Center"
                 VerticalAlignment="Top"
                 Background="#CC1E1E1E"
                 CornerRadius="4">
@@ -127,6 +195,29 @@
                     </ToggleButton>
                     <Border Width="1" Background="#44FFFFFF" Margin="4,2" />
                     <Button
+                        ToolTip.Tip="Toggle Panels"
+                        Padding="6,4"
+                        FontSize="11"
+                        MinWidth="0"
+                        Focusable="False">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="&#x1F5D4;" FontSize="13" />
+                            <TextBlock Text="Panels" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="Bottom">
+                                <ItemsControl ItemsSource="{Binding DockingManager.AllPanels}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox Content="{Binding Title}" IsChecked="{Binding IsVisible}" Margin="5,2" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                    <Border Width="1" Background="#44FFFFFF" Margin="4,2" />
+                    <Button
                         Command="{Binding ResetCameraCommand}"
                         ToolTip.Tip="Reset Camera to Map Center"
                         Padding="6,4"
@@ -158,114 +249,62 @@
             </Border>
         </Grid>
 
-        <!--  Splitter for tools panel  -->
-        <GridSplitter
-            Grid.Column="3"
-            Width="5"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Stretch"
-            Background="Transparent" />
+            <!--  Splitter for tools panel  -->
+            <GridSplitter Grid.Column="3"
+                          Width="5"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          Background="Transparent" />
 
-        <!--  Tools Panel with History at bottom  -->
-        <Border
-            Grid.Column="4"
-            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-            BorderThickness="1,0,0,0">
-            <DockPanel LastChildFill="True">
-
-                <!--  Layers Panel  -->
-                <Border
-                    Padding="10"
+            <!-- Right Panels -->
+            <Border Grid.Column="4"
+                    Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                     BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    BorderThickness="0,0,0,1"
-                    DockPanel.Dock="Top">
-                    <ContentControl Content="{Binding LayersPanel}" />
-                </Border>
-                <!--  History and Snapshot Panel  -->
-                <Border
-                    Padding="10"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    BorderThickness="0,1,0,0"
-                    DockPanel.Dock="Bottom">
-                    <ContentControl Content="{Binding HistorySnapshotPanel}" />
-                </Border>
-
-                <!--  Tool Bar - horizontal tool selector  -->
-                <Border
-                    Padding="6"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    BorderThickness="0,0,0,1"
-                    DockPanel.Dock="Top">
-                    <ItemsControl ItemsSource="{Binding Tools}">
+                    BorderThickness="1,0,0,0"
+                    IsVisible="{Binding DockingManager.RightPanels.Count}">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding DockingManager.RightPanels}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" />
+                                <StackPanel Spacing="5" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button
-                                    Margin="0,0,4,0"
-                                    Padding="8,4"
-                                    Classes.selected="{Binding IsSelected}"
-                                    Command="{Binding $parent[Grid].((vm:LandscapeEditorViewModel)DataContext).SelectToolCommand}"
-                                    CommandParameter="{Binding}"
-                                    Focusable="False"
-                                    ToolTip.Tip="{Binding Name}">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock FontSize="14" Text="{Binding IconGlyph}" />
-                                        <TextBlock FontSize="11" VerticalAlignment="Center" Text="{Binding Name}" />
-                                    </StackPanel>
-                                </Button>
+                            <DataTemplate DataType="docking:DockablePanelViewModel">
+                                <docking:DockablePanelView />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                </Border>
-
-                <!--  Sub-Tool Bar - only shown for selected tool  -->
-                <Border
-                    Padding="6"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    BorderThickness="0,0,0,1"
-                    DockPanel.Dock="Top"
-                    IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNotNull}}">
-                    <ItemsControl ItemsSource="{Binding SelectedTool.AllSubTools}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button
-                                    Margin="0,0,4,4"
-                                    Padding="6,3"
-                                    Classes.selected="{Binding IsSelected}"
-                                    Command="{Binding $parent[Grid].((vm:LandscapeEditorViewModel)DataContext).SelectSubToolCommand}"
-                                    CommandParameter="{Binding}"
-                                    Focusable="False"
-                                    ToolTip.Tip="{Binding Name}">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock FontSize="13" Text="{Binding IconGlyph}" />
-                                        <TextBlock FontSize="11" VerticalAlignment="Center" Text="{Binding Name}" />
-                                    </StackPanel>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </Border>
-
-                <!--  Sub-Tool Settings - fills remaining space  -->
-                <ScrollViewer>
-                    <StackPanel Margin="10" Spacing="10">
-                        <ContentControl
-                            HorizontalContentAlignment="Stretch"
-                            Content="{Binding SelectedSubTool}"
-                            IsVisible="{Binding SelectedSubTool, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                    </StackPanel>
                 </ScrollViewer>
-            </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Bottom Panels -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="0,1,0,0"
+                IsVisible="{Binding DockingManager.BottomPanels.Count}">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding DockingManager.BottomPanels}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="5" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="docking:DockablePanelViewModel">
+                            <docking:DockablePanelView />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
         </Border>
+
+        <!-- Drop Ghosts -->
+        <Border Name="LeftGhost" Grid.RowSpan="3" HorizontalAlignment="Left" Width="200" Background="#4400FFFF" IsVisible="False" IsHitTestVisible="False" />
+        <Border Name="RightGhost" Grid.RowSpan="3" HorizontalAlignment="Right" Width="200" Background="#4400FFFF" IsVisible="False" IsHitTestVisible="False" />
+        <Border Name="TopGhost" Grid.Row="0" VerticalAlignment="Top" Height="100" Background="#4400FFFF" IsVisible="False" IsHitTestVisible="False" />
+        <Border Name="BottomGhost" Grid.Row="2" VerticalAlignment="Bottom" Height="100" Background="#4400FFFF" IsVisible="False" IsHitTestVisible="False" />
     </Grid>
-</views:Base3DView>
+</UserControl>
