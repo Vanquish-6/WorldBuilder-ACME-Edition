@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Input;
 using Chorizite.OpenGLSDLBackend;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,6 +16,8 @@ using System.Numerics;
 using System.Threading.Tasks;
 using WorldBuilder.Editors.Landscape;
 using WorldBuilder.Lib;
+using WorldBuilder.Lib.Docking;
+using WorldBuilder.Lib.Input;
 using WorldBuilder.Lib.Settings;
 using WorldBuilder.Shared.Documents;
 using DatReaderWriter.DBObjs;
@@ -24,6 +27,8 @@ using WorldBuilder.ViewModels;
 
 namespace WorldBuilder.Editors.Landscape.ViewModels {
     public partial class LandscapeEditorViewModel : ViewModelBase {
+        public ObservableCollection<ViewportViewModel> Viewports { get; } = new();
+
         [ObservableProperty] private ObservableCollection<ToolViewModelBase> _tools = new();
 
         [ObservableProperty]
@@ -52,6 +57,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
         [ObservableProperty]
         private string _currentPositionText = "";
+
+        public DockingManager DockingManager { get; } = new();
 
         // Overlay toggle properties (bound to toolbar buttons)
         public bool ShowGrid {
@@ -83,19 +90,44 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private IDatReaderWriter? _dats;
         public TerrainSystem? TerrainSystem { get; private set; }
         public WorldBuilderSettings Settings { get; }
+        public InputManager InputManager { get; }
 
         private readonly ILogger<TerrainSystem> _logger;
 
         public LandscapeEditorViewModel(WorldBuilderSettings settings, ILogger<TerrainSystem> logger) {
             Settings = settings;
             _logger = logger;
+            InputManager = InputManager.Instance ?? new InputManager(Settings);
         }
 
-        internal void Init(Project project, OpenGLRenderer render, Avalonia.PixelSize canvasSize) {
+        internal void Init(Project project) {
             _dats = project.DocumentManager.Dats;
             _project = project;
 
-            TerrainSystem = new TerrainSystem(render, project, _dats, Settings, _logger);
+            TerrainSystem = new TerrainSystem(project, _dats, Settings, _logger);
+
+            // Create default viewports
+            var pCam = TerrainSystem.Scene.PerspectiveCamera;
+            var orthoCam = TerrainSystem.Scene.TopDownCamera;
+
+            var pViewport = new ViewportViewModel(pCam) { Title = "Perspective", IsActive = true, TerrainSystem = TerrainSystem };
+            var orthoViewport = new ViewportViewModel(orthoCam) { Title = "Top Down", IsActive = false, TerrainSystem = TerrainSystem };
+
+            // Wire up rendering and input
+            pViewport.RenderAction = (dt, size, input) => RenderViewport(pViewport, dt, size, input);
+            orthoViewport.RenderAction = (dt, size, input) => RenderViewport(orthoViewport, dt, size, input);
+
+            pViewport.PointerWheelAction = (e, inputState) => HandleViewportWheel(pViewport, e);
+            orthoViewport.PointerWheelAction = (e, inputState) => HandleViewportWheel(orthoViewport, e);
+
+            pViewport.PointerPressedAction = (e, inputState) => HandleViewportPressed(pViewport, e, inputState);
+            orthoViewport.PointerPressedAction = (e, inputState) => HandleViewportPressed(orthoViewport, e, inputState);
+
+            pViewport.PointerReleasedAction = (e, inputState) => HandleViewportReleased(pViewport, e, inputState);
+            orthoViewport.PointerReleasedAction = (e, inputState) => HandleViewportReleased(orthoViewport, e, inputState);
+
+            Viewports.Add(pViewport);
+            Viewports.Add(orthoViewport);
 
             Tools.Add(TerrainSystem.Services.GetRequiredService<SelectorToolViewModel>());
             Tools.Add(TerrainSystem.Services.GetRequiredService<TexturePaintingToolViewModel>());
@@ -125,42 +157,227 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             LeftPanelContent = ObjectBrowser;
             LeftPanelTitle = "Object Browser";
 
-            UpdateTerrain(canvasSize);
+            InitDocking();
         }
 
-        internal void DoRender(Avalonia.PixelSize canvasSize) {
-            if (TerrainSystem == null) return;
+        private void InitDocking() {
+            var layouts = Settings.Landscape.UIState.DockingLayout;
 
-            UpdateTerrain(canvasSize);
+            void Register(string id, string title, object content, DockLocation defaultLoc) {
+                var panel = new DockablePanelViewModel(id, title, content, DockingManager);
+                var saved = layouts.FirstOrDefault(l => l.Id == id);
+                if (saved != null) {
+                    if (Enum.TryParse<DockLocation>(saved.Location, out var loc)) panel.Location = loc;
+                    panel.IsVisible = saved.IsVisible;
+                }
+                else {
+                    panel.Location = defaultLoc;
+                }
+                DockingManager.RegisterPanel(panel);
+            }
 
+            if (ObjectBrowser != null) Register("ObjectBrowser", "Object Browser", ObjectBrowser, DockLocation.Left);
+            if (TexturePalette != null) Register("TexturePalette", "Texture Palette", TexturePalette, DockLocation.Left);
+            if (LayersPanel != null) Register("Layers", "Layers", LayersPanel, DockLocation.Right);
+            if (HistorySnapshotPanel != null) Register("History", "History", HistorySnapshotPanel, DockLocation.Right);
+
+            Register("Toolbox", "Tools", new ToolboxViewModel(this), DockLocation.Right);
+
+            // Register Viewports
+            foreach (var vp in Viewports) {
+                // Use a sanitized ID
+                var id = "Viewport_" + vp.Title.Replace(" ", "");
+
+                // Default ortho to hidden to restore toggle behavior
+                bool defaultVisible = vp.IsActive; // Assuming IsActive is set correctly before InitDocking
+                // Correction: Viewports are added with IsActive=true (Perspective) and false (Ortho)
+
+                // Register
+                // Note: Register checks saved layout. If saved, it uses that.
+                // If not saved (first run), we want Perspective Visible, Ortho Hidden.
+
+                var panel = new DockablePanelViewModel(id, vp.Title, vp, DockingManager);
+                var saved = layouts.FirstOrDefault(l => l.Id == id);
+                if (saved != null) {
+                    if (Enum.TryParse<DockLocation>(saved.Location, out var loc)) panel.Location = loc;
+                    panel.IsVisible = saved.IsVisible;
+                }
+                else {
+                    panel.Location = DockLocation.Center;
+                    panel.IsVisible = vp.IsActive; // Default visibility matches initial active state
+                }
+                DockingManager.RegisterPanel(panel);
+            }
+        }
+
+        private void RenderViewport(ViewportViewModel viewport, double deltaTime, Avalonia.PixelSize canvasSize, AvaloniaInputState inputState) {
+            if (TerrainSystem == null || viewport.Renderer == null || viewport.Camera == null) return;
+
+            // Only process input if viewport is active
+            if (viewport.IsActive) {
+                HandleViewportInput(viewport, inputState, deltaTime);
+            }
+
+            // Update System logic (loading, etc) based on this viewport's camera
+            // Note: calling Update multiple times per frame is okay, as it just queues stuff
+            viewport.Camera.ScreenSize = new Vector2(canvasSize.Width, canvasSize.Height);
+            var view = viewport.Camera.GetViewMatrix();
+            var projection = viewport.Camera.GetProjectionMatrix();
+            var viewProjection = view * projection;
+
+            TerrainSystem.Update(viewport.Camera.Position, viewProjection);
+            TerrainSystem.EditingContext.ClearModifiedLandblocks();
+
+            // Render
             TerrainSystem.Scene.Render(
-                TerrainSystem.Scene.CameraManager.Current,
+                viewport.Camera,
+                viewport.Renderer,
                 (float)canvasSize.Width / canvasSize.Height,
                 TerrainSystem.EditingContext,
                 canvasSize.Width,
                 canvasSize.Height);
+
+            // Update Position HUD if active
+            if (viewport.IsActive) {
+                var cam = viewport.Camera.Position;
+                uint lbX = (uint)Math.Max(0, cam.X / TerrainDataManager.LandblockLength);
+                uint lbY = (uint)Math.Max(0, cam.Y / TerrainDataManager.LandblockLength);
+                lbX = Math.Clamp(lbX, 0, TerrainDataManager.MapSize - 1);
+                lbY = Math.Clamp(lbY, 0, TerrainDataManager.MapSize - 1);
+                ushort lbId = (ushort)((lbX << 8) | lbY);
+                CurrentPositionText = $"LB: {lbId:X4}  ({lbX}, {lbY})";
+            }
+
+            // Tool Overlay?
+            // Currently RenderToolOverlay was in View.
+            // I need to implement it here or via a callback?
+            // TerrainSystem.Scene.Render handles some overlays (selection, brush).
+            // But `_currentActiveTool?.RenderOverlay` was custom 2D/3D drawing?
+            // Let's check `RenderToolOverlay` in View.
+            // It calls `tool.RenderOverlay`.
+            // I should add `tool.RenderOverlay` call here.
+            SelectedTool?.RenderOverlay(viewport.Renderer, viewport.Camera, (float)canvasSize.Width / canvasSize.Height);
         }
 
-        private void UpdateTerrain(Avalonia.PixelSize canvasSize) {
+        private void HandleViewportPressed(ViewportViewModel viewport, PointerPressedEventArgs e, AvaloniaInputState inputState) {
+            foreach (var v in Viewports) {
+                v.IsActive = v == viewport;
+            }
+            SelectedTool?.HandleMouseDown(inputState.MouseState);
+        }
+
+        private void HandleViewportReleased(ViewportViewModel viewport, PointerReleasedEventArgs e, AvaloniaInputState inputState) {
+            SelectedTool?.HandleMouseUp(inputState.MouseState);
+        }
+
+        private void HandleViewportWheel(ViewportViewModel viewport, PointerWheelEventArgs e) {
+            var camera = viewport.Camera;
+            if (camera is PerspectiveCamera perspectiveCamera) {
+                perspectiveCamera.ProcessMouseScroll((float)e.Delta.Y);
+            }
+            else if (camera is OrthographicTopDownCamera orthoCamera) {
+                orthoCamera.ProcessMouseScroll((float)e.Delta.Y);
+            }
+            SyncCameras(camera);
+        }
+
+        private void HandleViewportInput(ViewportViewModel viewport, AvaloniaInputState inputState, double deltaTime) {
+            // Simplified input handling from View
+            var camera = viewport.Camera;
+
+            // Update camera input
+            // Mouse movement is processed by camera directly
+            camera.ProcessMouseMovement(inputState.MouseState);
+
+            // Keyboard movement
+            // Logic copied from View
+            bool shiftHeld = inputState.IsKeyDown(Avalonia.Input.Key.LeftShift) || inputState.IsKeyDown(Avalonia.Input.Key.RightShift);
+            bool ctrlHeld = inputState.IsKeyDown(Avalonia.Input.Key.LeftCtrl) || inputState.IsKeyDown(Avalonia.Input.Key.RightCtrl);
+
+            if ((shiftHeld || ctrlHeld) && camera is PerspectiveCamera perspCam) {
+                float rotateSpeed = 60f * (float)deltaTime;
+                if (inputState.IsKeyDown(Avalonia.Input.Key.Left)) perspCam.ProcessKeyboardRotation(rotateSpeed, 0);
+                if (inputState.IsKeyDown(Avalonia.Input.Key.Right)) perspCam.ProcessKeyboardRotation(-rotateSpeed, 0);
+                if (inputState.IsKeyDown(Avalonia.Input.Key.Up)) perspCam.ProcessKeyboardRotation(0, rotateSpeed);
+                if (inputState.IsKeyDown(Avalonia.Input.Key.Down)) perspCam.ProcessKeyboardRotation(0, -rotateSpeed);
+            }
+
+            if (inputState.IsKeyDown(Avalonia.Input.Key.W) || ((!shiftHeld && !ctrlHeld) && inputState.IsKeyDown(Avalonia.Input.Key.Up)))
+                camera.ProcessKeyboard(CameraMovement.Forward, deltaTime);
+            if (inputState.IsKeyDown(Avalonia.Input.Key.S) || ((!shiftHeld && !ctrlHeld) && inputState.IsKeyDown(Avalonia.Input.Key.Down)))
+                camera.ProcessKeyboard(CameraMovement.Backward, deltaTime);
+            if (inputState.IsKeyDown(Avalonia.Input.Key.A) || ((!shiftHeld && !ctrlHeld) && inputState.IsKeyDown(Avalonia.Input.Key.Left)))
+                camera.ProcessKeyboard(CameraMovement.Left, deltaTime);
+            if (inputState.IsKeyDown(Avalonia.Input.Key.D) || ((!shiftHeld && !ctrlHeld) && inputState.IsKeyDown(Avalonia.Input.Key.Right)))
+                camera.ProcessKeyboard(CameraMovement.Right, deltaTime);
+
+            // Vertical Movement (Space = Up, Shift = Down)
+            if (inputState.IsKeyDown(Avalonia.Input.Key.Space))
+                camera.ProcessKeyboard(CameraMovement.Up, deltaTime);
+            if (shiftHeld)
+                camera.ProcessKeyboard(CameraMovement.Down, deltaTime);
+
+            // Zoom
+            bool zoomIn = inputState.IsKeyDown(Avalonia.Input.Key.OemPlus) || inputState.IsKeyDown(Avalonia.Input.Key.Add);
+            bool zoomOut = inputState.IsKeyDown(Avalonia.Input.Key.OemMinus) || inputState.IsKeyDown(Avalonia.Input.Key.Subtract);
+            if (zoomIn || zoomOut) {
+                float direction = zoomIn ? 1f : -1f;
+                if (camera is OrthographicTopDownCamera ortho) {
+                    float zoomSpeed = ortho.OrthographicSize * 0.02f;
+                    ortho.OrthographicSize = Math.Clamp(ortho.OrthographicSize - direction * zoomSpeed, 1f, 100000f);
+                }
+                else {
+                    camera.ProcessKeyboard(zoomIn ? CameraMovement.Forward : CameraMovement.Backward, deltaTime * 2);
+                }
+            }
+
+            // Tool input
+            // SelectedTool?.Update(deltaTime); // Tools update globally?
+            // Mouse handling for tools should be via Pointer events actions on ViewportViewModel
+            // But for now, Tools use `InputState.MouseState`?
+            // `SelectedTool.HandleMouseMove(inputState.MouseState)`?
+            // The View called `_currentActiveTool?.HandleMouseMove`.
+            // I should call it here or in response to Pointer events.
+            // Since this runs every frame, we can use InputState.
+            SelectedTool?.HandleMouseMove(inputState.MouseState);
+            SelectedTool?.Update(deltaTime);
+
+            SyncCameras(camera);
+        }
+
+        private void SyncCameras(ICamera source) {
             if (TerrainSystem == null) return;
 
-            TerrainSystem.Scene.CameraManager.Current.ScreenSize = new Vector2(canvasSize.Width, canvasSize.Height);
-            var view = TerrainSystem.Scene.CameraManager.Current.GetViewMatrix();
-            var projection = TerrainSystem.Scene.CameraManager.Current.GetProjectionMatrix();
-            var viewProjection = view * projection;
+            var pCam = TerrainSystem.Scene.PerspectiveCamera;
+            var orthoCam = TerrainSystem.Scene.TopDownCamera;
 
-            TerrainSystem.Update(TerrainSystem.Scene.CameraManager.Current.Position, viewProjection);
+            if (source == pCam) {
+                // Sync Ortho to Perspective (Focus point)
+                // Raycast from perspective camera to ground to find focal point
+                var forward = pCam.Front;
 
-            TerrainSystem.EditingContext.ClearModifiedLandblocks();
+                // Plane intersection with Z = current ortho view height (approximate terrain level if we don't have exact raycast)
+                // Or simply intersect with Z=0 plane if Z is absolute.
+                // Assuming terrain is somewhat around Z=0 or we raycast against terrain?
+                // Let's assume ground plane at Z = GetHeightAt(pCam.X, pCam.Y)? No, that's under camera.
 
-            // Update position HUD
-            var cam = TerrainSystem.Scene.CameraManager.Current.Position;
-            uint lbX = (uint)Math.Max(0, cam.X / TerrainDataManager.LandblockLength);
-            uint lbY = (uint)Math.Max(0, cam.Y / TerrainDataManager.LandblockLength);
-            lbX = Math.Clamp(lbX, 0, TerrainDataManager.MapSize - 1);
-            lbY = Math.Clamp(lbY, 0, TerrainDataManager.MapSize - 1);
-            ushort lbId = (ushort)((lbX << 8) | lbY);
-            CurrentPositionText = $"LB: {lbId:X4}  ({lbX}, {lbY})";
+                // Simple Plane Z=0 intersection:
+                // P = O + D * t
+                // P.z = 0 => O.z + D.z * t = 0 => t = -O.z / D.z
+
+                if (Math.Abs(forward.Z) > 0.001f) {
+                    // Find ground Z near the camera to be more accurate than 0?
+                    float groundZ = TerrainSystem.Scene.DataManager.GetHeightAtPosition(pCam.Position.X, pCam.Position.Y);
+
+                    float t = (groundZ - pCam.Position.Z) / forward.Z;
+                    if (t > 0) {
+                        var intersect = pCam.Position + forward * t;
+                        orthoCam.SetPosition(new Vector3(intersect.X, intersect.Y, orthoCam.Position.Z));
+                    }
+                }
+            }
+            // One-way sync: Perspective -> Ortho.
+            // Ortho interactions (panning top-down) do not affect Perspective camera to avoid "tight leash" behavior.
         }
 
         [RelayCommand]
@@ -188,6 +405,9 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         }
 
         private void UpdateLeftPanel() {
+            var browserPanel = DockingManager.AllPanels.FirstOrDefault(p => p.Id == "ObjectBrowser");
+            var texturePanel = DockingManager.AllPanels.FirstOrDefault(p => p.Id == "TexturePalette");
+
             if (SelectedTool is TexturePaintingToolViewModel) {
                 // Sync palette to whatever the active sub-tool has selected
                 if (SelectedSubTool is BrushSubToolViewModel brush) {
@@ -196,10 +416,19 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 else if (SelectedSubTool is BucketFillSubToolViewModel fill) {
                     TexturePalette?.SyncSelection(fill.SelectedTerrainType);
                 }
+
+                if (texturePanel != null) texturePanel.IsVisible = true;
+                if (browserPanel != null && texturePanel != null && browserPanel.Location == texturePanel.Location) {
+                    // If they are in the same location, maybe hide the browser so texture palette is seen?
+                    // For now, let's just make sure TexturePalette is visible.
+                }
+
                 LeftPanelContent = TexturePalette;
                 LeftPanelTitle = "Terrain Textures";
             }
             else {
+                if (browserPanel != null) browserPanel.IsVisible = true;
+
                 LeftPanelContent = ObjectBrowser;
                 LeftPanelTitle = "Object Browser";
             }
@@ -378,7 +607,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                     textBox,
                     errorText,
                     new StackPanel {
-                        Orientation = Orientation.Horizontal,
+                        Orientation = Avalonia.Layout.Orientation.Horizontal,
                         HorizontalAlignment = HorizontalAlignment.Right,
                         Spacing = 10,
                         Children = {
@@ -480,6 +709,17 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 if (SelectedSubTool != null && SelectedTool.AllSubTools.Contains(SelectedSubTool)) {
                     uiState.LastSubToolIndex = SelectedTool.AllSubTools.IndexOf(SelectedSubTool);
                 }
+
+                // Save docking layout
+                uiState.DockingLayout.Clear();
+                foreach (var panel in DockingManager.AllPanels.OfType<DockablePanelViewModel>()) {
+                    uiState.DockingLayout.Add(new DockingPanelState {
+                        Id = panel.Id,
+                        Location = panel.Location.ToString(),
+                        IsVisible = panel.IsVisible
+                    });
+                }
+
                 Settings.Save();
             }
 

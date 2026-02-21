@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:WorldBuilder.ViewModels"
+             xmlns:lvm="using:WorldBuilder.Editors.Landscape.ViewModels"
+             xmlns:vp="using:WorldBuilder.Views.Components.Viewports"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="WorldBuilder.Views.Components.Viewports.ViewportContainer"
+             x:DataType="lvm:LandscapeEditorViewModel">
+  <Grid>
+    <ItemsControl ItemsSource="{Binding Viewports}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <UniformGrid Rows="1" Columns="{Binding Viewports.Count}"/>
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate DataType="vm:ViewportViewModel">
+          <vp:ViewportPanel/>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </Grid>
+</UserControl>

@@ -152,7 +152,7 @@ namespace WorldBuilder.Views {
             base.OnPointerMoved(e);
 
             // Check if pointer is over viewport
-            if (!_isPointerOverViewport || !IsEffectivelyVisible || !IsEnabled) return;
+            if ((!_isPointerOverViewport && e.Pointer.Captured != this) || !IsEffectivelyVisible || !IsEnabled) return;
 
             try {
                 var position = e.GetPosition(_viewport);
@@ -173,7 +173,7 @@ namespace WorldBuilder.Views {
             base.OnPointerWheelChanged(e);
 
             // Check if pointer is over viewport
-            if (!_isPointerOverViewport || !IsEffectivelyVisible || !IsEnabled) return;
+            if ((!_isPointerOverViewport && e.Pointer.Captured != this) || !IsEffectivelyVisible || !IsEnabled) return;
 
             try {
                 var position = e.GetPosition(_viewport);
@@ -219,7 +219,7 @@ namespace WorldBuilder.Views {
             base.OnPointerReleased(e);
 
             // Check if pointer is over viewport
-            if (!_isPointerOverViewport || !IsEffectivelyVisible || !IsEnabled) return;
+            if ((!_isPointerOverViewport && e.Pointer.Captured != this) || !IsEffectivelyVisible || !IsEnabled) return;
 
             try {
                 var position = e.GetPosition(_viewport);
@@ -567,7 +567,7 @@ namespace WorldBuilder.Views {
             }
         }
 
-        public Vector2 InputScale { get; private set; }
+        public Vector2 InputScale { get; private set; } = Vector2.One;
 
         #endregion
 

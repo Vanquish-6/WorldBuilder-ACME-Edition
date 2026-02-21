@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:WorldBuilder.Editors.Landscape.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
+             x:DataType="vm:KeyboardMappingViewModel"
+             x:Class="WorldBuilder.Editors.Landscape.Views.KeyboardMappingView"
+             Focusable="True">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.modified">
+       <Setter Property="FontWeight" Value="Bold"/>
+       <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+  </UserControl.Styles>
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.modified">
+       <Setter Property="FontWeight" Value="Bold"/>
+       <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
+    <Style Selector="Button.conflicting">
+       <Setter Property="BorderBrush" Value="Red"/>
+       <Setter Property="BorderThickness" Value="2"/>
+       <Setter Property="Background" Value="#33FF0000"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="*,Auto" Margin="10">
+    <ListBox ItemsSource="{Binding Actions}" Background="Transparent" SelectionMode="Single">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <Grid ColumnDefinitions="*,Auto" Margin="5">
+             <!-- Action Name / Category -->
+             <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                 <TextBlock Text="{Binding Description}" FontWeight="Bold"/>
+                 <TextBlock Text="{Binding Category}" FontSize="11" Opacity="0.6"/>
+             </StackPanel>
+
+             <!-- Bindings List -->
+             <ItemsControl Grid.Column="1" ItemsSource="{Binding Bindings}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="10"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="120,Auto">
+                            <!-- Key Display Button -->
+                             <Button Grid.Column="0"
+                                     Command="{Binding $parent[UserControl].((vm:KeyboardMappingViewModel)DataContext).StartRebindCommand}"
+                                     CommandParameter="{Binding}"
+                                     Classes.conflicting="{Binding IsConflicting}"
+                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                                <TextBlock Text="{Binding KeyDisplay}" Classes.modified="{Binding IsModified}" />
+                             </Button>
+
+                             <!-- Revert Button / Edit State Indicator -->
+                             <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="5,0,0,0" VerticalAlignment="Center" Width="24">
+                                 <Button Command="{Binding RevertBindingCommand}"
+                                         IsVisible="{Binding IsModified}"
+                                         ToolTip.Tip="Revert to saved"
+                                         Padding="2">
+                                     <PathIcon Data="M12.5,8c-2.65,0-5.05,0.99-6.9,2.6L2,7v9h9l-3.62-3.62c1.39-1.16,3.16-1.88,5.12-1.88c3.54,0,6.55,2.31,7.6,5.5l2.37-0.78C21.08,11.03,17.15,8,12.5,8z"
+                                               Width="12" Height="12"/>
+                                 </Button>
+
+                                 <TextBlock Text="..."
+                                            IsVisible="{Binding IsListening}"
+                                            Foreground="Orange" FontWeight="Bold"
+                                            ToolTip.Tip="Press Key..."
+                                            VerticalAlignment="Center" Margin="0,0,0,0"/>
+                             </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+             </ItemsControl>
+          </Grid>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,10,0,0">
+       <Button Content="Reset Defaults" Command="{Binding ResetToDefaultsCommand}"/>
+       <Button Content="Revert" Command="{Binding RevertCommand}"/>
+       <Button Content="Save" Command="{Binding SaveCommand}" Classes="accent"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

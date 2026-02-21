@@ -29,6 +29,12 @@ namespace WorldBuilder.Lib.Settings {
             set => SetProperty(ref _landscape, value);
         }
 
+        private InputSettings _input = new();
+        public InputSettings Input {
+            get => _input;
+            set => SetProperty(ref _input, value);
+        }
+
         public WorldBuilderSettings() { }
 
         public WorldBuilderSettings(ILogger<WorldBuilderSettings> log) {

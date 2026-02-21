@@ -72,9 +72,14 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 PositionZ = cell.WorldPosition.Z;
                 RotationX = 0; RotationY = 0; RotationZ = 0;
                 var envMgr = Context.TerrainSystem.Scene._envCellManager;
-                var dungeonLbs = envMgr.GetLoadedDungeonLandblocks();
-                int dungeonIdx = dungeonLbs.IndexOf(cell.LoadedLandblockKey) + 1;
-                LandcellText = $"LB: 0x{cell.LoadedLandblockKey:X4}  Env: 0x{cell.EnvironmentId:X8}  Surfaces: {cell.SurfaceCount}  [{dungeonIdx}/{dungeonLbs.Count}]";
+                if (envMgr != null) {
+                    var dungeonLbs = envMgr.GetLoadedDungeonLandblocks();
+                    int dungeonIdx = dungeonLbs.IndexOf(cell.LoadedLandblockKey) + 1;
+                    LandcellText = $"LB: 0x{cell.LoadedLandblockKey:X4}  Env: 0x{cell.EnvironmentId:X8}  Surfaces: {cell.SurfaceCount}  [{dungeonIdx}/{dungeonLbs.Count}]";
+                }
+                else {
+                    LandcellText = $"LB: 0x{cell.LoadedLandblockKey:X4}  Env: 0x{cell.EnvironmentId:X8}  Surfaces: {cell.SurfaceCount}";
+                }
             }
             else if (sel.IsMultiSelection) {
                 // Multi-selection: show count, hide individual editing
@@ -335,7 +340,10 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             else if (mouseState.EnvCellHit.HasValue && mouseState.EnvCellHit.Value.Hit) {
                 var hitCell = mouseState.EnvCellHit.Value.Cell;
                 Context.ObjectSelection.SelectEnvCell(hitCell);
-                Context.TerrainSystem.Scene._envCellManager.FocusedDungeonLB = hitCell.LoadedLandblockKey;
+                var envMgr = Context.TerrainSystem.Scene._envCellManager;
+                if (envMgr != null) {
+                    envMgr.FocusedDungeonLB = hitCell.LoadedLandblockKey;
+                }
                 Context.TerrainSystem.Scene.InvalidateStaticObjectsCache();
                 return true;
             }
@@ -343,8 +351,9 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 // Clicked empty space — start marquee drag, clear dungeon focus
                 if (!mouseState.CtrlPressed) {
                     Context.ObjectSelection.Deselect();
-                    if (Context.TerrainSystem.Scene._envCellManager.FocusedDungeonLB.HasValue) {
-                        Context.TerrainSystem.Scene._envCellManager.FocusedDungeonLB = null;
+                    var envMgr = Context.TerrainSystem.Scene._envCellManager;
+                    if (envMgr != null && envMgr.FocusedDungeonLB.HasValue) {
+                        envMgr.FocusedDungeonLB = null;
                         Context.TerrainSystem.Scene.InvalidateStaticObjectsCache();
                     }
                 }
@@ -429,7 +438,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private float? FlattenTerrainUnderBuilding(StaticObject obj) {
             try {
                 // Start with model bounds from the object manager
-                var bounds = Context.TerrainSystem.Scene._objectManager.GetBounds(obj.Id, obj.IsSetup);
+                var bounds = Context.TerrainSystem.Scene.AnyObjectManager?.GetBounds(obj.Id, obj.IsSetup);
                 if (!bounds.HasValue) return null;
 
                 var (localMin, localMax) = bounds.Value;

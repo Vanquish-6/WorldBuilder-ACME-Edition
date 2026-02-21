@@ -18,12 +18,12 @@ namespace WorldBuilder.Editors.Landscape.Views;
 public partial class ObjectDebugView : Base3DView {
     private ObjectDebugViewModel? _vm;
     private OpenGLRenderer? _renderer;
-    private GL _gl;
-    private IDatReaderWriter _dats;
+    private GL? _gl;
+    private IDatReaderWriter? _dats;
 
     public PixelSize CanvasSize { get; private set; }
 
-    private StaticObjectManager _staticObjectManager;
+    private StaticObjectManager? _staticObjectManager;
 
     // Mouse state for rotation (drag to rotate around)
     private PointerPoint? _lastPointerPoint;

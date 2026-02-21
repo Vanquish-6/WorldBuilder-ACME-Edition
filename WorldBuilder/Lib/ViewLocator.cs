@@ -18,6 +18,19 @@ namespace WorldBuilder.Lib {
                 ?? throw new InvalidOperationException($"{data.GetType().FullName} is not a ViewModel");
 #pragma warning disable IL2057 // Unrecognized value passed to the parameter of method. It's not possible to guarantee the availability of the target type.
             var type = Type.GetType(name);
+
+            // Fallback: search in current assembly if not found
+            if (type == null) {
+                var asm = System.Reflection.Assembly.GetExecutingAssembly();
+                type = asm.GetType(name);
+            }
+            // Fallback: search in all loaded assemblies
+            if (type == null) {
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies()) {
+                    type = asm.GetType(name);
+                    if (type != null) break;
+                }
+            }
 #pragma warning restore IL2057 // Unrecognized value passed to the parameter of method. It's not possible to guarantee the availability of the target type.
 
             Console.WriteLine($"Request: {data.GetType().FullName} -> {name}");

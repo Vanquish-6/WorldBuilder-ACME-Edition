@@ -6,6 +6,7 @@
     xmlns:editors="clr-namespace:WorldBuilder.Editors.Landscape.Views"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="clr-namespace:WorldBuilder.ViewModels"
+    xmlns:docking="clr-namespace:WorldBuilder.Lib.Docking;assembly=WorldBuilder"
     d:DesignHeight="450"
     d:DesignWidth="800"
     x:CompileBindings="True"
@@ -25,15 +26,33 @@
             <MenuItem Header="File">
                 <MenuItem Command="{Binding OpenExportDatsWindowCommand}" Header="Export Dats" />
                 <Separator />
-                <MenuItem Command="{Binding ExitCommand}" Header="Exit" InputGesture="Alt+F4" />
+                <MenuItem Command="{Binding ExitCommand}" Header="Exit" InputGesture="{Binding ExitGesture}" />
+            </MenuItem>
+            <MenuItem Header="Edit">
+                <MenuItem Command="{Binding OpenKeyboardShortcutsCommand}" Header="Keyboard Shortcuts" />
             </MenuItem>
             <MenuItem Header="Navigate">
                 <MenuItem
                     Command="{Binding GotoLandblockCommand}"
                     Header="Go to Landblock"
-                    InputGesture="Ctrl+G" />
+                    InputGesture="{Binding GotoLandblockGesture}" />
             </MenuItem>
             <MenuItem Command="{Binding OpenSettingsWindowCommand}" Header="Settings" />
+            <MenuItem Header="Windows" ItemsSource="{Binding DockingPanels}">
+                <MenuItem.Styles>
+                    <!-- Target only children MenuItems, not the parent "Windows" item -->
+                    <Style Selector="MenuItem > MenuItem" x:DataType="docking:IDockable">
+                        <Setter Property="Header" Value="{Binding Title}" />
+                        <Setter Property="Command" Value="{Binding $parent[Menu].((vm:MainViewModel)DataContext).TogglePanelVisibilityCommand}" />
+                        <Setter Property="CommandParameter" Value="{Binding Id}" />
+                        <Setter Property="Icon">
+                            <Template>
+                                <CheckBox IsChecked="{Binding IsVisible}" IsHitTestVisible="False" />
+                            </Template>
+                        </Setter>
+                    </Style>
+                </MenuItem.Styles>
+            </MenuItem>
         </Menu>
         <Grid>
             <Grid.RowDefinitions>

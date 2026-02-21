@@ -25,7 +25,10 @@ namespace WorldBuilder.Editors.Landscape {
         private readonly Dictionary<uint, int> _alphaAtlasIndexLookup;
         private readonly byte[] _textureBuffer;
         private uint _nextSurfaceNumber;
-        private readonly OpenGLRenderer _renderer;
+
+        private readonly Dictionary<OpenGLRenderer, ITextureArray> _terrainAtlases = new();
+        private readonly Dictionary<OpenGLRenderer, ITextureArray> _alphaAtlases = new();
+        private readonly object _lock = new();
 
         private static readonly Vector2[] LandUVs = new Vector2[] {
             new Vector2(0, 1), new Vector2(1, 1), new Vector2(1, 0), new Vector2(0, 0)
@@ -38,8 +41,6 @@ namespace WorldBuilder.Editors.Landscape {
             new Vector2[] { LandUVs[1], LandUVs[2], LandUVs[3], LandUVs[0] }
         };
 
-        public ITextureArray TerrainAtlas { get; private set; }
-        public ITextureArray AlphaAtlas { get; private set; }
         public List<TerrainAlphaMap> CornerTerrainMaps { get; private set; }
         public List<TerrainAlphaMap> SideTerrainMaps { get; private set; }
         public List<RoadAlphaMap> RoadMaps { get; private set; }
@@ -48,18 +49,12 @@ namespace WorldBuilder.Editors.Landscape {
         public Dictionary<uint, TextureMergeInfo> SurfacesBySurfaceNumber { get; private set; }
         public uint TotalUniqueSurfaces { get; private set; }
 
-        public LandSurfaceManager(OpenGLRenderer renderer, IDatReaderWriter dats, Region region) {
-            _renderer = renderer;
+        public LandSurfaceManager(IDatReaderWriter dats, Region region) {
             _dats = dats ?? throw new ArgumentNullException(nameof(dats));
             _region = region ?? throw new ArgumentNullException(nameof(region));
             _textureAtlasIndexLookup = new Dictionary<uint, int>(36);
             _alphaAtlasIndexLookup = new Dictionary<uint, int>(16);
             _textureBuffer = ArrayPool<byte>.Shared.Rent(512 * 512 * 4);
-
-            TerrainAtlas = _renderer.GraphicsDevice.CreateTextureArray(TextureFormat.RGBA8, 512, 512, 36)
-                ?? throw new Exception("Unable to create terrain atlas.");
-            AlphaAtlas = _renderer.GraphicsDevice.CreateTextureArray(TextureFormat.RGBA8, 512, 512, 16)
-                ?? throw new Exception("Unable to create terrain atlas.");
 
             _landSurface = _region.TerrainInfo.LandSurfaces;
             var _textureMergeData = _region.TerrainInfo.LandSurfaces.TexMerge;
@@ -73,9 +68,40 @@ namespace WorldBuilder.Editors.Landscape {
             RoadMaps = _textureMergeData.RoadMaps;
             TerrainDescriptors = _textureMergeData.TerrainDesc;
 
-            LoadTextures();
-            ArrayPool<byte>.Shared.Return(_textureBuffer);
+            // Note: We don't load textures yet, waiting for a renderer to be registered.
         }
+
+        public void RegisterRenderer(OpenGLRenderer renderer) {
+            lock (_lock) {
+                if (_terrainAtlases.ContainsKey(renderer)) return;
+
+                var terrainAtlas = renderer.GraphicsDevice.CreateTextureArray(TextureFormat.RGBA8, 512, 512, 36)
+                    ?? throw new Exception("Unable to create terrain atlas.");
+                var alphaAtlas = renderer.GraphicsDevice.CreateTextureArray(TextureFormat.RGBA8, 512, 512, 16)
+                    ?? throw new Exception("Unable to create terrain atlas.");
+
+                _terrainAtlases[renderer] = terrainAtlas;
+                _alphaAtlases[renderer] = alphaAtlas;
+
+                LoadTextures(renderer, terrainAtlas, alphaAtlas);
+            }
+        }
+
+        public void UnregisterRenderer(OpenGLRenderer renderer) {
+            lock (_lock) {
+                if (_terrainAtlases.TryGetValue(renderer, out var t)) {
+                    t.Dispose();
+                    _terrainAtlases.Remove(renderer);
+                }
+                if (_alphaAtlases.TryGetValue(renderer, out var a)) {
+                    a.Dispose();
+                    _alphaAtlases.Remove(renderer);
+                }
+            }
+        }
+
+        public ITextureArray GetTerrainAtlas(OpenGLRenderer renderer) => _terrainAtlases[renderer];
+        public ITextureArray GetAlphaAtlas(OpenGLRenderer renderer) => _alphaAtlases[renderer];
 
         public List<TMTerrainDesc> GetAvailableTerrainTextures() {
             return TerrainDescriptors
@@ -148,8 +174,10 @@ namespace WorldBuilder.Editors.Landscape {
             return result;
         }
 
-        private void LoadTextures() {
+        private void LoadTextures(OpenGLRenderer renderer, ITextureArray terrainAtlas, ITextureArray alphaAtlas) {
             Span<byte> bytes = _textureBuffer.AsSpan(0, 512 * 512 * 4);
+            bool populateLookup = _textureAtlasIndexLookup.Count == 0;
+
             foreach (var tmDesc in _region.TerrainInfo.LandSurfaces.TexMerge.TerrainDesc) {
                 if (!_dats.TryGet<SurfaceTexture>(tmDesc.TerrainTex.TexGID, out var t)) {
                     throw new Exception($"Unable to load SurfaceTexture: {tmDesc.TerrainType}: 0x{tmDesc.TerrainTex.TexGID:X8}");
@@ -158,50 +186,58 @@ namespace WorldBuilder.Editors.Landscape {
                     throw new Exception($"Unable to load RenderSurface: 0x{t.Textures[^1]:X8}");
                 }
 
-                if (_textureAtlasIndexLookup.ContainsKey(tmDesc.TerrainTex.TexGID)) {
+                if (populateLookup && _textureAtlasIndexLookup.ContainsKey(tmDesc.TerrainTex.TexGID)) {
                     continue;
                 }
                 GetTerrainTexture(texture, bytes);
-                var layerIndex = TerrainAtlas.AddLayer(bytes);
-                _textureAtlasIndexLookup.Add(tmDesc.TerrainTex.TexGID, layerIndex);
+                var layerIndex = terrainAtlas.AddLayer(bytes);
+
+                if (populateLookup)
+                    _textureAtlasIndexLookup.Add(tmDesc.TerrainTex.TexGID, layerIndex);
             }
 
             foreach (var overlay in _region.TerrainInfo.LandSurfaces.TexMerge.RoadMaps) {
-                if (_alphaAtlasIndexLookup.ContainsKey(overlay.TexGID)) continue;
+                if (populateLookup && _alphaAtlasIndexLookup.ContainsKey(overlay.TexGID)) continue;
 
                 if (!_dats.TryGet<SurfaceTexture>(overlay.TexGID, out var t)) {
                     throw new Exception($"Unable to load SurfaceTexture: 0x{overlay.TexGID:X8}");
                 }
                 if (_dats.TryGet<RenderSurface>(t.Textures[^1], out var overlayTexture)) {
                     GetAlphaTexture(overlayTexture, bytes);
-                    var layerIndex = AlphaAtlas.AddLayer(bytes);
-                    _alphaAtlasIndexLookup.Add(overlay.TexGID, layerIndex);
+                    var layerIndex = alphaAtlas.AddLayer(bytes);
+
+                    if (populateLookup)
+                        _alphaAtlasIndexLookup.Add(overlay.TexGID, layerIndex);
                 }
             }
 
             foreach (var overlay in _region.TerrainInfo.LandSurfaces.TexMerge.CornerTerrainMaps) {
-                if (_alphaAtlasIndexLookup.ContainsKey(overlay.TexGID)) continue;
+                if (populateLookup && _alphaAtlasIndexLookup.ContainsKey(overlay.TexGID)) continue;
 
                 if (!_dats.TryGet<SurfaceTexture>(overlay.TexGID, out var t)) {
                     throw new Exception($"Unable to load SurfaceTexture: 0x{overlay.TexGID:X8}");
                 }
                 if (_dats.TryGet<RenderSurface>(t.Textures[^1], out var overlayTexture)) {
                     GetAlphaTexture(overlayTexture, bytes);
-                    var layerIndex = AlphaAtlas.AddLayer(bytes);
-                    _alphaAtlasIndexLookup.Add(overlay.TexGID, layerIndex);
+                    var layerIndex = alphaAtlas.AddLayer(bytes);
+
+                    if (populateLookup)
+                        _alphaAtlasIndexLookup.Add(overlay.TexGID, layerIndex);
                 }
             }
 
             foreach (var overlay in _region.TerrainInfo.LandSurfaces.TexMerge.SideTerrainMaps) {
-                if (_alphaAtlasIndexLookup.ContainsKey(overlay.TexGID)) continue;
+                if (populateLookup && _alphaAtlasIndexLookup.ContainsKey(overlay.TexGID)) continue;
 
                 if (!_dats.TryGet<SurfaceTexture>(overlay.TexGID, out var t)) {
                     throw new Exception($"Unable to load SurfaceTexture: 0x{overlay.TexGID:X8}");
                 }
                 if (_dats.TryGet<RenderSurface>(t.Textures[^1], out var overlayTexture)) {
                     GetAlphaTexture(overlayTexture, bytes);
-                    var layerIndex = AlphaAtlas.AddLayer(bytes);
-                    _alphaAtlasIndexLookup.Add(overlay.TexGID, layerIndex);
+                    var layerIndex = alphaAtlas.AddLayer(bytes);
+
+                    if (populateLookup)
+                        _alphaAtlasIndexLookup.Add(overlay.TexGID, layerIndex);
                 }
             }
         }

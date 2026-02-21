@@ -24,8 +24,7 @@ namespace WorldBuilder.Editors.Landscape.Commands {
         protected override TerrainEntry SetEntryValue(TerrainEntry entry, byte value) => entry with { Type = value };
 
         private void CollectChanges() {
-            var visibleLbs = _context.TerrainSystem.Scene.VisibleLandblocks;
-            var vertices = FloodFillVertices(_context.TerrainSystem, _hitResult, _newType, visibleLbs);
+            var vertices = FloodFillVertices(_context.TerrainSystem, _hitResult, _newType, null);
             foreach (var (lbID, index, oldType) in vertices) {
                 if (!_changes.TryGetValue(lbID, out var list)) {
                     list = new List<(int, byte, byte)>();
