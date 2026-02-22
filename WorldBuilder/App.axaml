@@ -4,21 +4,113 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:dialog="clr-namespace:DialogHostAvalonia;assembly=DialogHost.Avalonia"
     xmlns:lib="clr-namespace:WorldBuilder.Lib"
-    RequestedThemeVariant="Default">
-    <!--  "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options.  -->
+    RequestedThemeVariant="Dark">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="SystemAccentColor">#7c4dbd</Color>
+                    <Color x:Key="SystemAccentColorDark1">#6b3fa0</Color>
+                    <Color x:Key="SystemAccentColorDark2">#5a3388</Color>
+                    <Color x:Key="SystemAccentColorDark3">#4a2870</Color>
+                    <Color x:Key="SystemAccentColorLight1">#9b6dd0</Color>
+                    <Color x:Key="SystemAccentColorLight2">#b08de0</Color>
+                    <Color x:Key="SystemAccentColorLight3">#c4aae8</Color>
+
+                    <SolidColorBrush x:Key="SystemControlBackgroundAltHighBrush" Color="#16102a" />
+                    <SolidColorBrush x:Key="SystemControlBackgroundBaseLowBrush" Color="#1e1035" />
+                    <SolidColorBrush x:Key="SystemControlBackgroundBaseMediumLowBrush" Color="#2a1545" />
+                    <SolidColorBrush x:Key="SystemControlBackgroundListLowBrush" Color="#18102a" />
+                    <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumLowBrush" Color="#1a0a2e" />
+                    <SolidColorBrush x:Key="SystemControlForegroundBaseMediumLowBrush" Color="#3d2a5c" />
+                    <SolidColorBrush x:Key="SystemControlHighlightListLowBrush" Color="#2a1545" />
+                    <SolidColorBrush x:Key="SystemControlHighlightListMediumBrush" Color="#351a55" />
+
+                    <SolidColorBrush x:Key="SystemControlBackgroundAccentBrush" Color="#7c4dbd" />
+                    <SolidColorBrush x:Key="SystemControlForegroundAccentBrush" Color="#7c4dbd" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
         <dialog:DialogHostStyles />
         <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
+
+        <!-- === Global base styles === -->
+
+        <Style Selector="Window">
+            <Setter Property="Background" Value="#0d0016" />
+        </Style>
+
+        <Style Selector="UserControl">
+            <Setter Property="Foreground" Value="#e0d8ef" />
+        </Style>
+
+        <!-- Menu bar styling -->
+        <Style Selector="Menu">
+            <Setter Property="Background" Value="#120c22" />
+            <Setter Property="Padding" Value="4,2" />
+        </Style>
+        <Style Selector="Menu > MenuItem">
+            <Setter Property="Foreground" Value="#c0b0d8" />
+        </Style>
+        <Style Selector="Menu > MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="#2a1545" />
+        </Style>
+
+        <!-- === Button.selected (tool selection) === -->
         <Style Selector="Button.selected">
-            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAccentBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+            <Setter Property="Background" Value="#7c4dbd" />
+            <Setter Property="Foreground" Value="White" />
         </Style>
-        <Style Selector="Button.selected:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAccentBrush}" />
+        <Style Selector="Button.selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#9b6dd0" />
+            <Setter Property="Foreground" Value="White" />
         </Style>
+        <Style Selector="Button.selected:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#6b3fa0" />
+        </Style>
+
+        <!-- === Splitter visibility === -->
+        <Style Selector="GridSplitter">
+            <Setter Property="Background" Value="#2a1d42" />
+        </Style>
+        <Style Selector="GridSplitter:pointerover">
+            <Setter Property="Background" Value="#7c4dbd" />
+        </Style>
+
+        <!-- === ScrollBar track tinting === -->
+        <Style Selector="ScrollBar">
+            <Setter Property="Foreground" Value="#3d2a5c" />
+        </Style>
+
+        <!-- === ToggleButton (viewport overlay toolbar) === -->
+        <Style Selector="ToggleButton:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="#7c4dbd" />
+        </Style>
+
+        <!-- === TabControl (for future tabbed panels) === -->
+        <Style Selector="TabControl">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="Foreground" Value="#8a7a9e" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="#d4a843" />
+        </Style>
+
+        <!-- === Gold accent class for emphasis text === -->
+        <Style Selector="TextBlock.gold">
+            <Setter Property="Foreground" Value="#d4a843" />
+        </Style>
+
     </Application.Styles>
+
     <Application.DataTemplates>
         <lib:ViewLocator />
     </Application.DataTemplates>

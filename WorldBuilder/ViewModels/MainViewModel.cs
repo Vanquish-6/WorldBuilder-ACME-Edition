@@ -57,6 +57,30 @@ public partial class MainViewModel : ViewModelBase {
         }
     }
 
+    public KeyGesture? UndoGesture => _inputManager.GetKeyGesture(InputActions.EditUndo);
+    public KeyGesture? RedoGesture => _inputManager.GetKeyGesture(InputActions.EditRedo);
+    public KeyGesture? CopyGesture => _inputManager.GetKeyGesture(InputActions.EditCopy);
+    public KeyGesture? PasteGesture => _inputManager.GetKeyGesture(InputActions.EditPaste);
+    public KeyGesture? DeleteGesture => _inputManager.GetKeyGesture(InputActions.EditDelete);
+
+    private LandscapeEditorViewModel? GetEditor() =>
+        ProjectManager.Instance.GetProjectService<LandscapeEditorViewModel>();
+
+    [RelayCommand]
+    private void Undo() => GetEditor()?.UndoCommand.Execute(null);
+
+    [RelayCommand]
+    private void Redo() => GetEditor()?.RedoCommand.Execute(null);
+
+    [RelayCommand]
+    private void Copy() => GetEditor()?.CopySelectedObjectCommand.Execute(null);
+
+    [RelayCommand]
+    private void Paste() => GetEditor()?.PasteObjectCommand.Execute(null);
+
+    [RelayCommand]
+    private void Delete() => GetEditor()?.DeleteSelectedObjectCommand.Execute(null);
+
     [RelayCommand]
     private void Exit() {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {

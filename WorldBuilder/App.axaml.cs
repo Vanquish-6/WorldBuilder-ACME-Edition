@@ -131,10 +131,13 @@ public partial class App : Application {
         }
     }
 
+    private const string AppcastUrl = "https://vanquish-6.github.io/WorldBuilder-ACME-Edition/appcast.xml";
+    private const string SparklePublicKey = "CxN3A8g5g9l31yJ+HhUXeb0j5locPqamt9UMdgKQCB0=";
+
     private void SetupAutoUpdater() {
         _sparkle = new SparkleUpdater(
-            "https://chorizite.github.io/WorldBuilder/appcast.xml",
-            new Ed25519Checker(SecurityMode.Strict, "CxN3A8g5g9l31yJ+HhUXeb0j5locPqamt9UMdgKQCB0="),
+            AppcastUrl,
+            new Ed25519Checker(SecurityMode.Strict, SparklePublicKey),
             ExecutablePath
         ) {
             UIFactory = new NetSparkleUpdater.UI.Avalonia.UIFactory(),
@@ -146,7 +149,6 @@ public partial class App : Application {
         _sparkle.StartLoop(true, true, TimeSpan.FromHours(1));
         _sparkle.UpdateDetected += (s, e) => {
             // TODO: Figure out how to do installers for Linux. This is Win/macOS only for now
-            // https://github.com/Chorizite/WorldBuilder/issues/20
             string installerExtension = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "exe" : "pkg";
             _sparkle.TmpDownloadFileNameWithExtension = $"WorldBuilderInstaller-{e.LatestVersion.SemVerLikeVersion}.{installerExtension}";
         };

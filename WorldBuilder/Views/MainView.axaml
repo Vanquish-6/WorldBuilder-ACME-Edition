@@ -21,44 +21,74 @@
     </Design.DataContext>
 
     <DockPanel>
-        <!--  Menu Bar at the top  -->
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="File">
-                <MenuItem Command="{Binding OpenExportDatsWindowCommand}" Header="Export Dats" />
-                <Separator />
-                <MenuItem Command="{Binding ExitCommand}" Header="Exit" InputGesture="{Binding ExitGesture}" />
-            </MenuItem>
-            <MenuItem Header="Edit">
-                <MenuItem Command="{Binding OpenKeyboardShortcutsCommand}" Header="Keyboard Shortcuts" />
-            </MenuItem>
-            <MenuItem Header="Navigate">
-                <MenuItem
-                    Command="{Binding GotoLandblockCommand}"
-                    Header="Go to Landblock"
-                    InputGesture="{Binding GotoLandblockGesture}" />
-            </MenuItem>
-            <MenuItem Command="{Binding OpenSettingsWindowCommand}" Header="Settings" />
-            <MenuItem Header="Windows" ItemsSource="{Binding DockingPanels}">
-                <MenuItem.Styles>
-                    <!-- Target only children MenuItems, not the parent "Windows" item -->
-                    <Style Selector="MenuItem > MenuItem" x:DataType="docking:IDockable">
-                        <Setter Property="Header" Value="{Binding Title}" />
-                        <Setter Property="Command" Value="{Binding $parent[Menu].((vm:MainViewModel)DataContext).TogglePanelVisibilityCommand}" />
-                        <Setter Property="CommandParameter" Value="{Binding Id}" />
-                        <Setter Property="Icon">
-                            <Template>
-                                <CheckBox IsChecked="{Binding IsVisible}" IsHitTestVisible="False" />
-                            </Template>
-                        </Setter>
-                    </Style>
-                </MenuItem.Styles>
-            </MenuItem>
-        </Menu>
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <editors:LandscapeEditorView Grid.Row="0" />
-        </Grid>
+        <!--  Menu Bar  -->
+        <Border DockPanel.Dock="Top"
+                Background="#120c22"
+                BorderBrush="#2a1d42"
+                BorderThickness="0,0,0,1"
+                Padding="2,0">
+            <Menu>
+                <MenuItem Header="_File">
+                    <MenuItem Command="{Binding OpenExportDatsWindowCommand}" Header="Export Dats..." />
+                    <Separator />
+                    <MenuItem Command="{Binding OpenSettingsWindowCommand}" Header="Settings..." />
+                    <MenuItem Command="{Binding OpenKeyboardShortcutsCommand}" Header="Keyboard Shortcuts..." />
+                    <Separator />
+                    <MenuItem Command="{Binding ExitCommand}" Header="Exit" InputGesture="{Binding ExitGesture}" />
+                </MenuItem>
+                <MenuItem Header="_Edit">
+                    <MenuItem Command="{Binding UndoCommand}" Header="Undo" InputGesture="{Binding UndoGesture}" />
+                    <MenuItem Command="{Binding RedoCommand}" Header="Redo" InputGesture="{Binding RedoGesture}" />
+                    <Separator />
+                    <MenuItem Command="{Binding CopyCommand}" Header="Copy" InputGesture="{Binding CopyGesture}" />
+                    <MenuItem Command="{Binding PasteCommand}" Header="Paste" InputGesture="{Binding PasteGesture}" />
+                    <MenuItem Command="{Binding DeleteCommand}" Header="Delete" InputGesture="{Binding DeleteGesture}" />
+                </MenuItem>
+                <MenuItem Header="_Navigate">
+                    <MenuItem
+                        Command="{Binding GotoLandblockCommand}"
+                        Header="Go to Landblock..."
+                        InputGesture="{Binding GotoLandblockGesture}" />
+                </MenuItem>
+                <MenuItem Header="_Windows" ItemsSource="{Binding DockingPanels}">
+                    <MenuItem.Styles>
+                        <Style Selector="MenuItem > MenuItem" x:DataType="docking:IDockable">
+                            <Setter Property="Header" Value="{Binding Title}" />
+                            <Setter Property="Command" Value="{Binding $parent[Menu].((vm:MainViewModel)DataContext).TogglePanelVisibilityCommand}" />
+                            <Setter Property="CommandParameter" Value="{Binding Id}" />
+                            <Setter Property="Icon">
+                                <Template>
+                                    <CheckBox IsChecked="{Binding IsVisible}" IsHitTestVisible="False" />
+                                </Template>
+                            </Setter>
+                        </Style>
+                    </MenuItem.Styles>
+                </MenuItem>
+            </Menu>
+        </Border>
+
+        <!--  Status Bar  -->
+        <Border DockPanel.Dock="Bottom"
+                Background="#120c22"
+                BorderBrush="#2a1d42"
+                BorderThickness="0,1,0,0"
+                Padding="10,4">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left"
+                           FontSize="11"
+                           Foreground="#8a7a9e"
+                           VerticalAlignment="Center"
+                           Text="ACME WorldBuilder" />
+                <TextBlock DockPanel.Dock="Right"
+                           HorizontalAlignment="Right"
+                           FontSize="11"
+                           Foreground="#5a4a6e"
+                           VerticalAlignment="Center"
+                           Text="Ready" />
+            </DockPanel>
+        </Border>
+
+        <!--  Editor Content  -->
+        <editors:LandscapeEditorView />
     </DockPanel>
 </UserControl>

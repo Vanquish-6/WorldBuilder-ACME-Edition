@@ -10,6 +10,8 @@
     Width="500"
     Height="350"
     x:DataType="vm:ExportDatsWindowViewModel"
+    Background="#0d0016"
+    RequestedThemeVariant="Dark"
     WindowStartupLocation="CenterOwner"
     mc:Ignorable="d">
 

@@ -3,6 +3,8 @@
         xmlns:v="clr-namespace:WorldBuilder.Editors.Landscape.Views"
         x:Class="WorldBuilder.Views.KeyboardMappingWindow"
         Title="Keyboard Shortcuts" Width="650" Height="550"
+        Background="#0d0016"
+        RequestedThemeVariant="Dark"
         WindowStartupLocation="CenterOwner">
     <v:KeyboardMappingView />
 </Window>

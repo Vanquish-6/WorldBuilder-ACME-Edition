@@ -6,10 +6,54 @@
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="400"
              x:Class="WorldBuilder.Editors.Landscape.Views.ToolboxView"
              x:DataType="vm:ToolboxViewModel">
+    <UserControl.Styles>
+        <Style Selector="Button.tool-btn">
+            <Setter Property="Background" Value="#1e1035" />
+            <Setter Property="BorderBrush" Value="#2a1d42" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="Foreground" Value="#c0b0d8" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.tool-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2a1545" />
+            <Setter Property="BorderBrush" Value="#3d2a5c" />
+        </Style>
+        <Style Selector="Button.tool-btn.selected">
+            <Setter Property="Background" Value="#7c4dbd" />
+            <Setter Property="BorderBrush" Value="#9b6dd0" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.tool-btn.selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#9b6dd0" />
+        </Style>
+        <Style Selector="Button.subtool-btn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#2a1d42" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="6,3" />
+            <Setter Property="Foreground" Value="#8a7a9e" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.subtool-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2a1545" />
+        </Style>
+        <Style Selector="Button.subtool-btn.selected">
+            <Setter Property="Background" Value="#351a55" />
+            <Setter Property="BorderBrush" Value="#7c4dbd" />
+            <Setter Property="Foreground" Value="#d4a843" />
+        </Style>
+    </UserControl.Styles>
+
     <DockPanel LastChildFill="True">
-        <!--  Tool Bar - horizontal tool selector  -->
+        <!-- Tool Bar -->
         <Border Padding="6"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                Background="#18102a"
+                BorderBrush="#2a1d42"
                 BorderThickness="0,0,0,1"
                 DockPanel.Dock="Top">
             <ItemsControl ItemsSource="{Binding Tools}">
@@ -21,11 +65,10 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Button Margin="0,0,4,0"
-                                Padding="8,4"
+                                Classes="tool-btn"
                                 Classes.selected="{Binding IsSelected}"
                                 Command="{Binding $parent[UserControl].((vm:ToolboxViewModel)DataContext).SelectToolCommand}"
                                 CommandParameter="{Binding}"
-                                Focusable="False"
                                 ToolTip.Tip="{Binding Name}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock FontSize="14" Text="{Binding IconGlyph}" />
@@ -37,9 +80,9 @@
             </ItemsControl>
         </Border>
 
-        <!--  Sub-Tool Bar - only shown for selected tool  -->
+        <!-- Sub-Tool Bar -->
         <Border Padding="6"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderBrush="#2a1d42"
                 BorderThickness="0,0,0,1"
                 DockPanel.Dock="Top"
                 IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNotNull}}">
@@ -52,11 +95,10 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Button Margin="0,0,4,4"
-                                Padding="6,3"
+                                Classes="subtool-btn"
                                 Classes.selected="{Binding IsSelected}"
                                 Command="{Binding $parent[UserControl].((vm:ToolboxViewModel)DataContext).SelectSubToolCommand}"
                                 CommandParameter="{Binding}"
-                                Focusable="False"
                                 ToolTip.Tip="{Binding Name}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock FontSize="13" Text="{Binding IconGlyph}" />
@@ -68,7 +110,7 @@
             </ItemsControl>
         </Border>
 
-        <!--  Sub-Tool Settings - fills remaining space  -->
+        <!-- Sub-Tool Settings -->
         <ScrollViewer>
             <StackPanel Margin="10" Spacing="10">
                 <ContentControl HorizontalContentAlignment="Stretch"

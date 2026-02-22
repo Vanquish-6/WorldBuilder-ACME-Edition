@@ -2,7 +2,7 @@ WorldBuilder - ACME Edition
 
 Landscape and world building tool for Asheron's Call. Terrain editing, object placement, texture painting, road drawing, and DAT export.
 
-Originally created by the Chorizite team (https://github.com/Chorizite). This fork is independently maintained by Vanquish.
+Maintained by Vanquish. Built on foundational work by the Chorizite team.
 
 
 Whats Working

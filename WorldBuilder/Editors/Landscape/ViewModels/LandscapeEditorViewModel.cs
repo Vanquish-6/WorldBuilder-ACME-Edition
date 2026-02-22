@@ -534,17 +534,31 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             TerrainSystem.Scene.ClearAllCaches();
         }
 
+        [RelayCommand]
+        public void Undo() {
+            TerrainSystem?.History?.Undo();
+            TerrainSystem?.Scene.InvalidateStaticObjectsCache();
+        }
+
+        [RelayCommand]
+        public void Redo() {
+            TerrainSystem?.History?.Redo();
+            TerrainSystem?.Scene.InvalidateStaticObjectsCache();
+        }
+
         private StaticObject? _copiedObject;
         private ushort _copiedObjectLandblock;
 
-        private void CopySelectedObject() {
+        [RelayCommand]
+        public void CopySelectedObject() {
             var sel = TerrainSystem?.EditingContext.ObjectSelection;
             if (sel == null || !sel.HasSelection || sel.SelectedObject == null) return;
             _copiedObject = sel.SelectedObject.Value;
             _copiedObjectLandblock = sel.SelectedLandblockKey;
         }
 
-        private void PasteObject() {
+        [RelayCommand]
+        public void PasteObject() {
             if (_copiedObject == null || TerrainSystem == null) return;
             var src = _copiedObject.Value;
             var sel = TerrainSystem.EditingContext.ObjectSelection;
@@ -561,7 +575,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             sel.Select(duplicate, _copiedObjectLandblock, cmd.AddedIndex, false);
         }
 
-        private void DeleteSelectedObject() {
+        [RelayCommand]
+        public void DeleteSelectedObject() {
             var sel = TerrainSystem?.EditingContext.ObjectSelection;
             if (sel == null || !sel.HasSelection || sel.SelectedObject == null || sel.IsScenery) return;
             if (sel.HasEnvCellSelection) return;

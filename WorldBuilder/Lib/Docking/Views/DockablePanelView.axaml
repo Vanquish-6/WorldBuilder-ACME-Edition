@@ -6,34 +6,70 @@
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="200"
              x:Class="WorldBuilder.Lib.Docking.DockablePanelView"
              x:DataType="docking:DockablePanelViewModel">
-     <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-             BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-             BorderThickness="0,0,0,1"
-             Margin="0,0,0,0">
-         <DockPanel LastChildFill="True">
-             <!-- Header -->
-             <Border DockPanel.Dock="Top"
-                     Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                     Padding="6,4"
-                     Name="HeaderBorder">
-                 <DockPanel>
-                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Spacing="4">
-                         <!-- Drag to Dock Handle -->
-                         <Border Name="DockDragHandle"
-                                 Background="Transparent"
-                                 Padding="4,2"
-                                 ToolTip.Tip="Drag to Dock">
-                             <TextBlock Text="&#x2630;" FontSize="12" VerticalAlignment="Center" />
-                         </Border>
-                         <Button Content="&lt;" ToolTip.Tip="Move Up/Left" Command="{Binding MoveUpCommand}" Padding="4,2" FontSize="10" />
-                         <Button Content="&gt;" ToolTip.Tip="Move Down/Right" Command="{Binding MoveDownCommand}" Padding="4,2" FontSize="10" />
-                         <Button Content="^" ToolTip.Tip="Float" Command="{Binding FloatCommand}" Padding="4,2" FontSize="10" />
-                         <Button Content="X" ToolTip.Tip="Close" Command="{Binding CloseCommand}" Padding="4,2" FontSize="10" />
-                     </StackPanel>
-                     <TextBlock Text="{Binding Title}" FontWeight="Bold" VerticalAlignment="Center" />
-                 </DockPanel>
-             </Border>
-             <ContentControl Content="{Binding Content}" Margin="0" />
-         </DockPanel>
-     </Border>
+
+    <UserControl.Styles>
+        <Style Selector="Button.panel-btn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="MinWidth" Value="22" />
+            <Setter Property="MinHeight" Value="20" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Foreground" Value="#6a5a7e" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+        <Style Selector="Button.panel-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2a1545" />
+            <Setter Property="Foreground" Value="#c0b0d8" />
+        </Style>
+        <Style Selector="Button.panel-btn:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#351a55" />
+        </Style>
+        <Style Selector="Button.panel-btn-close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#5c2020" />
+            <Setter Property="Foreground" Value="#ff8888" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="#16102a"
+            BorderBrush="#2a1d42"
+            BorderThickness="0,0,0,1">
+        <DockPanel LastChildFill="True">
+            <!-- Header -->
+            <Border DockPanel.Dock="Top"
+                    Padding="8,5"
+                    Name="HeaderBorder">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#1e1035" />
+                        <GradientStop Offset="1" Color="#18102a" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <DockPanel>
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Spacing="1">
+                        <Border Name="DockDragHandle"
+                                Background="Transparent"
+                                Padding="4,2"
+                                Cursor="SizeAll"
+                                ToolTip.Tip="Drag to Dock">
+                            <TextBlock Text="&#x2630;" FontSize="11" Foreground="#5a4a6e" VerticalAlignment="Center" />
+                        </Border>
+                        <Button Classes="panel-btn" Content="&#x25C0;" ToolTip.Tip="Move Up/Left" Command="{Binding MoveUpCommand}" />
+                        <Button Classes="panel-btn" Content="&#x25B6;" ToolTip.Tip="Move Down/Right" Command="{Binding MoveDownCommand}" />
+                        <Button Classes="panel-btn" Content="&#x25A2;" ToolTip.Tip="Float" Command="{Binding FloatCommand}" />
+                        <Button Classes="panel-btn panel-btn-close" Content="&#x2715;" ToolTip.Tip="Close" Command="{Binding CloseCommand}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Title}"
+                               FontWeight="SemiBold"
+                               FontSize="12"
+                               Foreground="#d4a843"
+                               VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+            <!-- Panel content -->
+            <ContentControl Content="{Binding Content}" Margin="0" />
+        </DockPanel>
+    </Border>
 </UserControl>
