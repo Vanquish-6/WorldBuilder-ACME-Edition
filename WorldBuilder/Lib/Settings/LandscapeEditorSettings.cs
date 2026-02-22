@@ -1,5 +1,6 @@
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace WorldBuilder.Lib.Settings {
@@ -26,8 +27,21 @@ namespace WorldBuilder.Lib.Settings {
         private UIStateSettings _uiState = new();
         public UIStateSettings UIState { get => _uiState; set => SetProperty(ref _uiState, value); }
 
+        public List<CameraBookmark> Bookmarks { get; set; } = new();
+
         public LandscapeEditorSettings() {
         }
+    }
+
+    public class CameraBookmark {
+        public string Name { get; set; } = "";
+        public float PositionX { get; set; }
+        public float PositionY { get; set; }
+        public float PositionZ { get; set; }
+        public float Yaw { get; set; }
+        public float Pitch { get; set; }
+        public float OrthoSize { get; set; } = float.NaN;
+        public bool IsPerspective { get; set; } = true;
     }
 
     [SettingCategory("Stamps", ParentCategory = "Landscape Editor", Order = 5)]

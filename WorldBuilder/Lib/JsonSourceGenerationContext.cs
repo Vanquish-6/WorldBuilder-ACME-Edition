@@ -25,6 +25,8 @@ namespace WorldBuilder.Lib {
     [JsonSerializable(typeof(OverlaySettings))]
     [JsonSerializable(typeof(SelectionSettings))]
     [JsonSerializable(typeof(UIStateSettings))]
+    [JsonSerializable(typeof(CameraBookmark))]
+    [JsonSerializable(typeof(List<CameraBookmark>))]
     [JsonSerializable(typeof(Vector3))]
     [JsonSerializable(typeof(DateTime))]
     [JsonSerializable(typeof(string))]

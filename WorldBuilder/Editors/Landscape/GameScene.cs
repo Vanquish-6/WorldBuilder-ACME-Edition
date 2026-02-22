@@ -1929,14 +1929,14 @@ namespace WorldBuilder.Editors.Landscape {
 
         public void SaveCameraState() {
             var cam = _settings.Landscape.Camera;
-            var pos = CameraManager.Current.Position;
+            var pos = PerspectiveCamera.Position;
             cam.SavedPositionX = pos.X;
             cam.SavedPositionY = pos.Y;
             cam.SavedPositionZ = pos.Z;
             cam.SavedYaw = PerspectiveCamera.Yaw;
             cam.SavedPitch = PerspectiveCamera.Pitch;
             cam.SavedOrthoSize = TopDownCamera.OrthographicSize;
-            cam.SavedIs3D = CameraManager.Current == PerspectiveCamera;
+            cam.SavedIs3D = true;
             _settings.Save();
         }
 

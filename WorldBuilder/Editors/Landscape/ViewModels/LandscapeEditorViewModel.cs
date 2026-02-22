@@ -51,6 +51,9 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private TerrainTexturePaletteViewModel? _texturePalette;
 
         [ObservableProperty]
+        private CameraBookmarksPanelViewModel? _bookmarksPanel;
+
+        [ObservableProperty]
         private object? _leftPanelContent;
 
         [ObservableProperty]
@@ -163,6 +166,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             TexturePalette = new TerrainTexturePaletteViewModel(TerrainSystem.Scene.SurfaceManager);
             TexturePalette.TextureSelected += OnPaletteTextureSelected;
 
+            BookmarksPanel = new CameraBookmarksPanelViewModel(TerrainSystem, Settings);
+
             LeftPanelContent = ObjectBrowser;
             LeftPanelTitle = "Object Browser";
 
@@ -189,6 +194,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             if (TexturePalette != null) Register("TexturePalette", "Texture Palette", TexturePalette, DockLocation.Left);
             if (LayersPanel != null) Register("Layers", "Layers", LayersPanel, DockLocation.Right);
             if (HistorySnapshotPanel != null) Register("History", "History", HistorySnapshotPanel, DockLocation.Right);
+            if (BookmarksPanel != null) Register("Bookmarks", "Bookmarks", BookmarksPanel, DockLocation.Right);
 
             Register("Toolbox", "Tools", new ToolboxViewModel(this), DockLocation.Right);
 
@@ -276,6 +282,9 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 switch (e.Key) {
                     case Avalonia.Input.Key.G:
                         _ = GotoLandblockCommand.ExecuteAsync(null);
+                        return;
+                    case Avalonia.Input.Key.B:
+                        BookmarksPanel?.AddBookmark();
                         return;
                     case Avalonia.Input.Key.Z:
                         if (shift)
@@ -512,20 +521,15 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         private void ResetCamera() {
             if (TerrainSystem == null) return;
 
-            var camera = TerrainSystem.Scene.CameraManager.Current;
-            // Default: center of the map, looking down from above
             var centerX = (TerrainDataManager.MapSize / 2f) * TerrainDataManager.LandblockLength;
             var centerY = (TerrainDataManager.MapSize / 2f) * TerrainDataManager.LandblockLength;
             var height = Math.Max(TerrainSystem.Scene.DataManager.GetHeightAtPosition(centerX, centerY), 100f);
 
-            if (camera is OrthographicTopDownCamera ortho) {
-                ortho.SetPosition(centerX, centerY, height + 1000f);
-                ortho.OrthographicSize = 1000f;
-            }
-            else if (camera is PerspectiveCamera persp) {
-                persp.SetPosition(centerX, centerY, height + 500f);
-                persp.LookAt(new Vector3(centerX, centerY, height));
-            }
+            TerrainSystem.Scene.PerspectiveCamera.SetPosition(centerX, centerY, height + 500f);
+            TerrainSystem.Scene.PerspectiveCamera.LookAt(new Vector3(centerX, centerY, height));
+
+            TerrainSystem.Scene.TopDownCamera.SetPosition(centerX, centerY, height + 1000f);
+            TerrainSystem.Scene.TopDownCamera.OrthographicSize = 1000f;
         }
 
         [RelayCommand]
@@ -646,15 +650,12 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             var centerY = lbY * TerrainDataManager.LandblockLength + TerrainDataManager.LandblockLength / 2f;
             var height = TerrainSystem.Scene.DataManager.GetHeightAtPosition(centerX, centerY);
 
-            var camera = TerrainSystem.Scene.CameraManager.Current;
-            if (camera is OrthographicTopDownCamera) {
-                camera.LookAt(new Vector3(centerX, centerY, height));
-            }
-            else {
-                // Position perspective camera above the landblock center, looking down at it
-                camera.SetPosition(centerX, centerY, height + 200f);
-                camera.LookAt(new Vector3(centerX, centerY, height));
-            }
+            var target = new Vector3(centerX, centerY, height);
+
+            TerrainSystem.Scene.PerspectiveCamera.SetPosition(centerX, centerY, height + 200f);
+            TerrainSystem.Scene.PerspectiveCamera.LookAt(target);
+
+            TerrainSystem.Scene.TopDownCamera.LookAt(target);
         }
 
         /// <summary>
@@ -674,15 +675,13 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             var worldY = lbY * 192f + envCell.Position.Origin.Y;
             var worldZ = envCell.Position.Origin.Z;
 
-            var camera = TerrainSystem.Scene.CameraManager.Current;
-            if (camera is OrthographicTopDownCamera) {
-                camera.LookAt(new Vector3(worldX, worldY, worldZ));
-            }
-            else {
-                // Position perspective camera at the EnvCell, slightly offset
-                camera.SetPosition(worldX, worldY, worldZ + 10f);
-                camera.LookAt(new Vector3(worldX, worldY, worldZ));
-            }
+            var target = new Vector3(worldX, worldY, worldZ);
+
+            TerrainSystem.Scene.PerspectiveCamera.SetPosition(worldX, worldY, worldZ + 10f);
+            TerrainSystem.Scene.PerspectiveCamera.LookAt(target);
+
+            TerrainSystem.Scene.TopDownCamera.LookAt(target);
+
             return true;
         }
 
