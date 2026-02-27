@@ -17,11 +17,11 @@
 * @Vermino made their first contribution in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/10
 
 **Full Changelog**: https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commits/latest</description>
-      <pubDate>Fri, 27 Feb 2026 08:09:04 +00:00</pubDate>
+      <pubDate>Fri, 27 Feb 2026 08:19:32 +00:00</pubDate>
       <sparkle:version>0.1.0+232</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B232.exe" sparkle:version="0.1.0+232" sparkle:shortVersionString="0.1.0" length="22634487" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="BUB+KAVMzT2CX8vSUwoX4hEoRGnQZtBdqe8Yw+4swDTnW576D+RH6JX1gb/r3p60plkZjTMtluPpRCrrDDtnAw==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B232.exe" sparkle:version="0.1.0+232" sparkle:shortVersionString="0.1.0" length="22634542" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="xDqrJ6UqmvDceTvDqcikyqgydGRLqbVwd1j2lQdSODiIbtkDMcWEB86v2UroywvlFKuWq4A8/8GAN1z2LkfzCg==" />
     </item>
   </channel>
 </rss>
