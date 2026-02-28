@@ -82,6 +82,20 @@ namespace WorldBuilder.Editors.Dungeon {
         private uint _lineVBO;
         private uint _objSelVAO;
         private uint _objSelVBO;
+        private uint _connLineVAO;
+        private uint _connLineVBO;
+        private uint _portalConnVAO;
+        private uint _portalConnVBO;
+        private uint _portalOpenVAO;
+        private uint _portalOpenVBO;
+
+        // Reusable vertex lists to avoid per-frame allocations
+        private readonly List<float> _selBoxVerts = new();
+        private readonly List<float> _connLineVerts = new();
+        private readonly List<float> _portalConnVerts = new();
+        private readonly List<float> _portalOpenVerts = new();
+        private readonly List<Vector3> _portalWorldVerts = new();
+        private readonly List<Matrix4x4> _partTransformsBuffer = new();
 
         private ushort _loadedLandblockKey;
         private bool _hasLoadedCells;
@@ -422,12 +436,12 @@ namespace WorldBuilder.Editors.Dungeon {
                         var partRenderData = objectManager.TryGetCachedRenderData(partId);
                         if (partRenderData == null) continue;
 
-                        var partTransforms = new List<Matrix4x4>();
+                        _partTransformsBuffer.Clear();
                         foreach (var instanceMatrix in group.Value) {
-                            partTransforms.Add(partTransform * instanceMatrix);
+                            _partTransformsBuffer.Add(partTransform * instanceMatrix);
                         }
 
-                        RenderBatchedObject(gl, partRenderData, partTransforms);
+                        RenderBatchedObject(gl, partRenderData, _partTransformsBuffer);
                     }
                 }
                 else {
@@ -702,18 +716,18 @@ namespace WorldBuilder.Editors.Dungeon {
                 if (!cellStruct.Polygons.TryGetValue(polyId, out var poly)) return;
                 if (poly.VertexIds.Count < 3) return;
 
-                var worldVerts = new List<Vector3>();
+                _portalWorldVerts.Clear();
                 foreach (var vid in poly.VertexIds) {
                     if (cellStruct.VertexArray.Vertices.TryGetValue((ushort)vid, out var vtx)) {
-                        worldVerts.Add(Vector3.Transform(vtx.Origin, transform));
+                        _portalWorldVerts.Add(Vector3.Transform(vtx.Origin, transform));
                     }
                 }
-                if (worldVerts.Count < 3) return;
+                if (_portalWorldVerts.Count < 3) return;
 
-                for (int i = 0; i < worldVerts.Count; i++) {
-                    int next = (i + 1) % worldVerts.Count;
-                    var a = worldVerts[i];
-                    var b = worldVerts[next];
+                for (int i = 0; i < _portalWorldVerts.Count; i++) {
+                    int next = (i + 1) % _portalWorldVerts.Count;
+                    var a = _portalWorldVerts[i];
+                    var b = _portalWorldVerts[next];
                     var edgeDir = Vector3.Normalize(b - a);
                     var mid = (a + b) * 0.5f;
                     var toCamera = Vector3.Normalize(camPos - mid);
@@ -725,25 +739,26 @@ namespace WorldBuilder.Editors.Dungeon {
                 }
             }
 
-            var connectedVerts = new List<float>();
-            var openVerts = new List<float>();
+            _portalConnVerts.Clear();
+            _portalOpenVerts.Clear();
             foreach (var polyId in portalIds) {
                 if (connectedPolys.Contains(polyId))
-                    AddPortalEdges(connectedVerts, polyId); // Blue = connected
+                    AddPortalEdges(_portalConnVerts, polyId);
                 else
-                    AddPortalEdges(openVerts, polyId);      // Green = open
+                    AddPortalEdges(_portalOpenVerts, polyId);
             }
 
-            void DrawPortalVerts(List<float> verts, Vector3 color) {
+            void DrawPortalVerts(List<float> verts, ref uint cachedVao, ref uint cachedVbo, Vector3 color) {
                 if (verts.Count == 0) return;
                 int vertCount = verts.Count / 6;
                 var data = CollectionsMarshal.AsSpan(verts);
 
-                uint vao, vbo;
-                gl.GenVertexArrays(1, out vao);
-                gl.GenBuffers(1, out vbo);
-                gl.BindVertexArray(vao);
-                gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
+                if (cachedVao == 0) {
+                    gl.GenVertexArrays(1, out cachedVao);
+                    gl.GenBuffers(1, out cachedVbo);
+                }
+                gl.BindVertexArray(cachedVao);
+                gl.BindBuffer(GLEnum.ArrayBuffer, cachedVbo);
                 fixed (float* ptr = data) {
                     gl.BufferData(GLEnum.ArrayBuffer, (nuint)(data.Length * sizeof(float)), ptr, GLEnum.DynamicDraw);
                 }
@@ -775,15 +790,12 @@ namespace WorldBuilder.Editors.Dungeon {
 
                 gl.BindVertexArray(0);
                 gl.UseProgram(0);
-                gl.DeleteBuffer(vbo);
-                gl.DeleteVertexArray(vao);
             }
 
-            if (connectedVerts.Count == 0 && openVerts.Count == 0) return;
+            if (_portalConnVerts.Count == 0 && _portalOpenVerts.Count == 0) return;
 
-            // Draw connected portals (blue) first, then open (green) so open portals stand out
-            DrawPortalVerts(connectedVerts, new Vector3(0.3f, 0.5f, 1.0f));
-            DrawPortalVerts(openVerts, new Vector3(0.2f, 0.9f, 0.3f));
+            DrawPortalVerts(_portalConnVerts, ref _portalConnVAO, ref _portalConnVBO, new Vector3(0.3f, 0.5f, 1.0f));
+            DrawPortalVerts(_portalOpenVerts, ref _portalOpenVAO, ref _portalOpenVBO, new Vector3(0.2f, 0.9f, 0.3f));
         }
 
         private unsafe void RenderConnectionLines(GL gl, Matrix4x4 viewProjection) {
@@ -791,7 +803,7 @@ namespace WorldBuilder.Editors.Dungeon {
 
             const float lineWidth = 0.08f;
             var camPos = Camera.Position;
-            var verts = new List<float>();
+            _connLineVerts.Clear();
 
             foreach (var (from, to) in ConnectionLines) {
                 var edgeDir = Vector3.Normalize(to - from);
@@ -803,21 +815,22 @@ namespace WorldBuilder.Editors.Dungeon {
                 var a0 = from - sideDir; var a1 = from + sideDir;
                 var b0 = to - sideDir; var b1 = to + sideDir;
 
-                void V(Vector3 p) { verts.Add(p.X); verts.Add(p.Y); verts.Add(p.Z); verts.Add(normal.X); verts.Add(normal.Y); verts.Add(normal.Z); }
+                void V(Vector3 p) { _connLineVerts.Add(p.X); _connLineVerts.Add(p.Y); _connLineVerts.Add(p.Z); _connLineVerts.Add(normal.X); _connLineVerts.Add(normal.Y); _connLineVerts.Add(normal.Z); }
                 V(a0); V(b0); V(b1);
                 V(a0); V(b1); V(a1);
             }
 
-            if (verts.Count == 0) return;
-            int vertCount = verts.Count / 6;
-            var data = CollectionsMarshal.AsSpan(verts);
+            if (_connLineVerts.Count == 0) return;
+            int vertCount = _connLineVerts.Count / 6;
+            var data = CollectionsMarshal.AsSpan(_connLineVerts);
 
-            uint vao, vbo;
-            gl.GenVertexArrays(1, out vao);
-            gl.GenBuffers(1, out vbo);
+            if (_connLineVAO == 0) {
+                gl.GenVertexArrays(1, out _connLineVAO);
+                gl.GenBuffers(1, out _connLineVBO);
+            }
 
-            gl.BindVertexArray(vao);
-            gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
+            gl.BindVertexArray(_connLineVAO);
+            gl.BindBuffer(GLEnum.ArrayBuffer, _connLineVBO);
             fixed (float* ptr = data) {
                 gl.BufferData(GLEnum.ArrayBuffer, (nuint)(data.Length * sizeof(float)), ptr, GLEnum.DynamicDraw);
             }
@@ -833,7 +846,7 @@ namespace WorldBuilder.Editors.Dungeon {
             shader.Bind();
             shader.SetUniform("uViewProjection", viewProjection);
             shader.SetUniform("uCameraPosition", camPos);
-            shader.SetUniform("uSphereColor", new Vector3(0.4f, 0.6f, 1.0f)); // Cyan/blue for connections
+            shader.SetUniform("uSphereColor", new Vector3(0.4f, 0.6f, 1.0f));
             shader.SetUniform("uLightDirection", Vector3.Normalize(new Vector3(0.3f, -0.5f, -0.8f)));
             shader.SetUniform("uAmbientIntensity", 1.0f);
             shader.SetUniform("uSpecularPower", 0f);
@@ -849,8 +862,6 @@ namespace WorldBuilder.Editors.Dungeon {
 
             gl.BindVertexArray(0);
             gl.UseProgram(0);
-            gl.DeleteBuffer(vbo);
-            gl.DeleteVertexArray(vao);
         }
 
         private unsafe void RenderSelectionBoxes(GL gl, Matrix4x4 viewProjection) {
@@ -886,7 +897,7 @@ namespace WorldBuilder.Editors.Dungeon {
 
             const float lineWidth = 0.15f;
             var camPos = Camera.Position;
-            var verts = new List<float>();
+            _selBoxVerts.Clear();
 
             foreach (var e in edges) {
                 var a = c[e[0]];
@@ -900,13 +911,13 @@ namespace WorldBuilder.Editors.Dungeon {
                 var a0 = a - sideDir; var a1 = a + sideDir;
                 var b0 = b - sideDir; var b1 = b + sideDir;
 
-                void V(Vector3 p) { verts.Add(p.X); verts.Add(p.Y); verts.Add(p.Z); verts.Add(normal.X); verts.Add(normal.Y); verts.Add(normal.Z); }
+                void V(Vector3 p) { _selBoxVerts.Add(p.X); _selBoxVerts.Add(p.Y); _selBoxVerts.Add(p.Z); _selBoxVerts.Add(normal.X); _selBoxVerts.Add(normal.Y); _selBoxVerts.Add(normal.Z); }
                 V(a0); V(b0); V(b1);
                 V(a0); V(b1); V(a1);
             }
 
-            int vertCount = verts.Count / 6;
-            var data = CollectionsMarshal.AsSpan(verts);
+            int vertCount = _selBoxVerts.Count / 6;
+            var data = CollectionsMarshal.AsSpan(_selBoxVerts);
 
             if (_lineVAO == 0) {
                 gl.GenVertexArrays(1, out _lineVAO);
@@ -1038,6 +1049,12 @@ namespace WorldBuilder.Editors.Dungeon {
                 if (_objSelVAO != 0) gl.DeleteVertexArray(_objSelVAO);
                 if (_lineVBO != 0) gl.DeleteBuffer(_lineVBO);
                 if (_lineVAO != 0) gl.DeleteVertexArray(_lineVAO);
+                if (_connLineVBO != 0) gl.DeleteBuffer(_connLineVBO);
+                if (_connLineVAO != 0) gl.DeleteVertexArray(_connLineVAO);
+                if (_portalConnVBO != 0) gl.DeleteBuffer(_portalConnVBO);
+                if (_portalConnVAO != 0) gl.DeleteVertexArray(_portalConnVAO);
+                if (_portalOpenVBO != 0) gl.DeleteBuffer(_portalOpenVBO);
+                if (_portalOpenVAO != 0) gl.DeleteVertexArray(_portalOpenVAO);
             }
             _sceneContext?.Dispose();
         }

@@ -93,6 +93,9 @@ namespace WorldBuilder.Editors.Dungeon {
         private Vector3 _dragStartHit;
         private Vector3 _dragStartOrigin;
 
+        private IReadOnlyList<(Vector3 From, Vector3 To)> _cachedConnectionLines = Array.Empty<(Vector3, Vector3)>();
+        private bool _connectionLinesDirty = true;
+
         public WorldBuilderSettings Settings { get; }
 
         private Project? _project;
@@ -166,7 +169,11 @@ namespace WorldBuilder.Editors.Dungeon {
             HandleInput(inputState, deltaTime);
 
             _scene.Camera.ScreenSize = new Vector2(canvasSize.Width, canvasSize.Height);
-            _scene.ConnectionLines = ComputeConnectionLines();
+            if (_connectionLinesDirty) {
+                _cachedConnectionLines = ComputeConnectionLines();
+                _connectionLinesDirty = false;
+            }
+            _scene.ConnectionLines = _cachedConnectionLines;
             _scene.ShowConnectionLines = ShowConnectionLines;
             _scene.Render((float)canvasSize.Width / canvasSize.Height);
 
@@ -1745,6 +1752,7 @@ namespace WorldBuilder.Editors.Dungeon {
 
         private void RefreshRendering() {
             if (_scene == null || _document == null) return;
+            _connectionLinesDirty = true;
             _scene.RefreshFromDocument(_document);
         }
 
