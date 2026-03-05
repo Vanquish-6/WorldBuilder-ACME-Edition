@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Input;
+using Avalonia.Platform.Storage;
 using Chorizite.OpenGLSDLBackend;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,6 +17,7 @@ using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using WorldBuilder.Editors.Landscape;
+using WorldBuilder.Editors.Landscape.Commands;
 using WorldBuilder.Lib;
 using WorldBuilder.Lib.Docking;
 using WorldBuilder.Services;
@@ -569,7 +571,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
             var waterEntry = new TerrainEntry(road: 0, scenery: 0, type: WATER_DEEP_SEA, height: 0).ToUInt();
 
-            var batchChanges = new Dictionary<ushort, Dictionary<byte, uint>>();
+            var allChanges = new Dictionary<ushort, Dictionary<byte, uint>>();
             for (int x = 0; x <= MAP_SIZE - 1; x++) {
                 for (int y = 0; y <= MAP_SIZE - 1; y++) {
                     var lbKey = (ushort)((x << 8) | y);
@@ -583,19 +585,12 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                         }
                     }
                     if (changes.Count > 0) {
-                        batchChanges[lbKey] = changes;
-                    }
-
-                    if (batchChanges.Count >= 500) {
-                        TerrainSystem.TerrainDoc.UpdateLandblocksBatchInternal(batchChanges, out _);
-                        batchChanges.Clear();
+                        allChanges[lbKey] = changes;
                     }
                 }
             }
 
-            if (batchChanges.Count > 0) {
-                TerrainSystem.TerrainDoc.UpdateLandblocksBatchInternal(batchChanges, out _);
-            }
+            TerrainSystem.TerrainDoc.ApplyBulkImport(allChanges);
 
             TerrainSystem.DocumentManager.SkipDatStatics = true;
 
@@ -627,6 +622,14 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                         MaxWidth = 400,
                         FontSize = 13,
                         Opacity = 0.85
+                    },
+                    new TextBlock {
+                        Text = "Note: Server-side spawns in your ACE database\n(landblock_instance table) will not be removed.\nYou may need to clear that table separately.",
+                        TextWrapping = TextWrapping.Wrap,
+                        MaxWidth = 400,
+                        FontSize = 11,
+                        Opacity = 0.6,
+                        FontStyle = Avalonia.Media.FontStyle.Italic
                     },
                     new StackPanel {
                         Orientation = Avalonia.Layout.Orientation.Horizontal,
@@ -662,6 +665,244 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         public void Redo() {
             TerrainSystem?.History?.Redo();
             TerrainSystem?.Scene.InvalidateStaticObjectsCache();
+        }
+
+        [RelayCommand]
+        public async Task ImportHeightmap() {
+            if (TerrainSystem == null) return;
+
+            var result = await ShowImportHeightmapDialog();
+            if (result == null) return;
+
+            var (filePath, isFullWorld, startX, startY, countX, countY) = result.Value;
+
+            if (isFullWorld) {
+                startX = 0;
+                startY = 0;
+                countX = HeightmapImportService.MAP_SIZE;
+                countY = HeightmapImportService.MAP_SIZE;
+            }
+
+            var statusText = new TextBlock {
+                Text = "Loading image...",
+                FontSize = 13,
+                Foreground = Avalonia.Media.Brushes.White,
+                TextWrapping = TextWrapping.Wrap
+            };
+
+            var progressDialog = new StackPanel {
+                Margin = new Avalonia.Thickness(24),
+                Spacing = 12,
+                Width = 340,
+                Children = {
+                    new TextBlock { Text = "Importing Heightmap", FontSize = 16, FontWeight = FontWeight.Bold },
+                    statusText,
+                    new Avalonia.Controls.ProgressBar { IsIndeterminate = true, Height = 4 }
+                }
+            };
+
+            var dialogTask = DialogHost.Show(progressDialog, "MainDialogHost");
+
+            var terrainSystem = TerrainSystem;
+            var capturedStartX = startX;
+            var capturedStartY = startY;
+            var capturedCountX = countX;
+            var capturedCountY = countY;
+            var averageColors = terrainSystem.Scene.SurfaceManager.GetTerrainAverageColors();
+
+            string? errorMessage = null;
+
+            var desc = isFullWorld
+                ? "Import heightmap (full world)"
+                : $"Import heightmap ({countX}x{countY} landblocks at {startX},{startY})";
+
+            HeightImportCommand? executedCommand = null;
+
+            await Task.Run(() => {
+                try {
+                    var (targetW, targetH) = HeightmapImportService.GetTargetDimensions(capturedCountX, capturedCountY);
+                    var grid = HeightmapImportService.LoadAndResampleRgb(filePath, targetW, targetH);
+
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        statusText.Text = $"Processing {capturedCountX}x{capturedCountY} landblocks...");
+
+                    var changes = HeightmapImportService.BuildChanges(
+                        grid, capturedStartX, capturedStartY, capturedCountX, capturedCountY,
+                        terrainSystem, averageColors);
+
+                    if (changes.Count == 0) return;
+
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        statusText.Text = $"Applying {changes.Count} landblock changes...");
+
+                    var command = new HeightImportCommand(terrainSystem.EditingContext, desc, changes);
+                    command.Execute();
+                    executedCommand = command;
+                }
+                catch (Exception ex) {
+                    errorMessage = ex.Message;
+                }
+            });
+
+            DialogHost.Close("MainDialogHost");
+
+            if (errorMessage != null) {
+                _logger.LogError("Failed to import heightmap: {Error}", errorMessage);
+                return;
+            }
+
+            if (executedCommand != null) {
+                terrainSystem.History?.AddExecutedCommand(executedCommand);
+                terrainSystem.Scene.InvalidateStaticObjectsCache();
+                terrainSystem.Scene.ClearAllCaches();
+            }
+        }
+
+        private async Task<(string FilePath, bool IsFullWorld, int StartX, int StartY, int CountX, int CountY)?> ShowImportHeightmapDialog() {
+            var topLevel = GetTopLevel();
+            if (topLevel == null) return null;
+
+            string? selectedFile = null;
+            bool isFullWorld = true;
+            int startX = 0, startY = 0, countX = 16, countY = 16;
+
+            var filePathText = new TextBlock {
+                Text = "No file selected",
+                FontSize = 12,
+                Opacity = 0.6,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 320
+            };
+
+            var regionPanel = new StackPanel { Spacing = 6, IsVisible = false };
+            var startXBox = new NumericUpDown { Minimum = 0, Maximum = 253, Value = 0, ShowButtonSpinner = false, FontSize = 11, Width = 80 };
+            var startYBox = new NumericUpDown { Minimum = 0, Maximum = 253, Value = 0, ShowButtonSpinner = false, FontSize = 11, Width = 80 };
+            var countXBox = new NumericUpDown { Minimum = 1, Maximum = 254, Value = 16, ShowButtonSpinner = false, FontSize = 11, Width = 80 };
+            var countYBox = new NumericUpDown { Minimum = 1, Maximum = 254, Value = 16, ShowButtonSpinner = false, FontSize = 11, Width = 80 };
+
+            regionPanel.Children.Add(new Grid {
+                ColumnDefinitions = ColumnDefinitions.Parse("Auto,8,*,16,Auto,8,*"),
+                Children = {
+                    SetGrid(new TextBlock { Text = "Start X", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, FontSize = 11 }, 0, 0),
+                    SetGrid(startXBox, 0, 2),
+                    SetGrid(new TextBlock { Text = "Start Y", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, FontSize = 11 }, 0, 4),
+                    SetGrid(startYBox, 0, 6)
+                }
+            });
+            regionPanel.Children.Add(new Grid {
+                ColumnDefinitions = ColumnDefinitions.Parse("Auto,8,*,16,Auto,8,*"),
+                Children = {
+                    SetGrid(new TextBlock { Text = "Width", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, FontSize = 11 }, 0, 0),
+                    SetGrid(countXBox, 0, 2),
+                    SetGrid(new TextBlock { Text = "Height", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, FontSize = 11 }, 0, 4),
+                    SetGrid(countYBox, 0, 6)
+                }
+            });
+
+            var fullWorldRadio = new RadioButton { Content = "Full World (254x254 landblocks)", IsChecked = true, FontSize = 12 };
+            var regionRadio = new RadioButton { Content = "Selected Region", IsChecked = false, FontSize = 12 };
+
+            fullWorldRadio.IsCheckedChanged += (_, _) => {
+                regionPanel.IsVisible = regionRadio.IsChecked == true;
+            };
+            regionRadio.IsCheckedChanged += (_, _) => {
+                regionPanel.IsVisible = regionRadio.IsChecked == true;
+            };
+
+            bool confirmed = false;
+
+            var browseButton = new Button { Content = "Browse...", FontSize = 11 };
+            browseButton.Click += async (_, _) => {
+                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
+                    Title = "Select Heightmap Image",
+                    AllowMultiple = false,
+                    FileTypeFilter = new[] {
+                        new FilePickerFileType("Image Files") { Patterns = new[] { "*.png", "*.bmp", "*.jpg", "*.jpeg", "*.tiff", "*.tif", "*.gif" } },
+                        new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
+                    }
+                });
+                if (files.Count > 0) {
+                    selectedFile = files[0].TryGetLocalPath();
+                    filePathText.Text = System.IO.Path.GetFileName(selectedFile) ?? selectedFile;
+                    filePathText.Opacity = 1.0;
+                }
+            };
+
+            await DialogHost.Show(new StackPanel {
+                Margin = new Avalonia.Thickness(20),
+                Spacing = 12,
+                Width = 420,
+                Children = {
+                    new TextBlock { Text = "Import Heightmap", FontSize = 16, FontWeight = FontWeight.Bold },
+                    new TextBlock {
+                        Text = "Load a grayscale image as terrain height data.\nPixel brightness (0-255) maps directly to height index.",
+                        TextWrapping = TextWrapping.Wrap,
+                        FontSize = 12,
+                        Opacity = 0.7
+                    },
+                    new StackPanel {
+                        Spacing = 6,
+                        Children = {
+                            new TextBlock { Text = "Image File", FontSize = 12, FontWeight = FontWeight.SemiBold },
+                            new StackPanel {
+                                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                                Spacing = 8,
+                                Children = { browseButton, filePathText }
+                            }
+                        }
+                    },
+                    new StackPanel {
+                        Spacing = 6,
+                        Children = {
+                            new TextBlock { Text = "Scope", FontSize = 12, FontWeight = FontWeight.SemiBold },
+                            fullWorldRadio,
+                            regionRadio,
+                            regionPanel
+                        }
+                    },
+                    new StackPanel {
+                        Orientation = Avalonia.Layout.Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        Spacing = 10,
+                        Margin = new Avalonia.Thickness(0, 8, 0, 0),
+                        Children = {
+                            new Button {
+                                Content = "Cancel",
+                                Command = new RelayCommand(() => DialogHost.Close("MainDialogHost"))
+                            },
+                            new Button {
+                                Content = "Import",
+                                Command = new RelayCommand(() => {
+                                    if (selectedFile != null) {
+                                        isFullWorld = fullWorldRadio.IsChecked == true;
+                                        startX = (int)(startXBox.Value ?? 0);
+                                        startY = (int)(startYBox.Value ?? 0);
+                                        countX = (int)(countXBox.Value ?? 16);
+                                        countY = (int)(countYBox.Value ?? 16);
+                                        confirmed = true;
+                                    }
+                                    DialogHost.Close("MainDialogHost");
+                                })
+                            }
+                        }
+                    }
+                }
+            }, "MainDialogHost");
+
+            if (!confirmed || selectedFile == null) return null;
+            return (selectedFile, isFullWorld, startX, startY, countX, countY);
+        }
+
+        private static TopLevel? GetTopLevel() {
+            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+                return desktop.MainWindow;
+            return null;
+        }
+
+        private static Control SetGrid(Control control, int row, int column) {
+            Grid.SetRow(control, row);
+            Grid.SetColumn(control, column);
+            return control;
         }
 
         private StaticObject? _copiedObject;

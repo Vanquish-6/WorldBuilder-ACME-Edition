@@ -410,6 +410,16 @@
                                 <TextBlock Text="Fresh Start" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
+                        <Border Width="1" Background="#3d2a5c" Margin="4,4" />
+                        <Button
+                            Classes="vp-action"
+                            Command="{Binding ImportHeightmapCommand}"
+                            ToolTip.Tip="Import a grayscale image as terrain heightmap">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="&#x1F5BB;" FontSize="13" />
+                                <TextBlock Text="Import Heightmap" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
 

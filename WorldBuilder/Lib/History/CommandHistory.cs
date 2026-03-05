@@ -45,6 +45,7 @@ public class CommandHistory {
     }
 
     public bool ExecuteCommand(ICommand command) => ExecuteCommandAsync(command).GetAwaiter().GetResult();
+    public bool AddExecutedCommand(ICommand command) => AddExecutedCommandAsync(command).GetAwaiter().GetResult();
     public bool Undo() => UndoAsync().GetAwaiter().GetResult();
     public bool Redo() => RedoAsync().GetAwaiter().GetResult();
     public bool JumpToHistory(int targetIndex) => JumpToHistoryAsync(targetIndex).GetAwaiter().GetResult();
@@ -71,6 +72,42 @@ public class CommandHistory {
                 }
                 else {
                     _logger.LogWarning("Failed to load document {DocumentId} of type {Type}", docId, docType.Name);
+                }
+            }
+        }
+
+        if (_currentIndex < _history.Count - 1) {
+            _history.RemoveRange(_currentIndex + 1, _history.Count - _currentIndex - 1);
+        }
+        _history.Add(entry);
+        _currentIndex++;
+        TrimHistory();
+        UpdateCurrentStateMarkers();
+        OnHistoryChanged();
+        return true;
+    }
+
+    /// <summary>
+    /// Registers an already-executed command into history without calling Execute() again.
+    /// Use when the command was executed on a background thread.
+    /// </summary>
+    public async Task<bool> AddExecutedCommandAsync(ICommand command) {
+        if (command == null) return false;
+
+        var entry = new HistoryEntry(command) {
+            AffectedDocumentIds = command.AffectedDocumentIds ?? new List<string>()
+        };
+
+        foreach (var docId in entry.AffectedDocumentIds) {
+            var doc = _editor.GetDocument(docId);
+            if (doc != null) {
+                doc.MarkDirty();
+            }
+            else {
+                var docType = GetDocumentTypeFromId(docId);
+                var loadedDoc = await _editor.LoadDocumentAsync(docId, docType);
+                if (loadedDoc != null) {
+                    loadedDoc.MarkDirty();
                 }
             }
         }

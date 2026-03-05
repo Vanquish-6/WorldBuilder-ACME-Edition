@@ -201,7 +201,31 @@ namespace WorldBuilder.ViewModels {
                     _project.OnExportReposition = null;
                 }
 
-                await Task.Run(() => _project.ExportDats(ExportDirectory, PortalIteration));
+                var exportStatusText = new TextBlock {
+                    Text = "Starting export...",
+                    FontSize = 13,
+                    Foreground = Avalonia.Media.Brushes.White,
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                };
+
+                var exportProgressDialog = new StackPanel {
+                    Margin = new Avalonia.Thickness(24),
+                    Spacing = 12,
+                    Width = 380,
+                    Children = {
+                        new TextBlock { Text = "Exporting DATs", FontSize = 16, FontWeight = Avalonia.Media.FontWeight.Bold },
+                        exportStatusText,
+                        new Avalonia.Controls.ProgressBar { IsIndeterminate = true, Height = 4 }
+                    }
+                };
+
+                var exportDialogTask = DialogHost.Show(exportProgressDialog, "ExportDialogHost");
+
+                await Task.Run(() => _project.ExportDats(ExportDirectory, PortalIteration, status => {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => exportStatusText.Text = status);
+                }));
+
+                DialogHost.Close("ExportDialogHost");
 
                 var successMsg = "DAT files exported successfully!";
                 if (repoResult != null) {
