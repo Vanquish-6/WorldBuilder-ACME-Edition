@@ -122,6 +122,9 @@ namespace WorldBuilder.Editors.Dungeon {
         /// <summary>True when the preview is snapped to a valid portal. False when free-floating.</summary>
         public bool PreviewIsSnapped { get; set; }
 
+        /// <summary>When true, renders a reference grid on the XY plane to help orient in empty 3D space.</summary>
+        public bool ShowGrid { get; set; } = true;
+
         /// <summary>
         /// Set by the placement tool: list of EnvCells to render as a textured placement preview.
         /// Uses a separate preview landblock so it renders alongside the main dungeon.
@@ -163,6 +166,12 @@ namespace WorldBuilder.Editors.Dungeon {
         private readonly List<float> _highlightedPortalVerts = new();
         private uint _highlightVAO;
         private uint _highlightVBO;
+
+        private uint _gridVAO;
+        private uint _gridVBO;
+        private int _gridVertCount;
+        private Vector3 _gridCenter;
+        private bool _gridDirty = true;
 
         private ushort _loadedLandblockKey;
         private bool _hasLoadedCells;
@@ -351,21 +360,32 @@ namespace WorldBuilder.Editors.Dungeon {
         /// Navigate the camera to the center of the loaded dungeon cells.
         /// </summary>
         public void FocusCamera() {
+            var center = GetDungeonCenter();
+            if (center == null) return;
+
+            Camera.SetPosition(center.Value + new Vector3(0, -20f, 10f));
+            Camera.LookAt(center.Value);
+        }
+
+        /// <summary>
+        /// Compute the centroid of all loaded dungeon cells (world-space).
+        /// Returns null if no cells are loaded.
+        /// </summary>
+        public Vector3? GetDungeonCenter() {
             var ecm = _sceneContext?.EnvCellManager;
-            if (ecm == null || !_hasLoadedCells) return;
+            if (ecm == null || !_hasLoadedCells) return null;
 
             var cells = ecm.GetLoadedCellsForLandblock(_loadedLandblockKey);
-            if (cells == null || cells.Count == 0) return;
+            if (cells == null || cells.Count == 0) return null;
 
             var center = Vector3.Zero;
             foreach (var cell in cells) {
                 center += cell.WorldPosition;
             }
-            center /= cells.Count;
-
-            Camera.SetPosition(center + new Vector3(0, -20f, 10f));
-            Camera.LookAt(center);
+            return center / cells.Count;
         }
+
+        public void InvalidateGrid() => _gridDirty = true;
 
         /// <summary>
         /// Process pending GPU uploads and render the dungeon cells.
@@ -432,6 +452,10 @@ namespace WorldBuilder.Editors.Dungeon {
             // Update textured placement preview (separate landblock)
             UpdatePreviewLandblock(ecm);
             ecm.ProcessUploads(maxPerFrame: 2);
+
+            if (ShowGrid) {
+                RenderGrid(gl, viewProjection);
+            }
 
             ecm.Render(viewProjection, Camera, lightDir, ambient, specular);
 
@@ -1452,6 +1476,140 @@ namespace WorldBuilder.Editors.Dungeon {
             gl.UseProgram(0);
         }
 
+        /// <summary>
+        /// Render a reference grid on the XY plane centered on the dungeon.
+        /// Uses thin billboard quads (same technique as connection lines) so
+        /// lines have consistent screen-space thickness regardless of distance.
+        /// Major lines every GridStepH (10 units), with subtle axis indicators at the center.
+        /// </summary>
+        private unsafe void RenderGrid(GL gl, Matrix4x4 viewProjection) {
+            if (_sceneContext == null) return;
+
+            var center = GetDungeonCenter();
+            if (center == null) {
+                // No cells loaded yet — place grid at the landblock world-space origin
+                var blockX = (_loadedLandblockKey >> 8) & 0xFF;
+                var blockY = _loadedLandblockKey & 0xFF;
+                center = new Vector3(blockX * 192f, blockY * 192f, -50f);
+            }
+
+            // Snap grid center to the nearest major grid step so it doesn't jitter when cells move
+            float step = 10f;
+            var snapped = new Vector3(
+                MathF.Round(center.Value.X / step) * step,
+                MathF.Round(center.Value.Y / step) * step,
+                MathF.Round(center.Value.Z / step) * step);
+
+            if (_gridDirty || snapped != _gridCenter || _gridVAO == 0) {
+                _gridCenter = snapped;
+                _gridDirty = false;
+                RebuildGridGeometry(gl, snapped, step);
+            }
+
+            if (_gridVertCount == 0) return;
+
+            var shader = _sceneContext.SphereShader;
+            shader.Bind();
+            shader.SetUniform("uViewProjection", viewProjection);
+            shader.SetUniform("uCameraPosition", Camera.Position);
+            shader.SetUniform("uSphereColor", new Vector3(0.25f, 0.2f, 0.35f));
+            shader.SetUniform("uLightDirection", Vector3.Normalize(new Vector3(0.3f, -0.5f, -0.8f)));
+            shader.SetUniform("uAmbientIntensity", 1.0f);
+            shader.SetUniform("uSpecularPower", 0f);
+            shader.SetUniform("uGlowColor", new Vector3(0f, 0f, 0f));
+            shader.SetUniform("uGlowIntensity", 0f);
+            shader.SetUniform("uGlowPower", 1.0f);
+
+            gl.Enable(EnableCap.DepthTest);
+            gl.DepthFunc(DepthFunction.Less);
+            gl.Disable(EnableCap.CullFace);
+            gl.Enable(EnableCap.Blend);
+            gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+            gl.BindVertexArray(_gridVAO);
+            gl.DrawArrays(GLEnum.Triangles, 0, (uint)_gridVertCount);
+
+            gl.Disable(EnableCap.Blend);
+            gl.Enable(EnableCap.CullFace);
+
+            gl.BindVertexArray(0);
+            gl.UseProgram(0);
+        }
+
+        private unsafe void RebuildGridGeometry(GL gl, Vector3 center, float step) {
+            int halfLines = 15;
+            float extent = halfLines * step;
+            float z = center.Z;
+            float lineW = 0.04f;
+            float majorW = 0.08f;
+            var camPos = Camera.Position;
+
+            var verts = new List<float>();
+
+            void AddLine(Vector3 a, Vector3 b, float width) {
+                var dir = Vector3.Normalize(b - a);
+                var mid = (a + b) * 0.5f;
+                var toCamera = Vector3.Normalize(camPos - mid);
+                var side = Vector3.Normalize(Vector3.Cross(dir, toCamera)) * width;
+                if (side.LengthSquared() < 1e-10f) {
+                    side = Vector3.Normalize(Vector3.Cross(dir, Vector3.UnitZ)) * width;
+                }
+                var n = toCamera;
+
+                void V(Vector3 p) {
+                    verts.Add(p.X); verts.Add(p.Y); verts.Add(p.Z);
+                    verts.Add(n.X); verts.Add(n.Y); verts.Add(n.Z);
+                }
+                V(a - side); V(b - side); V(b + side);
+                V(a - side); V(b + side); V(a + side);
+            }
+
+            // Lines parallel to X axis (varying Y)
+            for (int i = -halfLines; i <= halfLines; i++) {
+                float y = center.Y + i * step;
+                bool isMajor = i == 0;
+                var a = new Vector3(center.X - extent, y, z);
+                var b = new Vector3(center.X + extent, y, z);
+                AddLine(a, b, isMajor ? majorW : lineW);
+            }
+
+            // Lines parallel to Y axis (varying X)
+            for (int i = -halfLines; i <= halfLines; i++) {
+                float x = center.X + i * step;
+                bool isMajor = i == 0;
+                var a = new Vector3(x, center.Y - extent, z);
+                var b = new Vector3(x, center.Y + extent, z);
+                AddLine(a, b, isMajor ? majorW : lineW);
+            }
+
+            // Vertical Z axis line through center (helps with depth orientation)
+            var zBottom = new Vector3(center.X, center.Y, z - extent * 0.5f);
+            var zTop = new Vector3(center.X, center.Y, z + extent * 0.5f);
+            AddLine(zBottom, zTop, majorW);
+
+            _gridVertCount = verts.Count / 6;
+            var data = CollectionsMarshal.AsSpan(verts);
+
+            if (_gridVAO == 0) {
+                gl.GenVertexArrays(1, out _gridVAO);
+                gl.GenBuffers(1, out _gridVBO);
+            }
+
+            gl.BindVertexArray(_gridVAO);
+            gl.BindBuffer(GLEnum.ArrayBuffer, _gridVBO);
+            fixed (float* ptr = data) {
+                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(data.Length * sizeof(float)), ptr, GLEnum.DynamicDraw);
+            }
+            gl.EnableVertexAttribArray(0);
+            gl.VertexAttribPointer(0, 3, GLEnum.Float, false, 6 * sizeof(float), (void*)0);
+            gl.EnableVertexAttribArray(1);
+            gl.VertexAttribPointer(1, 3, GLEnum.Float, false, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+            for (uint i = 2; i < 8; i++) gl.DisableVertexAttribArray(i);
+            gl.VertexAttrib4(2, 0f, 0f, 0f, 1f);
+
+            gl.BindVertexArray(0);
+        }
+
         private unsafe void RenderBatchedObject(GL gl, StaticObjectRenderData renderData, List<Matrix4x4> instanceTransforms) {
             if (_sceneContext == null || instanceTransforms.Count == 0 || renderData.Batches.Count == 0) return;
 
@@ -1556,6 +1714,8 @@ namespace WorldBuilder.Editors.Dungeon {
                 if (_neighborVAO != 0) gl.DeleteVertexArray(_neighborVAO);
                 if (_selConnLineVBO != 0) gl.DeleteBuffer(_selConnLineVBO);
                 if (_selConnLineVAO != 0) gl.DeleteVertexArray(_selConnLineVAO);
+                if (_gridVBO != 0) gl.DeleteBuffer(_gridVBO);
+                if (_gridVAO != 0) gl.DeleteVertexArray(_gridVAO);
             }
             _sceneContext?.Dispose();
         }

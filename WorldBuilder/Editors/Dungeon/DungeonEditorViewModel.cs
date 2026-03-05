@@ -56,6 +56,8 @@ namespace WorldBuilder.Editors.Dungeon {
         [NotifyPropertyChangedFor(nameof(CameraModeText))]
         private bool _isOrthographic;
 
+        [ObservableProperty] private bool _showGrid = true;
+
         public string CameraModeText => IsOrthographic ? "3D View" : "Top-Down";
 
         // Tool system
@@ -102,6 +104,11 @@ namespace WorldBuilder.Editors.Dungeon {
                 _scene.Camera.SetPosition(_savedPerspectivePos);
                 _scene.Camera.SetYawPitch(_savedPerspectiveYaw, _savedPerspectivePitch);
             }
+        }
+
+        [RelayCommand]
+        private void ResetCamera() {
+            _scene?.FocusCamera();
         }
 
         public string SelectedCellPanelTitle =>
@@ -389,6 +396,7 @@ namespace WorldBuilder.Editors.Dungeon {
             _scene.SelectedConnectionLines = _cachedSelectedConnectionLines;
             _scene.ShowConnectionLines = ShowConnectionLines;
             _scene.ShowPortalIndicators = ShowPortalIndicators;
+            _scene.ShowGrid = ShowGrid;
             _scene.UseOrthographic = IsOrthographic;
             _scene.Render((float)canvasSize.Width / canvasSize.Height);
 
@@ -484,6 +492,10 @@ namespace WorldBuilder.Editors.Dungeon {
             bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
             bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
 
+            if (e.Key == Key.Home) {
+                ResetCamera();
+                return;
+            }
             if (ctrl && e.Key == Key.G) {
                 _ = OpenLandblockCommand.ExecuteAsync(null);
                 return;
@@ -1638,6 +1650,7 @@ namespace WorldBuilder.Editors.Dungeon {
         private void RefreshRendering() {
             if (_scene == null || _document == null) return;
             _connectionLinesDirty = true;
+            _scene.InvalidateGrid();
             _scene.RefreshFromDocument(_document);
             RefreshOpenPortalIndicators();
             UpdatePaletteCompatibility();

@@ -126,7 +126,9 @@
                         <Border Width="1" Background="#2a1d42" Margin="4,2" />
                         <CheckBox IsChecked="{Binding ShowConnectionLines}" Content="Show connections" FontSize="11" Foreground="#8a7a9e" VerticalAlignment="Center" />
                         <CheckBox IsChecked="{Binding ShowPortalIndicators}" Content="Show doorways" FontSize="11" Foreground="#8a7a9e" VerticalAlignment="Center" />
+                        <CheckBox IsChecked="{Binding ShowGrid}" Content="Show grid" FontSize="11" Foreground="#8a7a9e" VerticalAlignment="Center" />
                         <Button Classes="dng-toolbar-btn" Content="{Binding CameraModeText}" Command="{Binding ToggleCameraModeCommand}" ToolTip.Tip="Toggle between perspective and top-down view" />
+                        <Button Classes="dng-toolbar-btn" Content="&#x2302; Reset View" Command="{Binding ResetCameraCommand}" ToolTip.Tip="Re-center camera on the dungeon (Home)" />
                         <Border Width="1" Background="#2a1d42" Margin="4,2" />
                         <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="12" Foreground="#8a7a9e" />
                     </StackPanel>
