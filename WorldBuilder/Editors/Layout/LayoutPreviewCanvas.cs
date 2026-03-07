@@ -68,10 +68,19 @@ namespace WorldBuilder.Editors.Layout {
             double w = node.Width * scale;
             double h = node.Height * scale;
 
-            if (w < 1 || h < 1) {
-                foreach (var child in node.Children)
-                    DrawElement(context, child, baseX, baseY, scale, depth + 1);
-                return;
+            foreach (var child in node.Children) {
+                if (w < 1 || h < 1) {
+                    DrawElement(context, child, node.X + baseX, node.Y + baseY, scale, depth + 1);
+                    return;
+                }
+                else {
+                    if (node.Type != 0 && node.BaseLayoutId == 0 && child.Type == 0 && child.BaseLayoutId != 0) {
+                        DrawElement(context, child, node.X + baseX, node.Y + baseY, scale, depth + 1);
+                    }
+                    else {
+                        DrawElement(context, child, x, y, scale, depth + 1);
+                    }
+                }
             }
 
             var rect = new Rect(x, y, w, h);
@@ -91,10 +100,6 @@ namespace WorldBuilder.Editors.Layout {
                 if (label.Width < w - 4 && label.Height < h - 2) {
                     context.DrawText(label, new Point(x + 2, y + 1));
                 }
-            }
-
-            foreach (var child in node.Children) {
-                DrawElement(context, child, baseX, baseY, scale, depth + 1);
             }
         }
     }
