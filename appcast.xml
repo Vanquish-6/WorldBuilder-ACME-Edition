@@ -5,7 +5,7 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+257</title>
+      <title>WorldBuilder 0.1.0+258</title>
       <description>## What's Changed
 * Better blitting from renderer to avalonia by @trevis in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/2
 * Feat/rendering multi viewport camera sync enhanced docking by @Vermino in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/10
@@ -21,11 +21,11 @@
 * @asharkonwhiskey made their first contribution in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/12
 
 **Full Changelog**: https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commits/latest</description>
-      <pubDate>Tue, 10 Mar 2026 22:06:04 +00:00</pubDate>
-      <sparkle:version>0.1.0+257</sparkle:version>
+      <pubDate>Tue, 10 Mar 2026 22:43:55 +00:00</pubDate>
+      <sparkle:version>0.1.0+258</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B257.exe" sparkle:version="0.1.0+257" sparkle:shortVersionString="0.1.0" length="23347886" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="5Ki7rwKR+61Jitsz5bTnPXb6UiKc5OmItwFhu09XOx0bmzfyFS/9kF02uNrN6fyvjPEUA1003uvfDNgyWD8yDA==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B258.exe" sparkle:version="0.1.0+258" sparkle:shortVersionString="0.1.0" length="23347955" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="XFnmgr4mhou/04cyZvhTiLh0uj034IjWiAJ49FaCeAKWpLnNlInu6Bn52k4kjiUbSRpXtjTDP3+2uiWLu3eiDQ==" />
     </item>
   </channel>
 </rss>
