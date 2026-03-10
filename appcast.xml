@@ -5,25 +5,27 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+254</title>
+      <title>WorldBuilder 0.1.0+256</title>
       <description>## What's Changed
 * Better blitting from renderer to avalonia by @trevis in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/2
 * Feat/rendering multi viewport camera sync enhanced docking by @Vermino in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/10
 * Feature/keyboard mapping dialog by @Vermino in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/5
 * Clone/Stamp Tool Implementation by @Vermino in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/9
 * Fix LayoutDesc position and child nodes by @LingradAC in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/11
+* Maximize editor window by @asharkonwhiskey in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/12
 
 ## New Contributors
 * @trevis made their first contribution in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/2
 * @Vermino made their first contribution in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/10
 * @LingradAC made their first contribution in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/11
+* @asharkonwhiskey made their first contribution in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/12
 
 **Full Changelog**: https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commits/latest</description>
-      <pubDate>Tue, 10 Mar 2026 21:32:36 +00:00</pubDate>
-      <sparkle:version>0.1.0+254</sparkle:version>
+      <pubDate>Tue, 10 Mar 2026 21:36:05 +00:00</pubDate>
+      <sparkle:version>0.1.0+256</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B254.exe" sparkle:version="0.1.0+254" sparkle:shortVersionString="0.1.0" length="23346806" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="4GjuJrz04N+ajHqb1idZOVA1NMQN1QvG5SK+D8ImQ8Gmn3JszImxtB9NtVk1VLIPSDDasy6xDnPLZ1hv4/fHBQ==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B256.exe" sparkle:version="0.1.0+256" sparkle:shortVersionString="0.1.0" length="23346804" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="5yZFHCRtjI/VukD8lp/8JcnfhnrkClmZl/r3YZnZ6a8G9Fo7QbWSGW0PjRneY5dbFylIlcYP4BRIS+MFY/GIDA==" />
     </item>
   </channel>
 </rss>
