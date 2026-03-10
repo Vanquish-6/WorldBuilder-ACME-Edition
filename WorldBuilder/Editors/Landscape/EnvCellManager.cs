@@ -252,9 +252,8 @@ namespace WorldBuilder.Editors.Landscape {
             batch.HasMixedCells = buildingCellCount > 0 && dungeonCellCount > 0;
 
             string typeLabel = isDungeonOnly ? "dungeon" : (batch.HasMixedCells ? "MIXED" : "building");
-            Console.WriteLine($"[EnvCellMgr] LB 0x{lbKey:X4}: {envCells.Count} EnvCells in, {batch.Cells.Count} prepared OK, " +
-                $"{batch.DungeonStaticObjects.Count} dungeon statics, {batch.BuildingStaticObjects.Count} building statics " +
-                $"[{typeLabel}: {buildingCellCount} building + {dungeonCellCount} dungeon cells]");
+            System.Diagnostics.Debug.WriteLine($"[EnvCellMgr] LB 0x{lbKey:X4}: {envCells.Count} EnvCells, {batch.Cells.Count} OK " +
+                $"[{typeLabel}: {buildingCellCount}b+{dungeonCellCount}d, {batch.DungeonStaticObjects.Count}+{batch.BuildingStaticObjects.Count} statics]");
 
             return batch.Cells.Count > 0 || batch.DungeonStaticObjects.Count > 0 || batch.BuildingStaticObjects.Count > 0 ? batch : null;
         }
@@ -740,18 +739,7 @@ namespace WorldBuilder.Editors.Landscape {
                     _mixedLandblocks.Add(batch.LandblockKey);
                 else
                     _mixedLandblocks.Remove(batch.LandblockKey);
-                Console.WriteLine($"[EnvCellMgr] GPU upload LB 0x{batch.LandblockKey:X4}: {cells.Count} cells, {_gpuCache.Count} unique GPU entries total");
-
-                if (!batch.IsDungeonOnly && cells.Count > 0) {
-                    var first = cells[0];
-                    var worldMin = Vector3.Transform(first.LocalBoundsMin, first.WorldTransform);
-                    var worldMax = Vector3.Transform(first.LocalBoundsMax, first.WorldTransform);
-                    Console.WriteLine($"[EnvCellMgr] BUILDING cells in LB 0x{batch.LandblockKey:X4}: " +
-                        $"first cell 0x{first.CellId:X8} worldPos=({first.WorldPosition.X:F1},{first.WorldPosition.Y:F1},{first.WorldPosition.Z:F1}) " +
-                        $"localBounds=({first.LocalBoundsMin.X:F1},{first.LocalBoundsMin.Y:F1},{first.LocalBoundsMin.Z:F1})->({first.LocalBoundsMax.X:F1},{first.LocalBoundsMax.Y:F1},{first.LocalBoundsMax.Z:F1}) " +
-                        $"worldBoundsApprox=({worldMin.X:F1},{worldMin.Y:F1},{worldMin.Z:F1})->({worldMax.X:F1},{worldMax.Y:F1},{worldMax.Z:F1}) " +
-                        $"portals={first.Portals.Count}");
-                }
+                System.Diagnostics.Debug.WriteLine($"[EnvCellMgr] GPU upload LB 0x{batch.LandblockKey:X4}: {cells.Count} cells, {_gpuCache.Count} GPU entries");
             }
         }
 

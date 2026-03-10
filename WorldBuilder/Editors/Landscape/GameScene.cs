@@ -92,6 +92,7 @@ namespace WorldBuilder.Editors.Landscape {
         private readonly HashSet<ushort> _pendingLoadLandblocks = new();
         private readonly HashSet<ushort> _pendingSceneryRegen = new();
         private Task? _envCellRetryTask;
+        private readonly HashSet<ushort> _pendingEnvCellRetries = new();
         private HashSet<ushort>? _lastVisibleLandblocks;
 
         public HashSet<ushort>? VisibleLandblocks => _lastVisibleLandblocks;
@@ -329,6 +330,7 @@ namespace WorldBuilder.Editors.Landscape {
                     _sceneryObjects[result.LbKey] = result.Scenery;
                 }
                 _pendingLoadLandblocks.Remove(result.LbKey);
+                _pendingEnvCellRetries.Remove(result.LbKey);
 
                 foreach (var (id, isSetup) in result.UniqueObjectIds) {
                     foreach (var context in _contexts.Values) {
@@ -395,6 +397,7 @@ namespace WorldBuilder.Editors.Landscape {
                 if (!docId.StartsWith("landblock_")) continue;
                 var lbKey = ushort.Parse(docId.Replace("landblock_", ""), System.Globalization.NumberStyles.HexNumber);
                 if (envCellManager.HasLoadedCells(lbKey)) continue;
+                if (_pendingEnvCellRetries.Contains(lbKey)) continue;
 
                 float dist = Vector2.Distance(camPos2D, LandblockCenter(lbKey));
                 if (dist <= dungeonThreshold) {
@@ -403,6 +406,9 @@ namespace WorldBuilder.Editors.Landscape {
             }
 
             if (missing.Count == 0) return;
+
+            foreach (var lbKey in missing)
+                _pendingEnvCellRetries.Add(lbKey);
 
             var dats = _dats;
             var resultQueue = _backgroundLoadResults;
@@ -431,10 +437,8 @@ namespace WorldBuilder.Editors.Landscape {
                         bool isDungeonOnly = lbi.Buildings == null || lbi.Buildings.Count == 0;
                         var batch = mgr.PrepareLandblockEnvCells(lbKey, lbId, envCells, isDungeonOnly);
                         if (batch != null) {
-                            // Route through the normal integration path for thread safety
                             var docId = $"landblock_{lbKey:X4}";
                             resultQueue.Enqueue(new BackgroundLoadResult(lbKey, docId, new List<StaticObject>(), new HashSet<(uint, bool)>(), 0, 0, 0, batch));
-                            Console.WriteLine($"[EnvCellRetry] Prepared missing EnvCells for LB 0x{lbKey:X4}");
                         }
                     }
                     catch (Exception ex) {
@@ -1307,6 +1311,7 @@ namespace WorldBuilder.Editors.Landscape {
                 _dungeonStaticParentCells.Clear();
                 _buildingStaticParentCells.Clear();
                 _pendingLoadLandblocks.Clear();
+                _pendingEnvCellRetries.Clear();
                 _pendingSceneryRegen.Clear();
 
                 _cachedStaticObjects = null;
