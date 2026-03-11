@@ -5,27 +5,64 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+258</title>
-      <description>## What's Changed
-* Better blitting from renderer to avalonia by @trevis in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/2
-* Feat/rendering multi viewport camera sync enhanced docking by @Vermino in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/10
-* Feature/keyboard mapping dialog by @Vermino in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/5
-* Clone/Stamp Tool Implementation by @Vermino in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/9
-* Fix LayoutDesc position and child nodes by @LingradAC in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/11
-* Maximize editor window by @asharkonwhiskey in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/12
+      <title>WorldBuilder 0.1.0+259</title>
+      <description>## Changes
 
-## New Contributors
-* @trevis made their first contribution in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/2
-* @Vermino made their first contribution in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/10
-* @LingradAC made their first contribution in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/11
-* @asharkonwhiskey made their first contribution in https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/pull/12
-
-**Full Changelog**: https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commits/latest</description>
-      <pubDate>Tue, 10 Mar 2026 22:43:55 +00:00</pubDate>
-      <sparkle:version>0.1.0+258</sparkle:version>
+- Changelog from commit messages; add release.yml ([af985b2](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/af985b28bd3dd9f0fd147ca66fdcc7147e80dedd))
+- make dungeon view fill ([b9ffe3e](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/b9ffe3eb5a64643dc78da86b7453378b54c88ac5))
+- more fixes ([b671cee](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/b671ceec43e217d57eca58d1f2b5b0151841a3e8))
+- Merge PR #12: Maximize editor window ([ac4177e](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/ac4177e4f0f7bd61f7ba35d9f170e1ecfe5c1dac))
+- Merge PR #11: Fix LayoutDesc position and child nodes ([b8d228e](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/b8d228ec144b796c43f0906938c1947cbc05af1d))
+- fix EnvCell log spam: deduplicate retry preparation, demote verbose logging to Debug ([75fb32e](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/75fb32eec78eae0cfcac5c2e8475504f39321da9))
+- add ACE DB instance placements: weenie picker, dungeon/landscape placement panels, DB import with position fix ([d512ef2](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/d512ef21396f437684992e93a219390114aff78e))
+- dungeon gen v3: branching/size controls, AABB overlap, yaw snap; portal capping system; export pipeline fixes (portal ordering, OtherPortalId rewrite, visibility stabs); KB v14 with dead-end index and style themes ([0aec0dc](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/0aec0dcfd88fd807a75bc2294a0e29535750bb5b))
+- Maximize editor window ([e619002](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e619002c71b8e334eb9c1fff8756549ccb69bf74))
+- Fix LayoutDesc position and child nodes ([a858af7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/a858af70a0766a511a2d0ecd91f48d8896443f0a))
+- change camera down to c ([8847c28](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/8847c2852d0fabbf22dfa376d1ed2fc29db02a3b))
+- fix dungeon generator(NOT COMPLETE,WORKS ALOT BETTER BUT NOT 'DONE'): portal alignment, yaw-only orientation, capping, and portal flags ([ff36b20](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/ff36b20b109b590d9a5d10d139612a30df8b794f))
+- grid and recenter view for dungeon editor ([675fb1d](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/675fb1d97278766620b3f4f181130d19c12d9d58))
+- fix dungeon dock crash ([40e9567](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/40e956764d24572abca15bd56cce5ce91ee2a660))
+- add history to dungeon editor ([c66b13f](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/c66b13fe16451da5372def0de6c33635249e5599))
+- feat: heightmap import, export progress + static repositioning, bulk terrain/ACE DB and history tweaks ([5faec77](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/5faec770aba1e9f97422f6161e532530b9a25d23))
+- Dungeon generator v2: favorites-driven generation, room furnishing, and selection visualization ([f45e230](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/f45e2306a637b9fcc14f1e83ec2b18c4be01d944))
+- add sql connector to export, or direct change DB to move objects up or down if height change done in overworld ([67912c1](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/67912c1c7a27892e8a017f9533e07daffa4b6be5))
+- More prefab stuff, work on generator for dungeons, added favorites, cell/room ([7b89961](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/7b89961774b4a25af3d28bd92d57443be92aa44d))
+- more prefab stuff ([da88e74](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/da88e741a0e5c0555af1c1746dea64413db7472a))
+- Dungeon editor refactor, landscape shader fix, document save/settings bug fixes ([b8a09dd](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/b8a09dd989f0ad0abe75930c692683ae61a38b6d))
+- improve dungeon editor render loop ([d7d0205](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/d7d020520afc41908a2ba3beeaa38d9227c2a0d6))
+- more performance stuff ([8a478a8](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/8a478a8a97756d643dfebcfc5b716ab657d15a7b))
+- things go smoother ([989ae26](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/989ae2638f7b2ff7976b177111642474dc6af245))
+- fix tools/terrain not leveling/coming with objects ([4e8790c](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/4e8790c628972b86321caf4805e4f69d981d70d9))
+- some dungeon stuff (not done) and bug fix for doc saving ([b3c28ed](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/b3c28ed0e779022722bc2ebf56c3f1b9720809d7))
+- fix save process of portal ([ec51ebc](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/ec51ebcbeee59f7b3b1a757f582c8cbc5579bae1))
+- Trigger Build Edge ([3438f4d](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/3438f4d99a5a5be8b0b5ec73653d53f7d08258fb))
+- readme ([57a902c](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/57a902c35b6ddc7218babd7e2bc1d196851f1758))
+- Release setup: ACME-WorldBuilderInstall.exe, logo, work flows ([8b40a7d](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/8b40a7d4f948eee779635b7cd3ebed1a03135480))
+- Update README with all current features and beta disclaimer ([e593725](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e593725dcb01ec1d0e180f54d6c316aa4babb27d))
+- Add demo recording system for promo videos ([984adef](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/984adef09d8afe71171f67ffc9e670635599372d))
+- Add spell, skill, vital, experience, chargen, spellset, and layout editors ([71a37e7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/71a37e76ec3b24fda848f775cd24ae5fb0e49946))
+- Upgrade DatReaderWriter to 2.1.2, fix portal rendering pipeline and texture export ([c96fff1](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/c96fff135184c3013d7e86432d88f5666b3982f0))
+- dungeon stuff from other laptop ([09a0017](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/09a0017e71c886855944a86235427ee01f9edff4))
+- Add dungeon static object placement, surface editing, and visual improvements ([e2aaba5](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e2aaba584538a46779b6b9722f9cc50614127cdf))
+- Add dungeon static object rendering, undo/redo, and selection visualization ([7b721a7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/7b721a76ddc06ca8cc40eaf40c1f93d878a65c1f))
+- Add dungeon building workflow with room palette and portal snapping ([44685e6](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/44685e668b7c03e99f8c1768bf04a894c31feb2b))
+- add dugeon shell with location search database for goto ([07ba04a](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/07ba04ab5a8fc7f020b32078e1a9d15da9a5f9b4))
+- Add sections layout mode to dock regions ([3c50da3](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/3c50da311232616b868797fd6a48b0afc54eaf9c))
+- Fix LandscapeEditorView encoding (UTF-8 no BOM), float-dock visibility, and set C# charset in editorconfig ([5335fb4](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/5335fb4b3dbb267cb00bea89d8ca951331b88822))
+- Replace drag-to-dock with dropdown menu on viewport panels ([1b2e49f](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/1b2e49f43c8b836ed15a79a6aeb9492858221232))
+- Add camera bookmarks panel, fix navigation using stale CameraManager.Current ([48bb8c7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/48bb8c78937339a8f10810df2e7bd6aaf0199319))
+- readme ([e0b2e58](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e0b2e58a25124359ac49aae2b0c37ced3f78ce9d))
+- swap install/appdata folders, fix thumbnail render ([140879b](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/140879b0ec5cc20a51edcf437cee454e3da4ac87))
+- Overhaul editor UI: dark purple theme and more ([ddd1674](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/ddd1674c5e06a7237606221b9a064f474ce11eae))
+- Add Clear Cache toolbar button to flush stale texture/terrain caches ([99414b0](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/99414b0e93b1c9e2d2c65b793fe255b5d3c8518b))
+- Wire up keyboard shortcuts (Ctrl+G/Z/Y/C/V, Delete, Escape) via viewport KeyAction event ([a852178](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/a852178a390c7b11f3526067ec7b9aa999b1bb2d))
+- Fix Ctrl+G shortcut: handle in per-frame input loop to bypass GL viewport event swallowing ([2b5b242](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/2b5b24271fee5d2effad421297838e921cbbd88d))
+- Increase perspective near plane from 0.1 to 1.0 to fix Z-fighting ([55a696f](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/55a696f0131764a36279d4080845bbad72177b4b))</description>
+      <pubDate>Wed, 11 Mar 2026 04:08:22 +00:00</pubDate>
+      <sparkle:version>0.1.0+259</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B258.exe" sparkle:version="0.1.0+258" sparkle:shortVersionString="0.1.0" length="23347955" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="XFnmgr4mhou/04cyZvhTiLh0uj034IjWiAJ49FaCeAKWpLnNlInu6Bn52k4kjiUbSRpXtjTDP3+2uiWLu3eiDQ==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B259.exe" sparkle:version="0.1.0+259" sparkle:shortVersionString="0.1.0" length="23347922" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="OaWHB/RcwluOrL2bFX/NsztP5HnarmA04jmagRJCJvFiVolTsnHeuF0CS7i2OeqkdD+K0grbNToRAsKLgs2EDA==" />
     </item>
   </channel>
 </rss>
