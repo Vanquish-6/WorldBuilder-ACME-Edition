@@ -64,33 +64,28 @@ jobs:
     - name: Generate Changelog
       id: changelog
       run: |
-        gh api \
-          --method POST \
-          -H "Accept: application/vnd.github+json" \
-          /repos/${{ github.repository }}/releases/generate-notes \
-          -f tag_name='latest' \
-          -f target_commitish='${{ github.ref_name }}' \
-          -f previous_tag_name='${{ steps.get_latest_release.outputs.LATEST_TAG }}' \
-          > changelog.json
-        
-        # Extract the body from the response
-        CHANGELOG_BODY=$(jq -r '.body' changelog.json)
+        LATEST_TAG="${{ steps.get_latest_release.outputs.LATEST_TAG }}"
+        REPO="${{ github.repository }}"
+        if [ -z "$LATEST_TAG" ]; then
+          CHANGELOG_BODY=$(git log -50 --pretty=format:"- %s ([%h](https://github.com/${REPO}/commit/%H))")
+        else
+          CHANGELOG_BODY=$(git log "$LATEST_TAG..HEAD" --pretty=format:"- %s ([%h](https://github.com/${REPO}/commit/%H))")
+        fi
+        if [ -z "$CHANGELOG_BODY" ]; then
+          CHANGELOG_BODY="- No new commits"
+        fi
+        CHANGELOG_BODY="## Changes"$'\n\n'"$CHANGELOG_BODY"
         
         # Save to file and output
         echo "$CHANGELOG_BODY" > "${{ env.APP_VERSION }}.md"
-        
-        # Set output using multiline syntax
         {
           echo 'changelog<<EOF'
           echo "$CHANGELOG_BODY"
           echo 'EOF'
         } >> $GITHUB_OUTPUT
         
-        # Print changelog
         echo "Changelog:"
         cat "${{ env.APP_VERSION }}.md"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build installer
       run: |
