@@ -281,16 +281,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 canvasSize.Width,
                 canvasSize.Height);
 
-            // Update Position HUD if active
-            if (viewport.IsActive) {
-                var cam = viewport.Camera.Position;
-                uint lbX = (uint)Math.Max(0, cam.X / TerrainDataManager.LandblockLength);
-                uint lbY = (uint)Math.Max(0, cam.Y / TerrainDataManager.LandblockLength);
-                lbX = Math.Clamp(lbX, 0, TerrainDataManager.MapSize - 1);
-                lbY = Math.Clamp(lbY, 0, TerrainDataManager.MapSize - 1);
-                ushort lbId = (ushort)((lbX << 8) | lbY);
-                CurrentPositionText = $"LB: {lbId:X4}  ({lbX}, {lbY})";
-            }
+            // Update Position HUD if active — cursor-based update in HandleViewportInput
+            // takes priority; this camera fallback only applies when cursor isn't over terrain.
 
             // Tool Overlay?
             // Currently RenderToolOverlay was in View.
@@ -421,7 +413,36 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             SelectedTool?.HandleMouseMove(inputState.MouseState);
             SelectedTool?.Update(deltaTime);
 
+            UpdateCursorHud(inputState.MouseState);
+
             SyncCameras(camera);
+        }
+
+        private void UpdateCursorHud(MouseState mouseState) {
+            if (TerrainSystem == null) return;
+
+            var hit = mouseState.TerrainHit;
+            if (hit.HasValue && hit.Value.Hit) {
+                var pos = hit.Value.HitPosition;
+                uint lbX = (uint)Math.Floor(pos.X / TerrainDataManager.LandblockLength);
+                uint lbY = (uint)Math.Floor(pos.Y / TerrainDataManager.LandblockLength);
+                lbX = Math.Clamp(lbX, 0, TerrainDataManager.MapSize - 1);
+                lbY = Math.Clamp(lbY, 0, TerrainDataManager.MapSize - 1);
+                ushort lbId = (ushort)((lbX << 8) | lbY);
+
+                string terrainLabel = "";
+                var entries = TerrainSystem.GetLandblockTerrain(lbId);
+                if (entries != null) {
+                    int vi = hit.Value.VerticeIndex;
+                    if (vi >= 0 && vi < entries.Length) {
+                        var typeByte = entries[vi].Type;
+                        var terrainType = (DatReaderWriter.Enums.TerrainTextureType)typeByte;
+                        terrainLabel = $"  {terrainType}";
+                    }
+                }
+
+                CurrentPositionText = $"LB: {lbId:X4}  ({lbX}, {lbY})  Z: {pos.Z:F1}{terrainLabel}";
+            }
         }
 
         private void SyncCameras(ICamera source) {

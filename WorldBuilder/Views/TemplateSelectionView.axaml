@@ -1,0 +1,250 @@
+<UserControl
+    x:Class="WorldBuilder.Views.TemplateSelectionView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:WorldBuilder.ViewModels"
+    d:DesignHeight="580"
+    d:DesignWidth="950"
+    x:CompileBindings="True"
+    x:DataType="vm:TemplateSelectionViewModel"
+    mc:Ignorable="d">
+
+    <UserControl.Styles>
+
+        <!--  Template card button  -->
+        <Style Selector="Button.template-card">
+            <Setter Property="Background" Value="#18102a" />
+            <Setter Property="BorderBrush" Value="#2a1d42" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.template-card:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#221540" />
+            <Setter Property="BorderBrush" Value="#4a2d6e" />
+        </Style>
+        <Style Selector="Button.template-card:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2a1a4a" />
+        </Style>
+
+        <!--  Selected card state  -->
+        <Style Selector="Button.template-card.selected">
+            <Setter Property="BorderBrush" Value="#7c4dbd" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="Button.template-card.selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1e1240" />
+        </Style>
+
+        <!--  Tag pill  -->
+        <Style Selector="Border.tag">
+            <Setter Property="Background" Value="#2a1545" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="Margin" Value="0,0,4,4" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <!--  Background gradient  -->
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#0d0016" />
+                <GradientStop Offset="0.5" Color="#1a0a2e" />
+                <GradientStop Offset="1" Color="#100820" />
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <!--  Ambient glow top-left  -->
+        <Ellipse
+            Width="500"
+            Height="500"
+            Margin="-200,-200,0,0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            IsHitTestVisible="False"
+            Opacity="0.07">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Offset="0" Color="#7c4dbd" />
+                    <GradientStop Offset="1" Color="Transparent" />
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+        <Grid Margin="28,20,28,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="14" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="16" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  Header  -->
+            <StackPanel Grid.Row="0" Spacing="4">
+                <TextBlock
+                    FontSize="22"
+                    FontWeight="Bold"
+                    Foreground="White"
+                    Text="Choose a Starting Template" />
+                <TextBlock
+                    FontSize="13"
+                    Foreground="#8a7a9e"
+                    Text="{Binding ProjectName, StringFormat='Project: {0}'}" />
+            </StackPanel>
+
+            <!--  Card grid (3 equal columns)  -->
+            <ItemsControl Grid.Row="2" ItemsSource="{Binding Templates}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="3" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TemplateCardViewModel">
+                        <Button
+                            Margin="6"
+                            Classes="template-card"
+                            Classes.selected="{Binding IsSelected}"
+                            Command="{Binding $parent[UserControl].((vm:TemplateSelectionViewModel)DataContext).SelectCardCommand}"
+                            CommandParameter="{Binding}">
+
+                            <Grid RowDefinitions="180,*">
+
+                                <!--  Preview thumbnail  -->
+                                <Border
+                                    Grid.Row="0"
+                                    ClipToBounds="True"
+                                    CornerRadius="10,10,0,0">
+                                    <Panel>
+                                        <!--  Fallback gradient when no preview image  -->
+                                        <Border>
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                                    <GradientStop Offset="0" Color="#1a0a2e" />
+                                                    <GradientStop Offset="1" Color="#0d0820" />
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                        </Border>
+
+                                        <!--  Actual preview bitmap (shown only when available)  -->
+                                        <Image
+                                            IsVisible="{Binding Preview, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                            RenderOptions.BitmapInterpolationMode="HighQuality"
+                                            Source="{Binding Preview}"
+                                            Stretch="UniformToFill" />
+
+                                        <!--  Placeholder icon when no preview  -->
+                                        <StackPanel
+                                            HorizontalAlignment="Center"
+                                            IsVisible="{Binding Preview, Converter={x:Static ObjectConverters.IsNull}}"
+                                            Spacing="6"
+                                            VerticalAlignment="Center">
+                                            <Path
+                                                Width="36"
+                                                Height="36"
+                                                HorizontalAlignment="Center"
+                                                Data="M2,14 L14,2 L26,14 L22,14 L22,26 L6,26 L6,14 Z"
+                                                Fill="#3d2a5c"
+                                                Stretch="Uniform" />
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                FontSize="11"
+                                                Foreground="#4a3a6e"
+                                                Text="No preview" />
+                                        </StackPanel>
+
+                                        <!--  Selection accent bar at bottom of image  -->
+                                        <Border
+                                            Height="3"
+                                            VerticalAlignment="Bottom"
+                                            Background="#7c4dbd"
+                                            IsVisible="{Binding IsSelected}" />
+                                    </Panel>
+                                </Border>
+
+                                <!--  Card body  -->
+                                <StackPanel
+                                    Grid.Row="1"
+                                    Margin="14,12,14,14"
+                                    Spacing="6">
+
+                                    <!--  Name  -->
+                                    <TextBlock
+                                        FontSize="15"
+                                        FontWeight="SemiBold"
+                                        Foreground="White"
+                                        Text="{Binding Name}"
+                                        TextWrapping="Wrap" />
+
+                                    <!--  Description  -->
+                                    <TextBlock
+                                        FontSize="12"
+                                        Foreground="#8a7a9e"
+                                        MaxLines="3"
+                                        Text="{Binding Description}"
+                                        TextWrapping="Wrap" />
+
+                                    <!--  Tag pills  -->
+                                    <ItemsControl Margin="0,4,0,0" ItemsSource="{Binding Tags}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <Border Classes="tag">
+                                                    <TextBlock
+                                                        FontSize="10"
+                                                        Foreground="#9b6dd0"
+                                                        Text="{Binding}" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!--  Navigation buttons  -->
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Button
+                    Grid.Column="0"
+                    MinWidth="100"
+                    Padding="20,10"
+                    HorizontalContentAlignment="Center"
+                    Command="{Binding GoBackCommand}"
+                    Content="← Back" />
+
+                <Button
+                    Grid.Column="2"
+                    MinWidth="160"
+                    Padding="20,10"
+                    HorizontalContentAlignment="Center"
+                    Classes="accent"
+                    Command="{Binding CreateProjectCommand}"
+                    Content="Create Project →" />
+            </Grid>
+        </Grid>
+    </Grid>
+
+</UserControl>

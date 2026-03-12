@@ -78,7 +78,8 @@ public partial class ProjectLoadingViewModel : SplashPageViewModelBase,
             await _projectManager.CreateProjectAsync(
                 message.ProjectName,
                 message.ProjectLocation,
-                message.BaseDatDirectory);
+                message.BaseDatDirectory,
+                message.SelectedTemplateId);
         }
         catch (Exception ex) {
             _log.LogError(ex, "Failed to create project");

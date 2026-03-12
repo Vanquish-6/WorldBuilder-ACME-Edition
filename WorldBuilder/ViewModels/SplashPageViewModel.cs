@@ -19,7 +19,7 @@ public partial class SplashPageViewModel : ViewModelBase, IRecipient<SplashPageC
 
     public bool IsOnSubPage => CurrentPage is not ProjectSelectionViewModel;
 
-    public enum SplashPage { ProjectSelection, CreateProject, Loading };
+    public enum SplashPage { ProjectSelection, CreateProject, TemplateSelection, Loading };
 
     public SplashPageViewModel(SplashPageFactory splashFactory, ILogger<SplashPageViewModel> log) {
         _log = log;
@@ -42,6 +42,7 @@ public partial class SplashPageViewModel : ViewModelBase, IRecipient<SplashPageC
         return value switch {
             SplashPage.ProjectSelection => _splashFactory.Create<ProjectSelectionViewModel>(),
             SplashPage.CreateProject => _splashFactory.Create<CreateProjectViewModel>(),
+            SplashPage.TemplateSelection => _splashFactory.Create<TemplateSelectionViewModel>(),
             SplashPage.Loading => _splashFactory.Create<ProjectLoadingViewModel>(),
             _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
         };

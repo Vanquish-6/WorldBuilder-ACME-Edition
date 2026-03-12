@@ -301,6 +301,10 @@
                             </MultiBinding>
                         </TextBlock.Text>
                     </TextBlock>
+                    <!-- Cursor HUD: world XYZ + room name under cursor -->
+                    <TextBlock DockPanel.Dock="Left" FontFamily="Consolas, Courier New"
+                               FontSize="11" Foreground="#4dbdbd" VerticalAlignment="Center" Margin="16,0,0,0"
+                               IsVisible="{Binding ShowCursorHud}" Text="{Binding CursorHudText}" />
                     <TextBlock FontSize="11" Foreground="#6a5a7e" VerticalAlignment="Center" Margin="20,0,0,0"
                                IsVisible="{Binding ShowHoveredCellInfo}" Text="{Binding HoveredCellInfo}" />
                     <TextBlock FontSize="11" Foreground="#7c4dbd" VerticalAlignment="Center" Margin="20,0,0,0"

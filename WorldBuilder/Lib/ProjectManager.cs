@@ -117,7 +117,7 @@ namespace WorldBuilder.Lib {
         /// <summary>
         /// Async version of create project for loading screen - runs heavy initialization on a background thread.
         /// </summary>
-        public async Task CreateProjectAsync(string projectName, string projectLocation, string baseDatDirectory) {
+        public async Task CreateProjectAsync(string projectName, string projectLocation, string baseDatDirectory, string templateId = "") {
             await _projectInitGate.WaitAsync();
             try {
                 var project = Project.Create(projectName,
@@ -129,6 +129,14 @@ namespace WorldBuilder.Lib {
                 }
 
                 await Task.Run(() => InitializeProjectServices(project));
+
+                if (!string.IsNullOrEmpty(templateId)) {
+                    var template = WorldBuilder.Lib.Templates.WorldTemplateRegistry.GetById(templateId);
+                    if (template != null) {
+                        await template.ApplyAsync(project, new Progress<string>(msg => _log.LogInformation(msg)));
+                    }
+                }
+
                 FinalizeProject(project);
             }
             finally {

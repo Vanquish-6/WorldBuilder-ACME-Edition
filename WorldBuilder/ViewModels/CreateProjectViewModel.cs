@@ -129,9 +129,8 @@ public partial class CreateProjectViewModel : SplashPageViewModelBase, INotifyDa
 
     [RelayCommand(CanExecute = nameof(CanProceed))]
     private void GoNext() {
-        // Navigate to loading screen, then send the create message
-        WeakReferenceMessenger.Default.Send(new SplashPageChangedMessage(SplashPage.Loading));
-        WeakReferenceMessenger.Default.Send(new StartProjectCreateMessage(ProjectName, ProjectLocation, BaseDatDirectory));
+        WeakReferenceMessenger.Default.Send(new SplashPageChangedMessage(SplashPage.TemplateSelection));
+        WeakReferenceMessenger.Default.Send(new ShowTemplateSelectorMessage(ProjectName, ProjectLocation, BaseDatDirectory));
     }
 
     private void ValidateBaseDatDirectory() {

@@ -34,8 +34,9 @@ namespace WorldBuilder.Editors.Dungeon {
         [ObservableProperty] private string _statusText = "No dungeon loaded — open or create one to get started.  Pick rooms from the catalog to build your dungeon.";
         [ObservableProperty] private string _landblockInputText = "";
         [ObservableProperty] private string _currentPositionText = "";
-        [ObservableProperty] private string _selectedCellInfo = "";
-        [ObservableProperty]
+        [ObservableProperty] private string _cursorHudText = "";
+        [ObservableProperty] private bool _showCursorHud;
+        [ObservableProperty] private string _selectedCellInfo = "";        [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(ShowHoveredCellInfo))]
         private string _hoveredCellInfo = "";
         public bool ShowHoveredCellInfo => !string.IsNullOrEmpty(HoveredCellInfo) && !HasSelectedCell;
@@ -782,6 +783,7 @@ namespace WorldBuilder.Editors.Dungeon {
             if (_scene?.EnvCellManager == null) return;
             SyncContextBeforeInput();
             SelectedTool?.HandleMouseMove(inputState.MouseState, EditingContext);
+            UpdateCursorHud(inputState.MouseState);
         }
 
         internal void HandlePointerReleased(AvaloniaInputState inputState) {
@@ -789,6 +791,26 @@ namespace WorldBuilder.Editors.Dungeon {
             SelectedTool?.HandleMouseUp(inputState.MouseState, EditingContext);
             IsDraggingCell = false;
             IsDraggingObject = false;
+        }
+
+        private void UpdateCursorHud(MouseState mouseState) {
+            if (_scene?.Camera == null) return;
+            var ray = EditingContext.ComputeRay(mouseState);
+            if (ray == null) {
+                ShowCursorHud = false;
+                return;
+            }
+            var hit = EditingContext.Raycast(ray.Value.origin, ray.Value.direction);
+            if (hit.Hit) {
+                var p = hit.HitPosition;
+                var roomName = EditingContext.RoomPalette?.GetRoomDisplayName(hit.Cell.EnvironmentId, (ushort)hit.Cell.GpuKey.CellStructure);
+                var label = !string.IsNullOrEmpty(roomName) ? roomName : $"Env 0x{hit.Cell.EnvironmentId:X4}";
+                CursorHudText = $"({p.X:F1}, {p.Y:F1}, {p.Z:F1})  {label}";
+                ShowCursorHud = true;
+            }
+            else {
+                ShowCursorHud = false;
+            }
         }
 
         /// <summary>Push current VM state into the editing context before tool input.</summary>
