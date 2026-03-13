@@ -88,6 +88,10 @@ namespace WorldBuilder.Editors.Dungeon.Views {
             topLevel?.RemoveHandler(KeyDownEvent, OnTopLevelKeyDown);
             base.OnDetachedFromVisualTree(e);
 
+            if (_viewModel?.DockingManager != null) {
+                _viewModel.DockingManager.FloatingPanels.CollectionChanged -= OnFloatingPanelsChanged;
+            }
+
             foreach (var window in _floatingWindows.Values) window.Close();
             _floatingWindows.Clear();
 

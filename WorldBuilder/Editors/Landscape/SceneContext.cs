@@ -37,6 +37,9 @@ namespace WorldBuilder.Editors.Landscape {
         public int InstanceBufferCapacity { get; set; }
         public float[] InstanceUploadBuffer { get; set; } = Array.Empty<float>();
 
+        // Track which VAOs have had instance attribs configured (avoids 12 redundant GL calls per model per frame)
+        public HashSet<uint> ConfiguredInstanceVAOs { get; } = new();
+
         // Queues for background loading specific to this context
         public ConcurrentQueue<PreparedChunkData> ChunkUploadQueue { get; } = new();
         public ConcurrentQueue<PreparedModelData> ModelUploadQueue { get; } = new();

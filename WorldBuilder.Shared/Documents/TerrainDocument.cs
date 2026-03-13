@@ -111,7 +111,7 @@ namespace WorldBuilder.Shared.Documents {
         [ObservableProperty]
         private TerrainData _terrainData = new();
 
-        private ConcurrentDictionary<ushort, uint[]> _baseTerrainCache;
+        private ConcurrentDictionary<ushort, uint[]> _baseTerrainCache = new();
         private readonly HashSet<ushort> _dirtyLandblocks = new();
         private readonly object _dirtyLock = new();
 

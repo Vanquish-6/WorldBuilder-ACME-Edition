@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -12,11 +12,10 @@ namespace Chorizite.OpenGLSDLBackend.Lib {
             var assembly = Assembly.GetExecutingAssembly();
             var resourceName = "Chorizite.OpenGLSDLBackend." + filename;
 
-            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-            using (StreamReader reader = new StreamReader(stream)) {
-                string result = reader.ReadToEnd();
-                return result;
-            }
+            using Stream stream = assembly.GetManifestResourceStream(resourceName)
+                ?? throw new InvalidOperationException($"Embedded resource '{resourceName}' not found in {assembly.GetName().Name}");
+            using StreamReader reader = new StreamReader(stream);
+            return reader.ReadToEnd();
         }
     }
 }

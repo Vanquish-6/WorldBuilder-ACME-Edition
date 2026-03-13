@@ -6,23 +6,31 @@ using System.Numerics;
 using WorldBuilder.Editors.Landscape.Commands;
 using WorldBuilder.Lib;
 using WorldBuilder.Lib.History;
+using WorldBuilder.Lib.Settings;
 using WorldBuilder.Shared.Documents;
 
 namespace WorldBuilder.Editors.Landscape.ViewModels {
     public partial class RotateObjectSubToolViewModel : SubToolViewModelBase {
         public override string Name => "Rotate";
-        public override string IconGlyph => "🔄";
+        public override string IconGlyph => "\uD83D\uDD04";
 
         private bool _isDragging;
         private float _dragStartX;
         private readonly CommandHistory _commandHistory;
+        private readonly SnapSettings _snapSettings;
 
-        // Multi-rotate tracking: each entry stores original position and orientation
         private List<(ushort LbKey, int Index, Vector3 OriginalPos, Quaternion OriginalOrientation)> _dragEntries = new();
         private Vector3 _groupCentroid;
 
         public RotateObjectSubToolViewModel(TerrainEditingContext context, CommandHistory commandHistory) : base(context) {
             _commandHistory = commandHistory ?? throw new ArgumentNullException(nameof(commandHistory));
+            _snapSettings = context.TerrainSystem.Settings.Landscape.Snap;
+        }
+
+        private float SnapAngle(float angleRad) {
+            if (!_snapSettings.SnapRotation || _snapSettings.RotationIncrement <= 0) return angleRad;
+            float incRad = _snapSettings.RotationIncrement * MathF.PI / 180f;
+            return MathF.Round(angleRad / incRad) * incRad;
         }
 
         public override void OnActivated() { }
@@ -92,9 +100,9 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             if (!_isDragging || _dragEntries.Count == 0) return false;
             if (!Context.ObjectSelection.HasSelection) return false;
 
-            // Compute rotation from horizontal mouse delta (0.5 degrees per pixel)
             float deltaX = mouseState.Position.X - _dragStartX;
             float angleRad = deltaX * 0.5f * MathF.PI / 180f;
+            angleRad = SnapAngle(angleRad);
             var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, angleRad);
 
             // Apply rotation to every selected object

@@ -68,6 +68,13 @@
                         Header="Go to Landblock..."
                         InputGesture="{Binding GotoLandblockGesture}" />
                 </MenuItem>
+                <MenuItem Header="_Landscape"
+                          IsVisible="{Binding IsLandscapeEditorActive}">
+                    <MenuItem Command="{Binding LandscapeTogglePerformanceOverlayCommand}" Header="Performance Overlay" />
+                    <MenuItem Command="{Binding LandscapeClearCacheCommand}" Header="Clear Cache" />
+                    <MenuItem Command="{Binding LandscapeFreshStartCommand}" Header="Fresh Start" />
+                    <MenuItem Command="{Binding LandscapeImportHeightmapCommand}" Header="Import Heightmap..." />
+                </MenuItem>
                 <MenuItem Header="E_ditors">
                     <MenuItem Command="{Binding SwitchToLandscapeEditorCommand}" Header="Landscape Editor" />
                     <MenuItem Command="{Binding SwitchToDungeonEditorCommand}" Header="Dungeon Editor" />

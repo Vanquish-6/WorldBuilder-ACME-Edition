@@ -1,4 +1,4 @@
-﻿using Chorizite.Core.Render;
+using Chorizite.Core.Render;
 using Chorizite.Core.Render.Vertex;
 using FontStashSharp.Interfaces;
 using Silk.NET.Core.Native;
@@ -70,7 +70,7 @@ namespace Chorizite.OpenGLSDLBackend {
         }
 
         public void DrawQuad(object texture, ref VertexPositionColorTexture topLeft, ref VertexPositionColorTexture topRight, ref VertexPositionColorTexture bottomLeft, ref VertexPositionColorTexture bottomRight) {
-            if (_lastTexture != texture) {
+            if (_lastTexture != texture || _vertexIndex + 4 > MAX_VERTICES) {
                 Flush();
             }
 

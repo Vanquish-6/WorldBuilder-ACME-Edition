@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Input;
@@ -100,6 +100,22 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             get => Settings.Landscape.Overlay.ShowSlopeHighlight;
             set { Settings.Landscape.Overlay.ShowSlopeHighlight = value; OnPropertyChanged(); }
         }
+
+        public bool SnapToGrid {
+            get => Settings.Landscape.Snap.SnapToGrid;
+            set { Settings.Landscape.Snap.SnapToGrid = value; OnPropertyChanged(); }
+        }
+
+        [ObservableProperty]
+        private bool _showPerformanceOverlay = false;
+
+        [ObservableProperty]
+        private string _performanceText = "";
+
+        private readonly System.Diagnostics.Stopwatch _fpsStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        private int _frameCount;
+        private float _lastFps;
+        private long _lastPerfUpdateMs;
 
         private Project? _project;
         private IDatReaderWriter? _dats;
@@ -213,7 +229,6 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             if (BookmarksPanel != null) Register("Bookmarks", "Bookmarks", BookmarksPanel, DockLocation.Right);
             if (WorldMapPanel != null) Register("WorldMap", "World Map", WorldMapPanel, DockLocation.Right);
 
-            Register("AceInstances", "ACE Instances", new AceInstancesPanelViewModel(this), DockLocation.Right);
             Register("Toolbox", "Tools", new ToolboxViewModel(this), DockLocation.Right);
 
             // Restore dock region modes
@@ -281,7 +296,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 canvasSize.Width,
                 canvasSize.Height);
 
-            // Update Position HUD — cursor-based update in HandleViewportInput takes priority.
+            // Update Position HUD ? cursor-based update in HandleViewportInput takes priority.
 
             // Tool Overlay?
             // Currently RenderToolOverlay was in View.
@@ -292,6 +307,21 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             // It calls `tool.RenderOverlay`.
             // I should add `tool.RenderOverlay` call here.
             SelectedTool?.RenderOverlay(viewport.Renderer, viewport.Camera, (float)canvasSize.Width / canvasSize.Height);
+
+            if (ShowPerformanceOverlay && viewport.IsActive) {
+                _frameCount++;
+                long elapsed = _fpsStopwatch.ElapsedMilliseconds;
+                if (elapsed - _lastPerfUpdateMs >= 500) {
+                    float seconds = (elapsed - _lastPerfUpdateMs) / 1000f;
+                    _lastFps = _frameCount / seconds;
+                    _frameCount = 0;
+                    _lastPerfUpdateMs = elapsed;
+
+                    var scene = TerrainSystem.Scene;
+                    int chunks = scene.GetLoadedChunkCount();
+                    PerformanceText = $"FPS: {_lastFps:F0}\nObjects: {scene.LastObjectCount}\nChunks: {chunks}";
+                }
+            }
         }
 
         private void HandleViewportKeyDown(KeyEventArgs e) {
@@ -333,6 +363,9 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 case Avalonia.Input.Key.Escape:
                     TerrainSystem?.EditingContext.ObjectSelection.Deselect();
                     TerrainSystem?.Scene.InvalidateStaticObjectsCache();
+                    break;
+                case Avalonia.Input.Key.G:
+                    SnapToGrid = !SnapToGrid;
                     break;
             }
         }
@@ -1010,7 +1043,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
             // If only a landblock ID was given (no cell), go to overworld
             if (lbId == 0 && cellPart != 0) {
-                // Input was 4-char hex like "C6AC" ΓÇö treat cellPart as the landblock ID
+                // Input was 4-char hex like "C6AC" ??? treat cellPart as the landblock ID
                 NavigateToLandblock(cellPart);
                 return;
             }
@@ -1189,7 +1222,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             if (string.IsNullOrWhiteSpace(input)) return null;
             input = input.Trim();
 
-            // Try X,Y format ΓåÆ landblock only
+            // Try X,Y format ??? landblock only
             if (input.Contains(',')) {
                 var parts = input.Split(',');
                 if (parts.Length == 2
@@ -1205,14 +1238,14 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 hex = hex[2..];
 
-            // 8-char hex ΓåÆ full cell ID (e.g. 01D90108 ΓåÆ landblock 0x01D9, cell 0x0108)
+            // 8-char hex ??? full cell ID (e.g. 01D90108 ??? landblock 0x01D9, cell 0x0108)
             if (hex.Length > 4 && hex.Length <= 8) {
                 if (uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var fullId))
                     return fullId;
                 return null;
             }
 
-            // 1-4 char hex ΓåÆ landblock only (e.g. C6AC ΓåÆ 0x0000C6AC)
+            // 1-4 char hex ??? landblock only (e.g. C6AC ??? 0x0000C6AC)
             if (ushort.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var lbId))
                 return lbId;
 
@@ -1227,7 +1260,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             var selectSubTool = selectorTool.AllSubTools.OfType<SelectSubToolViewModel>().FirstOrDefault();
             if (selectSubTool == null) return;
 
-            // Save placement state ΓÇö tool deactivation clears it
+            // Save placement state ??? tool deactivation clears it
             var sel = TerrainSystem?.EditingContext.ObjectSelection;
             var wasPlacing = sel?.IsPlacementMode ?? false;
             var preview = sel?.PlacementPreview;
@@ -1271,6 +1304,14 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 Settings.Save();
             }
 
+            if (ObjectBrowser != null) {
+                ObjectBrowser.PlacementRequested -= OnPlacementRequested;
+            }
+            if (TexturePalette != null) {
+                TexturePalette.TextureSelected -= OnPaletteTextureSelected;
+            }
+
+            WorldMapPanel?.Dispose();
             TerrainSystem?.Dispose();
             TerrainSystem = null;
         }

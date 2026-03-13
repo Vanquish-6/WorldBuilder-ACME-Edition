@@ -20,12 +20,14 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             SelectSubToolViewModel selectSubTool,
             MoveObjectSubToolViewModel moveSubTool,
             RotateObjectSubToolViewModel rotateSubTool,
+            ScaleObjectSubToolViewModel scaleSubTool,
             CloneSubToolViewModel cloneSubTool,
             PasteSubToolViewModel pasteSubTool) {
             _context = context;
             SubTools.Add(selectSubTool);
             SubTools.Add(moveSubTool);
             SubTools.Add(rotateSubTool);
+            SubTools.Add(scaleSubTool);
             SubTools.Add(cloneSubTool);
             SubTools.Add(pasteSubTool);
         }

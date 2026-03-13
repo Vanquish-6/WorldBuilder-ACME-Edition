@@ -1,4 +1,4 @@
-﻿using Chorizite.Core.Render.Enums;
+using Chorizite.Core.Render.Enums;
 using DatReaderWriter.DBObjs;
 using Silk.NET.OpenGL;
 using System;
@@ -52,6 +52,21 @@ namespace Chorizite.OpenGLSDLBackend.Lib {
             int blocksHigh = Math.Max(1, (height + 3) / 4);
             int blockSize = format == TextureFormat.DXT1 ? 8 : 16;
             return blocksWide * blocksHigh * blockSize;
+        }
+
+        /// <summary>
+        /// Converts BGRA pixel data to RGBA in-place layout.
+        /// Required because GLES (ANGLE) doesn't support GL_BGRA for glTexSubImage3D on array textures.
+        /// </summary>
+        public static byte[] ConvertBgraToRgba(byte[] bgra) {
+            var rgba = new byte[bgra.Length];
+            for (int i = 0; i < bgra.Length; i += 4) {
+                rgba[i + 0] = bgra[i + 2]; // R <- B
+                rgba[i + 1] = bgra[i + 1]; // G
+                rgba[i + 2] = bgra[i + 0]; // B <- R
+                rgba[i + 3] = bgra[i + 3]; // A
+            }
+            return rgba;
         }
 
         public static byte[] Color565ToRgba(ushort color565) {

@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,10 +10,10 @@ using WorldBuilder.Shared.Models;
 namespace WorldBuilder.Shared.Documents {
     public class FileStorageService : IDocumentStorageService {
         private readonly string _storageDirectory;
-        private readonly ILogger<DocumentStorageService> _logger;
+        private readonly ILogger<FileStorageService> _logger;
         private readonly object _fileLock = new object();
 
-        public FileStorageService(string storageDirectory, ILogger<DocumentStorageService> logger) {
+        public FileStorageService(string storageDirectory, ILogger<FileStorageService> logger) {
             _storageDirectory = storageDirectory ?? throw new ArgumentNullException(nameof(storageDirectory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 

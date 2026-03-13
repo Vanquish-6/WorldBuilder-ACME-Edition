@@ -15,6 +15,24 @@ namespace Chorizite.OpenGLSDLBackend {
             Device = device;
         }
 
+        /// <summary>
+        /// When true, <see cref="CheckErrorsHotPath"/> skips glGetError entirely.
+        /// Defaults to true for production rendering; set to false to diagnose render-time GL errors.
+        /// </summary>
+        public static bool SkipHotPathChecks { get; set; } = true;
+
+        /// <summary>
+        /// Lightweight error check for the rendering hot path (texture bind, uniform set, draw).
+        /// Skipped when <see cref="SkipHotPathChecks"/> is true to avoid thousands of
+        /// synchronous glGetError round-trips per frame on ANGLE/D3D11.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CheckErrorsHotPath([CallerMemberName] string callerName = "",
+            [CallerFilePath] string callerFile = "", [CallerLineNumber] int callerLine = 0) {
+            if (SkipHotPathChecks) return;
+            CheckErrors(false, callerName, callerFile, callerLine);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CheckErrors(bool logErrors = false, [CallerMemberName] string callerName = "",
             [CallerFilePath] string callerFile = "", [CallerLineNumber] int callerLine = 0) {

@@ -234,6 +234,10 @@ namespace WorldBuilder.Editors.Landscape.Views {
         protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e) {
             base.OnDetachedFromVisualTree(e);
 
+            if (_viewModel?.DockingManager != null) {
+                _viewModel.DockingManager.FloatingPanels.CollectionChanged -= OnFloatingPanelsChanged;
+            }
+
             foreach(var window in _floatingWindows.Values) {
                 window.Close();
             }

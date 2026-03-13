@@ -1,4 +1,4 @@
-﻿using Chorizite.Core.Render;
+using Chorizite.Core.Render;
 using Microsoft.Extensions.Logging;
 using Silk.NET.OpenGL;
 using System;
@@ -37,7 +37,6 @@ namespace Chorizite.OpenGLSDLBackend {
                 _uniformLocations.Add(name, GL.GetUniformLocation(program, name));
             }
 
-            GLHelpers.CheckErrors();
             return _uniformLocations[name];
         }
 
@@ -48,47 +47,39 @@ namespace Chorizite.OpenGLSDLBackend {
             };
             fixed (float* transform = (float[])m2) {
                 GL.UniformMatrix4(GetUniformLocation(Program, location), 1, false, transform);
-                GLHelpers.CheckErrors();
             }
         }
 
         public override void SetUniform(string location, int v) {
             GL.Uniform1(GetUniformLocation((uint)Program, location), v);
-            GLHelpers.CheckErrors();
         }
 
         public override void SetUniform(string location, Vector2 vec) {
             GL.Uniform2(GetUniformLocation((uint)Program, location), vec);
-            GLHelpers.CheckErrors();
         }
 
         public override void SetUniform(string location, Vector3 vec) {
             GL.Uniform3(GetUniformLocation((uint)Program, location), vec);
-            GLHelpers.CheckErrors();
         }
 
 
         public override void SetUniform(string location, Vector3[] vecs) {
             fixed (float* v = &vecs[0].X) {
                 GL.Uniform3(GetUniformLocation((uint)Program, location), 3, v);
-                GLHelpers.CheckErrors();
             }
         }
 
         public override void SetUniform(string location, Vector4 vec) {
             GL.Uniform4(GetUniformLocation((uint)Program, location), vec);
-            GLHelpers.CheckErrors();
         }
 
         public override void SetUniform(string location, float v) {
             GL.Uniform1(GetUniformLocation((uint)Program, location), v);
-            GLHelpers.CheckErrors();
         }
 
         public override void SetUniform(string location, float[] vs) {
             fixed (float* v = &vs[0]) {
                 GL.Uniform1(GetUniformLocation((uint)Program, location), (uint)vs.Length, v);
-                GLHelpers.CheckErrors();
             }
         }
 
@@ -122,6 +113,7 @@ namespace Chorizite.OpenGLSDLBackend {
                 _log.LogError($"Error: shader program {Name} linking failed: {infoLog}");
                 GL.DeleteShader(vertexShader);
                 GL.DeleteShader(fragmentShader);
+                GL.DeleteProgram(prog);
                 return;
             }
 
@@ -177,7 +169,6 @@ namespace Chorizite.OpenGLSDLBackend {
 
         public override void Unbind() {
             GL.UseProgram(0);
-            GLHelpers.CheckErrors();
         }
 
         protected override void Unload() {

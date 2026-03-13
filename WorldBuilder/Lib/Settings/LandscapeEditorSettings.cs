@@ -21,6 +21,9 @@ namespace WorldBuilder.Lib.Settings {
         private SelectionSettings _selection = new();
         public SelectionSettings Selection { get => _selection; set => SetProperty(ref _selection, value); }
 
+        private SnapSettings _snap = new();
+        public SnapSettings Snap { get => _snap; set => SetProperty(ref _snap, value); }
+
         private StampSettings _stamps = new();
         public StampSettings Stamps { get => _stamps; set => SetProperty(ref _stamps, value); }
 
@@ -203,6 +206,38 @@ namespace WorldBuilder.Lib.Settings {
         [SettingOrder(1)]
         private float _sphereRadius = 4.6f;
         public float SphereRadius { get => _sphereRadius; set => SetProperty(ref _sphereRadius, value); }
+    }
+
+    [SettingCategory("Snap", ParentCategory = "Landscape Editor", Order = 6)]
+    public partial class SnapSettings : ObservableObject {
+        [SettingDescription("Enable grid snapping for object placement and movement")]
+        [SettingOrder(0)]
+        private bool _snapToGrid = false;
+        public bool SnapToGrid { get => _snapToGrid; set => SetProperty(ref _snapToGrid, value); }
+
+        [SettingDescription("Grid spacing in world units (e.g. 1, 6, 12, 24)")]
+        [SettingRange(0.25, 192.0, 0.25, 1.0)]
+        [SettingFormat("{0:F2}")]
+        [SettingOrder(1)]
+        private float _gridSize = 6f;
+        public float GridSize { get => _gridSize; set => SetProperty(ref _gridSize, value); }
+
+        [SettingDescription("Snap rotation to fixed degree increments")]
+        [SettingOrder(2)]
+        private bool _snapRotation = false;
+        public bool SnapRotation { get => _snapRotation; set => SetProperty(ref _snapRotation, value); }
+
+        [SettingDescription("Rotation snap increment in degrees")]
+        [SettingRange(1.0, 90.0, 1.0, 5.0)]
+        [SettingFormat("{0:F0}\u00B0")]
+        [SettingOrder(3)]
+        private float _rotationIncrement = 15f;
+        public float RotationIncrement { get => _rotationIncrement; set => SetProperty(ref _rotationIncrement, value); }
+
+        [SettingDescription("Snap objects to terrain surface height")]
+        [SettingOrder(4)]
+        private bool _snapToTerrain = true;
+        public bool SnapToTerrain { get => _snapToTerrain; set => SetProperty(ref _snapToTerrain, value); }
     }
 
     /// <summary>

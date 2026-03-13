@@ -65,17 +65,26 @@ namespace WorldBuilder.Services {
 
         private uint[] GetExistingRenderSurfaceIds() {
             try { return _project.DatReaderWriter.Dats.Portal.GetAllIdsOfType<RenderSurface>().ToArray(); }
-            catch { return Array.Empty<uint>(); }
+            catch (Exception ex) {
+                Console.WriteLine($"[TextureImport] Failed to read existing RenderSurface IDs: {ex.Message}");
+                return Array.Empty<uint>();
+            }
         }
 
         private uint[] GetExistingSurfaceTextureIds() {
             try { return _project.DatReaderWriter.Dats.Portal.GetAllIdsOfType<SurfaceTexture>().ToArray(); }
-            catch { return Array.Empty<uint>(); }
+            catch (Exception ex) {
+                Console.WriteLine($"[TextureImport] Failed to read existing SurfaceTexture IDs: {ex.Message}");
+                return Array.Empty<uint>();
+            }
         }
 
         private uint[] GetExistingSurfaceIds() {
             try { return _project.DatReaderWriter.Dats.Portal.GetAllIdsOfType<Surface>().ToArray(); }
-            catch { return Array.Empty<uint>(); }
+            catch (Exception ex) {
+                Console.WriteLine($"[TextureImport] Failed to read existing Surface IDs: {ex.Message}");
+                return Array.Empty<uint>();
+            }
         }
 
         public CustomTextureEntry ImportDungeonSurface(string imagePath, string name) {

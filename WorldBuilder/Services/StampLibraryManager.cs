@@ -37,7 +37,8 @@ namespace WorldBuilder.Services {
                 Console.WriteLine($"[StampLibrary] Failed to generate thumbnail: {ex.Message}");
             }
 
-            using (var writer = new BinaryWriter(File.OpenWrite(path))) {
+            var tempPath = path + ".tmp";
+            using (var writer = new BinaryWriter(File.Create(tempPath))) {
                 // Header
                 writer.Write("ACSTAMP"); // Magic bytes
                 writer.Write((byte)1);   // Version
@@ -68,6 +69,7 @@ namespace WorldBuilder.Services {
                     WriteStaticObject(writer, obj);
                 }
             }
+            File.Move(tempPath, path, overwrite: true);
 
             // Add to memory at the top
             _stamps.Insert(0, stamp);

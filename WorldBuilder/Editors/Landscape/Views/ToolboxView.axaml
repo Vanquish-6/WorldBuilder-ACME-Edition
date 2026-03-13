@@ -110,6 +110,17 @@
             </ItemsControl>
         </Border>
 
+        <!-- Snap to grid (tool option) -->
+        <Border Padding="6"
+                BorderBrush="#2a1d42"
+                BorderThickness="0,0,0,1"
+                DockPanel.Dock="Top"
+                Background="#18102a">
+            <CheckBox IsChecked="{Binding SnapToGrid}"
+                      Content="Snap to grid"
+                      ToolTip.Tip="When moving or placing objects, snap position to grid (configurable grid size)" />
+        </Border>
+
         <!-- Sub-Tool Settings -->
         <ScrollViewer>
             <StackPanel Margin="10" Spacing="10">

@@ -14,6 +14,7 @@ namespace WorldBuilder.Lib {
     public class TextureDiskCache {
         private readonly string _cacheDir;
         private readonly ConcurrentDictionary<string, byte[]> _memoryCache = new();
+        private readonly ConcurrentDictionary<string, byte> _pendingWrites = new();
 
         /// <summary>
         /// Maximum number of entries to keep in the in-memory LRU layer.
@@ -53,7 +54,7 @@ namespace WorldBuilder.Lib {
 
             // Check memory cache first
             if (_memoryCache.TryGetValue(key, out var data)) {
-                return data;
+                return (byte[])data.Clone();
             }
 
             // Check disk cache
@@ -62,11 +63,11 @@ namespace WorldBuilder.Lib {
 
             try {
                 data = File.ReadAllBytes(path);
-                // Promote to memory cache
+                // Promote to memory cache (atomic add, bounded by MaxMemoryCacheEntries)
                 if (_memoryCache.Count < MaxMemoryCacheEntries) {
                     _memoryCache.TryAdd(key, data);
                 }
-                return data;
+                return (byte[])data.Clone();
             }
             catch {
                 // Corrupted cache entry, remove it
@@ -81,20 +82,30 @@ namespace WorldBuilder.Lib {
         /// </summary>
         public void Store(uint surfaceId, uint paletteId, byte[] data) {
             var key = GetCacheKey(surfaceId, paletteId);
+            var copy = (byte[])data.Clone();
 
-            // Store in memory cache
+            // Store in memory cache (TryAdd is atomic; soft limit may be slightly exceeded under contention)
             if (_memoryCache.Count < MaxMemoryCacheEntries) {
-                _memoryCache.TryAdd(key, data);
+                _memoryCache.TryAdd(key, copy);
             }
 
-            // Write to disk asynchronously (fire-and-forget)
+            // Write to disk asynchronously, skipping if another task is already writing this key
+            if (!_pendingWrites.TryAdd(key, 0)) return;
+
             var path = GetCachePath(key);
             Task.Run(() => {
                 try {
-                    File.WriteAllBytes(path, data);
+                    using var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+                    fs.Write(copy, 0, copy.Length);
+                }
+                catch (IOException) {
+                    // Another process/task holds the file -- safe to ignore; will be cached next session
                 }
                 catch (Exception ex) {
                     Console.WriteLine($"[TextureCache] Error writing cache file: {ex.Message}");
+                }
+                finally {
+                    _pendingWrites.TryRemove(key, out _);
                 }
             });
         }

@@ -97,15 +97,14 @@ namespace Chorizite.OpenGLSDLBackend {
 
             GL.BindSampler((uint)slot, 0);
             GL.ActiveTexture(GLEnum.Texture0 + slot);
-            GLHelpers.CheckErrors();
+            GLHelpers.CheckErrorsHotPath();
 
             GL.BindTexture(GLEnum.Texture2DArray, (uint)NativePtr);
-            GLHelpers.CheckErrors();
+            GLHelpers.CheckErrorsHotPath();
 
             if (!_isCompressed && _needsMipmapRegeneration) {
                 lock (_mipmapLock) {
-                    if (_mipmapDirtyCount > 0 && _usedLayers.All(used => used || true /* or check if cleared */)) {
-                        // Optional: Custom validate
+                    if (_mipmapDirtyCount > 0) {
                         if (GLHelpers.ValidateTextureMipmapStatus(GL, GLEnum.Texture2DArray, out string errorMessage)) {
                             GL.GenerateMipmap(GLEnum.Texture2DArray);
                             GLHelpers.CheckErrorsWithContext("Generating mipmaps for texture array");
@@ -223,6 +222,29 @@ namespace Chorizite.OpenGLSDLBackend {
             };
         }
 
+        /// <summary>
+        /// Generates mipmaps now if any layers have been modified since the last generation.
+        /// Call after finishing a batch of layer uploads to pay the cost during the upload phase
+        /// rather than during the next Bind() in the render loop.
+        /// </summary>
+        public void FlushMipmaps() {
+            if (_isCompressed || !_needsMipmapRegeneration) return;
+
+            GL.BindTexture(GLEnum.Texture2DArray, (uint)NativePtr);
+
+            lock (_mipmapLock) {
+                if (_mipmapDirtyCount > 0) {
+                    if (GLHelpers.ValidateTextureMipmapStatus(GL, GLEnum.Texture2DArray, out string errorMessage)) {
+                        GL.GenerateMipmap(GLEnum.Texture2DArray);
+                        GLHelpers.CheckErrorsWithContext("Generating mipmaps for texture array (flush)");
+                        _mipmapDirtyCount = 0;
+                    }
+                }
+            }
+
+            _needsMipmapRegeneration = false;
+        }
+
         public void RemoveLayer(int layer) {
             if (layer < 0 || layer >= Size) {
                 throw new ArgumentOutOfRangeException(nameof(layer),
@@ -310,7 +332,7 @@ namespace Chorizite.OpenGLSDLBackend {
 
         public void Unbind() {
             GL.BindTexture(GLEnum.Texture2DArray, 0);
-            GLHelpers.CheckErrors();
+            GLHelpers.CheckErrorsHotPath();
         }
 
         public void Dispose() {

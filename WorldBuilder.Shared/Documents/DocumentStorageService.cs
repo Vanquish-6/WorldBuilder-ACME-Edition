@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -183,7 +183,7 @@ namespace WorldBuilder.Shared.Documents {
                 cmd.CommandText = "INSERT INTO Snapshots (Id, DocumentId, Name, Data, Timestamp) VALUES (@Id, @DocumentId, @Name, @Data, @Timestamp)";
                 AddParameter(cmd, "@Id", snapshot.Id);
                 AddParameter(cmd, "@DocumentId", snapshot.DocumentId);
-                AddParameter(cmd, "@Name", snapshot.Name ?? (object)DBNull.Value);
+                AddParameter(cmd, "@Name", snapshot.Name ?? string.Empty);
                 AddParameter(cmd, "@Data", snapshot.Data);
                 AddParameter(cmd, "@Timestamp", snapshot.Timestamp);
 

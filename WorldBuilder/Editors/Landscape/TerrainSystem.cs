@@ -65,6 +65,7 @@ namespace WorldBuilder.Editors.Landscape {
             collection.AddSingleton<SelectSubToolViewModel>();
             collection.AddSingleton<MoveObjectSubToolViewModel>();
             collection.AddSingleton<RotateObjectSubToolViewModel>();
+            collection.AddSingleton<ScaleObjectSubToolViewModel>();
             collection.AddSingleton<CloneSubToolViewModel>();
             collection.AddSingleton<PasteSubToolViewModel>();
             collection.AddSingleton<StampLibraryManager>();

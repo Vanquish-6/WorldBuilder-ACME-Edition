@@ -153,6 +153,9 @@ namespace WorldBuilder.Editors.Dungeon {
             var result = new List<DatReaderWriter.DBObjs.EnvCell>();
             if (Document == null) return result;
 
+            if (connectingCellIndex < 0 || connectingCellIndex >= prefab.Cells.Count)
+                return result;
+
             // Compute the world transform that maps prefab-local to world space
             var connectPC = prefab.Cells[connectingCellIndex];
             var connectOffset = new Vector3(connectPC.OffsetX, connectPC.OffsetY, connectPC.OffsetZ);

@@ -168,6 +168,20 @@ namespace WorldBuilder.Editors.Dungeon {
         private readonly List<float> _portalOpenVerts = new();
         private readonly List<Vector3> _portalWorldVerts = new();
         private readonly List<Matrix4x4> _partTransformsBuffer = new();
+        private readonly List<BatchDrawEntry> _staticDrawPlan = new();
+        private struct BatchDrawEntry {
+            public uint VAO;
+            public List<RenderBatch> Batches;
+            public int InstanceCount;
+            public int BufferFloatOffset;
+        }
+
+        private static void WriteMatrixToBuffer(float[] buf, int offset, in Matrix4x4 m) {
+            buf[offset +  0] = m.M11; buf[offset +  1] = m.M12; buf[offset +  2] = m.M13; buf[offset +  3] = m.M14;
+            buf[offset +  4] = m.M21; buf[offset +  5] = m.M22; buf[offset +  6] = m.M23; buf[offset +  7] = m.M24;
+            buf[offset +  8] = m.M31; buf[offset +  9] = m.M32; buf[offset + 10] = m.M33; buf[offset + 11] = m.M34;
+            buf[offset + 12] = m.M41; buf[offset + 13] = m.M42; buf[offset + 14] = m.M43; buf[offset + 15] = m.M44;
+        }
         private readonly List<float> _allOpenPortalVerts = new();
         private readonly List<float> _highlightedPortalVerts = new();
         private uint _highlightVAO;
@@ -329,6 +343,7 @@ namespace WorldBuilder.Editors.Dungeon {
 
         private void IntegrateStatics(PreparedEnvCellBatch batch) {
             _dungeonStatics.Clear();
+            _objectGroupBuffer.Clear();
             _dungeonStatics.AddRange(batch.DungeonStaticObjects);
 
             if (_sceneContext == null) return;
@@ -637,6 +652,8 @@ namespace WorldBuilder.Editors.Dungeon {
             objectManager._objectShader.SetUniform("uLightDirection", Vector3.Normalize(new Vector3(0.3f, -0.5f, -0.8f)));
             objectManager._objectShader.SetUniform("uAmbientIntensity", 0.4f);
             objectManager._objectShader.SetUniform("uSpecularPower", 16f);
+            objectManager._objectShader.SetUniform("uHighlightColor", Vector3.Zero);
+            objectManager._objectShader.SetUniform("uHighlightIntensity", 0f);
 
             foreach (var list in _objectGroupBuffer.Values) list.Clear();
 
@@ -652,6 +669,9 @@ namespace WorldBuilder.Editors.Dungeon {
                     * Matrix4x4.CreateTranslation(obj.Origin));
             }
 
+            _staticDrawPlan.Clear();
+            int totalFloats = 0;
+
             foreach (var group in _objectGroupBuffer) {
                 if (group.Value.Count == 0) continue;
                 var (id, isSetup) = group.Key;
@@ -659,24 +679,114 @@ namespace WorldBuilder.Editors.Dungeon {
                 var renderData = objectManager.TryGetCachedRenderData(id);
                 if (renderData == null) continue;
 
-                if (isSetup) {
+                if (isSetup && renderData.SetupParts != null) {
                     foreach (var (partId, partTransform) in renderData.SetupParts) {
                         var partRenderData = objectManager.TryGetCachedRenderData(partId);
                         if (partRenderData == null) continue;
 
-                        _partTransformsBuffer.Clear();
-                        foreach (var instanceMatrix in group.Value) {
-                            _partTransformsBuffer.Add(partTransform * instanceMatrix);
+                        int offset = totalFloats;
+                        int needed = totalFloats + group.Value.Count * 16;
+                        if (_sceneContext.InstanceUploadBuffer.Length < needed) {
+                            int newSize = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Math.Max(needed, 256));
+                            _sceneContext.InstanceUploadBuffer = new float[newSize];
                         }
 
-                        RenderBatchedObject(gl, partRenderData, _partTransformsBuffer);
+                        foreach (var instanceMatrix in group.Value) {
+                            var m = partTransform * instanceMatrix;
+                            WriteMatrixToBuffer(_sceneContext.InstanceUploadBuffer, totalFloats, in m);
+                            totalFloats += 16;
+                        }
+
+                        _staticDrawPlan.Add(new BatchDrawEntry {
+                            VAO = partRenderData.VAO,
+                            Batches = partRenderData.Batches,
+                            InstanceCount = group.Value.Count,
+                            BufferFloatOffset = offset
+                        });
                     }
                 }
                 else {
-                    RenderBatchedObject(gl, renderData, group.Value);
+                    int offset = totalFloats;
+                    int needed = totalFloats + group.Value.Count * 16;
+                    if (_sceneContext.InstanceUploadBuffer.Length < needed) {
+                        int newSize = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Math.Max(needed, 256));
+                        _sceneContext.InstanceUploadBuffer = new float[newSize];
+                    }
+
+                    foreach (var m in group.Value) {
+                        WriteMatrixToBuffer(_sceneContext.InstanceUploadBuffer, totalFloats, in m);
+                        totalFloats += 16;
+                    }
+
+                    _staticDrawPlan.Add(new BatchDrawEntry {
+                        VAO = renderData.VAO,
+                        Batches = renderData.Batches,
+                        InstanceCount = group.Value.Count,
+                        BufferFloatOffset = offset
+                    });
                 }
             }
 
+            if (totalFloats == 0) {
+                gl.UseProgram(0);
+                gl.Disable(EnableCap.Blend);
+                return;
+            }
+
+            if (_sceneContext.InstanceVBO == 0) {
+                gl.GenBuffers(1, out uint vbo);
+                _sceneContext.InstanceVBO = vbo;
+            }
+
+            gl.BindBuffer(GLEnum.ArrayBuffer, _sceneContext.InstanceVBO);
+            fixed (float* ptr = _sceneContext.InstanceUploadBuffer) {
+                if (totalFloats > _sceneContext.InstanceBufferCapacity) {
+                    int newCapacity = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Math.Max(totalFloats, 256));
+                    _sceneContext.InstanceBufferCapacity = newCapacity;
+                    gl.BufferData(GLEnum.ArrayBuffer, (nuint)(newCapacity * sizeof(float)), ptr, GLEnum.DynamicDraw);
+                }
+                else {
+                    gl.BufferSubData(GLEnum.ArrayBuffer, 0, (nuint)(totalFloats * sizeof(float)), ptr);
+                }
+            }
+
+            bool cullFaceEnabled = true;
+            foreach (var entry in _staticDrawPlan) {
+                gl.BindVertexArray(entry.VAO);
+
+                int byteOffset = entry.BufferFloatOffset * sizeof(float);
+                gl.BindBuffer(GLEnum.ArrayBuffer, _sceneContext.InstanceVBO);
+                for (int i = 0; i < 4; i++) {
+                    gl.EnableVertexAttribArray((uint)(3 + i));
+                    gl.VertexAttribPointer((uint)(3 + i), 4, GLEnum.Float, false,
+                        (uint)(16 * sizeof(float)), (void*)(byteOffset + i * 4 * sizeof(float)));
+                    gl.VertexAttribDivisor((uint)(3 + i), 1);
+                }
+
+                foreach (var batch in entry.Batches) {
+                    if (batch.TextureArray == null) continue;
+
+                    if (batch.IsDoubleSided && cullFaceEnabled) {
+                        gl.Disable(EnableCap.CullFace);
+                        cullFaceEnabled = false;
+                    }
+                    else if (!batch.IsDoubleSided && !cullFaceEnabled) {
+                        gl.Enable(EnableCap.CullFace);
+                        cullFaceEnabled = true;
+                    }
+
+                    batch.TextureArray.Bind(0);
+                    objectManager._objectShader.SetUniform("uTextureArray", 0);
+                    objectManager._objectShader.SetUniform("uTextureIndex", (float)batch.TextureIndex);
+                    gl.DisableVertexAttribArray(7);
+                    gl.VertexAttrib1((uint)7, (float)batch.TextureIndex);
+
+                    gl.BindBuffer(GLEnum.ElementArrayBuffer, batch.IBO);
+                    gl.DrawElementsInstanced(GLEnum.Triangles, (uint)batch.IndexCount, GLEnum.UnsignedShort, null, (uint)entry.InstanceCount);
+                }
+            }
+
+            if (!cullFaceEnabled) gl.Enable(EnableCap.CullFace);
             gl.BindVertexArray(0);
             gl.UseProgram(0);
             gl.Disable(EnableCap.Blend);

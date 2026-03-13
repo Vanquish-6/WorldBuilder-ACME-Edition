@@ -84,7 +84,11 @@ namespace WorldBuilder.Editors.Landscape {
         /// <summary>
         /// Returns all landblock keys that have loaded dungeon cells, sorted.
         /// </summary>
-        public List<ushort> GetLoadedDungeonLandblocks() => _loadedCells.Keys.OrderBy(k => k).ToList();
+        public List<ushort> GetLoadedDungeonLandblocks() {
+            lock (_cellLock) {
+                return _loadedCells.Keys.OrderBy(k => k).ToList();
+            }
+        }
 
         /// <summary>
         /// Cycles to the next loaded dungeon landblock. Wraps around.
@@ -123,6 +127,15 @@ namespace WorldBuilder.Editors.Landscape {
         // Reusable cell grouping buffers (avoids per-frame dictionary allocation in Render)
         private readonly Dictionary<EnvCellGpuKey, List<Matrix4x4>> _cellGroupBuffer = new();
         private readonly Dictionary<EnvCellGpuKey, List<Matrix4x4>> _buildingCellGroupBuffer = new();
+
+        // Draw plan for batched rendering (single instance buffer upload per frame)
+        private readonly List<EnvCellDrawEntry> _envCellDrawPlan = new();
+        private struct EnvCellDrawEntry {
+            public uint VAO;
+            public List<RenderBatch> Batches;
+            public int InstanceCount;
+            public int BufferFloatOffset;
+        }
 
         /// <summary>
         /// Optional fallback for loading texture data when a Surface ID isn't in the DAT
@@ -630,8 +643,8 @@ namespace WorldBuilder.Editors.Landscape {
 
             switch (renderSurface.Format) {
                 case DatReaderWriter.Enums.PixelFormat.PFID_A8R8G8B8:
-                    uploadPixelFormat = PixelFormat.Bgra;
-                    textureData = renderSurface.SourceData;
+                    textureData = TextureHelpers.ConvertBgraToRgba(renderSurface.SourceData);
+                    uploadPixelFormat = PixelFormat.Rgba;
                     break;
                 case DatReaderWriter.Enums.PixelFormat.PFID_R8G8B8:
                     uploadPixelFormat = PixelFormat.Rgb;
@@ -823,6 +836,9 @@ namespace WorldBuilder.Editors.Landscape {
 
             gl.BindVertexArray(0);
 
+            foreach (var atlas in localAtlases.Values)
+                atlas.FlushMipmaps();
+
             return new EnvCellRenderData {
                 VAO = vao,
                 VBO = vbo,
@@ -912,29 +928,121 @@ namespace WorldBuilder.Editors.Landscape {
                 }
             }
 
-            // Draw building interiors. Terrain is rendered first by GameScene with
-            // PolygonOffset so building floors win at equal Z. When the camera is
-            // inside a building, GameScene clears only the depth buffer after terrain
-            // (matching the original AC client pipeline), so portal openings naturally
-            // show the terrain behind them instead of the clear color.
-            foreach (var (gpuKey, transforms) in _buildingCellGroupBuffer) {
-                if (transforms.Count == 0) continue;
-                if (!_gpuCache.TryGetValue(gpuKey, out var renderData)) continue;
-                if (renderData.Batches.Count == 0) continue;
-                RenderBatchedEnvCell(gl, renderData, transforms);
+            // Build a consolidated draw plan: collect all instance transforms into one
+            // buffer to avoid per-group BufferSubData calls (major win on ANGLE/D3D11).
+            _envCellDrawPlan.Clear();
+            int totalFloats = 0;
+
+            void CollectGroups(Dictionary<EnvCellGpuKey, List<Matrix4x4>> groups) {
+                foreach (var (gpuKey, transforms) in groups) {
+                    if (transforms.Count == 0) continue;
+                    if (!_gpuCache.TryGetValue(gpuKey, out var renderData)) continue;
+                    if (renderData.Batches.Count == 0) continue;
+
+                    int offset = totalFloats;
+                    int needed = totalFloats + transforms.Count * 16;
+                    EnsureInstanceUploadBuffer(needed);
+
+                    for (int i = 0; i < transforms.Count; i++) {
+                        var t = transforms[i];
+                        int o = totalFloats;
+                        _instanceUploadBuffer[o +  0] = t.M11; _instanceUploadBuffer[o +  1] = t.M12;
+                        _instanceUploadBuffer[o +  2] = t.M13; _instanceUploadBuffer[o +  3] = t.M14;
+                        _instanceUploadBuffer[o +  4] = t.M21; _instanceUploadBuffer[o +  5] = t.M22;
+                        _instanceUploadBuffer[o +  6] = t.M23; _instanceUploadBuffer[o +  7] = t.M24;
+                        _instanceUploadBuffer[o +  8] = t.M31; _instanceUploadBuffer[o +  9] = t.M32;
+                        _instanceUploadBuffer[o + 10] = t.M33; _instanceUploadBuffer[o + 11] = t.M34;
+                        _instanceUploadBuffer[o + 12] = t.M41; _instanceUploadBuffer[o + 13] = t.M42;
+                        _instanceUploadBuffer[o + 14] = t.M43; _instanceUploadBuffer[o + 15] = t.M44;
+                        totalFloats += 16;
+                    }
+
+                    _envCellDrawPlan.Add(new EnvCellDrawEntry {
+                        VAO = renderData.VAO,
+                        Batches = renderData.Batches,
+                        InstanceCount = transforms.Count,
+                        BufferFloatOffset = offset
+                    });
+                }
             }
 
-            // Draw dungeon cells (no offset needed — already -50 Z below terrain)
-            foreach (var (gpuKey, transforms) in _cellGroupBuffer) {
-                if (transforms.Count == 0) continue;
-                if (!_gpuCache.TryGetValue(gpuKey, out var renderData)) continue;
-                if (renderData.Batches.Count == 0) continue;
-                RenderBatchedEnvCell(gl, renderData, transforms);
+            CollectGroups(_buildingCellGroupBuffer);
+            CollectGroups(_cellGroupBuffer);
+
+            if (totalFloats == 0) {
+                gl.UseProgram(0);
+                gl.Disable(EnableCap.Blend);
+                return;
+            }
+
+            // Single buffer upload for all instance transforms
+            if (_instanceVBO == 0) {
+                gl.GenBuffers(1, out _instanceVBO);
+            }
+
+            gl.BindBuffer(GLEnum.ArrayBuffer, _instanceVBO);
+            unsafe {
+                fixed (float* ptr = _instanceUploadBuffer) {
+                    if (totalFloats > _instanceBufferCapacity) {
+                        int newCapacity = Math.Max(totalFloats, 256);
+                        newCapacity = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)newCapacity);
+                        _instanceBufferCapacity = newCapacity;
+                        gl.BufferData(GLEnum.ArrayBuffer, (nuint)(newCapacity * sizeof(float)), ptr, GLEnum.DynamicDraw);
+                    }
+                    else {
+                        gl.BufferSubData(GLEnum.ArrayBuffer, 0, (nuint)(totalFloats * sizeof(float)), ptr);
+                    }
+                }
+            }
+
+            // Execute draw plan
+            foreach (var entry in _envCellDrawPlan) {
+                gl.BindVertexArray(entry.VAO);
+
+                int byteOffset = entry.BufferFloatOffset * sizeof(float);
+                gl.BindBuffer(GLEnum.ArrayBuffer, _instanceVBO);
+                for (int i = 0; i < 4; i++) {
+                    gl.EnableVertexAttribArray((uint)(3 + i));
+                    unsafe {
+                        gl.VertexAttribPointer((uint)(3 + i), 4, GLEnum.Float, false,
+                            (uint)(16 * sizeof(float)), (void*)(byteOffset + i * 4 * sizeof(float)));
+                    }
+                    gl.VertexAttribDivisor((uint)(3 + i), 1);
+                }
+
+                foreach (var batch in entry.Batches) {
+                    if (batch.TextureArray == null) continue;
+
+                    try {
+                        batch.TextureArray.Bind(0);
+                        _shader.SetUniform("uTextureArray", 0);
+                        _shader.SetUniform("uTextureIndex", (float)batch.TextureIndex);
+                        gl.DisableVertexAttribArray(7);
+                        gl.VertexAttrib1((uint)7, (float)batch.TextureIndex);
+                        gl.BindBuffer(GLEnum.ElementArrayBuffer, batch.IBO);
+                        unsafe {
+                            gl.DrawElementsInstanced(GLEnum.Triangles, (uint)batch.IndexCount, GLEnum.UnsignedShort, null, (uint)entry.InstanceCount);
+                        }
+                    }
+                    catch (Exception ex) {
+                        Console.WriteLine($"[EnvCellMgr] Error rendering batch: {ex.Message}");
+                    }
+                }
             }
 
             gl.BindVertexArray(0);
             gl.UseProgram(0);
             gl.Disable(EnableCap.Blend);
+        }
+
+        private void EnsureInstanceUploadBuffer(int requiredFloats) {
+            if (_instanceUploadBuffer.Length >= requiredFloats) return;
+            if (_instanceUploadBufferRented > 0)
+                ArrayPool<float>.Shared.Return(_instanceUploadBuffer);
+            int newSize = Math.Max(requiredFloats, 256);
+            newSize = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)newSize);
+            _instanceUploadBuffer = ArrayPool<float>.Shared.Rent(newSize);
+            _instanceUploadBufferRented = newSize;
         }
 
         private unsafe void RenderBatchedEnvCell(GL gl, EnvCellRenderData renderData, List<Matrix4x4> instanceTransforms) {

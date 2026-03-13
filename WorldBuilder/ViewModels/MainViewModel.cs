@@ -38,7 +38,11 @@ public partial class MainViewModel : ViewModelBase {
 
     partial void OnActiveEditorChanged(object? value) {
         OnPropertyChanged(nameof(DockingPanels));
+        OnPropertyChanged(nameof(IsLandscapeEditorActive));
     }
+
+    /// <summary>True when the active editor is the landscape/terrain editor (for showing Landscape menu).</summary>
+    public bool IsLandscapeEditorActive => ActiveEditor is LandscapeEditorViewModel;
 
     public KeyGesture? ExitGesture => _inputManager.GetKeyGesture(InputActions.AppExit);
     public KeyGesture? GotoLandblockGesture => _inputManager.GetKeyGesture(InputActions.NavigationGoToLandblock);
@@ -238,5 +242,29 @@ public partial class MainViewModel : ViewModelBase {
     private void AnalyzeDungeonRooms() {
         var dungeonEditor = ProjectManager.Instance?.GetProjectService<DungeonEditorViewModel>();
         dungeonEditor?.AnalyzeRoomsCommand.Execute(null);
+    }
+
+    // Landscape editor menu (only relevant when landscape editor is active)
+    [RelayCommand]
+    private void LandscapeTogglePerformanceOverlay() {
+        var le = GetLandscapeEditor();
+        if (le != null) le.ShowPerformanceOverlay = !le.ShowPerformanceOverlay;
+    }
+
+    [RelayCommand]
+    private void LandscapeClearCache() {
+        GetLandscapeEditor()?.ClearCacheCommand.Execute(null);
+    }
+
+    [RelayCommand]
+    private async Task LandscapeFreshStart() {
+        var le = GetLandscapeEditor();
+        if (le != null) await le.FreshStartCommand.ExecuteAsync(null);
+    }
+
+    [RelayCommand]
+    private async Task LandscapeImportHeightmap() {
+        var le = GetLandscapeEditor();
+        if (le != null) await le.ImportHeightmapCommand.ExecuteAsync(null);
     }
 }

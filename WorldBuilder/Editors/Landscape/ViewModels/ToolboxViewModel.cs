@@ -15,6 +15,12 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
         public IRelayCommand SelectToolCommand => _editor.SelectToolCommand;
         public IRelayCommand SelectSubToolCommand => _editor.SelectSubToolCommand;
 
+        /// <summary>Snap object movement/placement to grid (configurable grid size). Wired from editor.</summary>
+        public bool SnapToGrid {
+            get => _editor.SnapToGrid;
+            set => _editor.SnapToGrid = value;
+        }
+
         public ToolboxViewModel(LandscapeEditorViewModel editor) {
             _editor = editor;
             _editor.PropertyChanged += (s, e) => {
@@ -23,6 +29,9 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                 }
                 if (e.PropertyName == nameof(LandscapeEditorViewModel.SelectedSubTool)) {
                     OnPropertyChanged(nameof(SelectedSubTool));
+                }
+                if (e.PropertyName == nameof(LandscapeEditorViewModel.SnapToGrid)) {
+                    OnPropertyChanged(nameof(SnapToGrid));
                 }
             };
         }

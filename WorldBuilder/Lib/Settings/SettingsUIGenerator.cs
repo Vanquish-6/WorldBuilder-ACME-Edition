@@ -150,11 +150,11 @@ namespace WorldBuilder.Lib.Settings {
             // Create binding path
             var bindingPath = metadata.Property.Name;
 
-            // Label with value display if applicable
+            // Label with value display if applicable (skip value display for numeric+range; the NumericUpDown shows the value)
             if (metadata.Range != null || !string.IsNullOrEmpty(metadata.Format)) {
                 var dockPanel = new DockPanel();
 
-                if (!string.IsNullOrEmpty(metadata.Format)) {
+                if (!string.IsNullOrEmpty(metadata.Format) && metadata.Range == null) {
                     var valueDisplay = new TextBlock {
                         Margin = new Thickness(8, 0, 0, 0),
                         VerticalAlignment = VerticalAlignment.Center
@@ -217,20 +217,50 @@ namespace WorldBuilder.Lib.Settings {
                 return checkBox;
             }
 
-            // Numeric with Range -> Slider
+            // Numeric with Range -> Slider + NumericUpDown (slider for quick adjust, numeric box for typing exact value)
             if (metadata.Range != null && IsNumericType(propType)) {
+                var r = metadata.Range;
+                var grid = new Grid();
+                grid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+                grid.ColumnDefinitions.Add(new ColumnDefinition(80, GridUnitType.Pixel));
+
                 var slider = new Slider {
-                    Minimum = metadata.Range.Minimum,
-                    Maximum = metadata.Range.Maximum,
-                    SmallChange = metadata.Range.SmallChange,
-                    LargeChange = metadata.Range.LargeChange
+                    Minimum = r.Minimum,
+                    Maximum = r.Maximum,
+                    SmallChange = r.SmallChange,
+                    LargeChange = r.LargeChange,
+                    [Grid.ColumnProperty] = 0
                 };
                 slider.Bind(Slider.ValueProperty, new Binding {
                     Source = instance,
                     Path = bindingPath,
                     Mode = BindingMode.TwoWay
                 });
-                return slider;
+
+                var numericUpDown = new NumericUpDown {
+                    Minimum = (decimal)r.Minimum,
+                    Maximum = (decimal)r.Maximum,
+                    Increment = (decimal)r.SmallChange,
+                    Margin = new Thickness(8, 0, 0, 0),
+                    ShowButtonSpinner = false,
+                    FontSize = 12,
+                    [Grid.ColumnProperty] = 1
+                };
+                if (propType == typeof(int) || propType == typeof(long) || propType == typeof(short) || propType == typeof(byte)) {
+                    numericUpDown.FormatString = "0";
+                }
+                else {
+                    numericUpDown.FormatString = "G";
+                }
+                numericUpDown.Bind(NumericUpDown.ValueProperty, new Binding {
+                    Source = instance,
+                    Path = bindingPath,
+                    Mode = BindingMode.TwoWay
+                });
+
+                grid.Children.Add(slider);
+                grid.Children.Add(numericUpDown);
+                return grid;
             }
 
             // Path -> TextBox with Browse button

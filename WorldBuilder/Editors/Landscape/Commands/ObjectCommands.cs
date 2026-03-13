@@ -124,6 +124,48 @@ namespace WorldBuilder.Editors.Landscape.Commands {
     }
 
     /// <summary>
+    /// Command to scale a static object.
+    /// </summary>
+    public class ScaleObjectCommand : ObjectCommand {
+        private readonly Vector3 _oldScale;
+        private readonly Vector3 _newScale;
+
+        public override string Description => "Scale object";
+
+        public ScaleObjectCommand(TerrainEditingContext context, ushort landblockKey, int objectIndex,
+            Vector3 oldScale, Vector3 newScale) : base(context, landblockKey, objectIndex) {
+            _oldScale = oldScale;
+            _newScale = newScale;
+        }
+
+        public override bool Execute() {
+            var doc = GetDocument();
+            if (doc == null || _objectIndex >= doc.StaticObjectCount) return false;
+
+            var obj = doc.GetStaticObject(_objectIndex);
+            doc.UpdateStaticObject(_objectIndex, new StaticObject {
+                Id = obj.Id, IsSetup = obj.IsSetup, Origin = obj.Origin,
+                Orientation = obj.Orientation, Scale = _newScale
+            });
+            InvalidateScene();
+            return true;
+        }
+
+        public override bool Undo() {
+            var doc = GetDocument();
+            if (doc == null || _objectIndex >= doc.StaticObjectCount) return false;
+
+            var obj = doc.GetStaticObject(_objectIndex);
+            doc.UpdateStaticObject(_objectIndex, new StaticObject {
+                Id = obj.Id, IsSetup = obj.IsSetup, Origin = obj.Origin,
+                Orientation = obj.Orientation, Scale = _oldScale
+            });
+            InvalidateScene();
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Command to add a new static object to a landblock.
     /// </summary>
     public class AddObjectCommand : ICommand {

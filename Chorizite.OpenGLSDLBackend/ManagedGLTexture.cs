@@ -34,7 +34,7 @@ namespace Chorizite.OpenGLSDLBackend {
             byte[] pixelData = source ?? new byte[width * height * 4];
 
             fixed (byte* data = &pixelData[0]) {
-                GL.TexImage2D(GLEnum.Texture2D, 0, (int)InternalFormat.Rgba8, (uint)width, (uint)height, 0, PixelFormat.Rgba, (PixelType)0x1401, data);
+                GL.TexImage2D(GLEnum.Texture2D, 0, (int)InternalFormat.Rgba8, (uint)width, (uint)height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, data);
                 GLHelpers.CheckErrors();
             }
             GL.TexParameter(GLEnum.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);

@@ -7,6 +7,7 @@ namespace WorldBuilder.Editors.Dungeon {
     public class DungeonCommandHistory {
         private readonly List<(IDungeonCommand Command, DateTime Timestamp)> _history = new();
         private int _currentIndex = -1;
+        private int _trimmedCount;
 
         public bool CanUndo => _currentIndex >= 0;
         public bool CanRedo => _currentIndex < _history.Count - 1;
@@ -80,7 +81,9 @@ namespace WorldBuilder.Editors.Dungeon {
             var items = new List<HistoryListItem> {
                 new HistoryListItem {
                     Index = -1,
-                    Description = "Original Document",
+                    Description = _trimmedCount > 0
+                        ? $"Earliest State ({_trimmedCount} trimmed)"
+                        : "Original Document",
                     Timestamp = DateTime.MinValue,
                     IsCurrent = _currentIndex == -1,
                     IsSnapshot = false
@@ -104,6 +107,7 @@ namespace WorldBuilder.Editors.Dungeon {
         public void Clear() {
             _history.Clear();
             _currentIndex = -1;
+            _trimmedCount = 0;
             Changed?.Invoke(this, EventArgs.Empty);
         }
 
@@ -111,6 +115,7 @@ namespace WorldBuilder.Editors.Dungeon {
             while (HistoryLimit > 0 && _history.Count > HistoryLimit) {
                 _history.RemoveAt(0);
                 _currentIndex--;
+                _trimmedCount++;
             }
             if (_currentIndex < -1) _currentIndex = -1;
         }

@@ -390,37 +390,26 @@
                                 <TextBlock Text="Reset" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <Border Width="1" Background="#3d2a5c" Margin="4,4" />
-                        <Button
-                            Classes="vp-action"
-                            Command="{Binding ClearCacheCommand}"
-                            ToolTip.Tip="Clear all caches (textures, terrain, GPU) and reload from DAT files">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="&#x1F5D1;" FontSize="13" />
-                                <TextBlock Text="Clear Cache" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Border Width="1" Background="#3d2a5c" Margin="4,4" />
-                        <Button
-                            Classes="vp-action"
-                            Command="{Binding FreshStartCommand}"
-                            ToolTip.Tip="Reset world to WaterDeepSea and delete all statics/buildings">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="&#x1F30A;" FontSize="13" />
-                                <TextBlock Text="Fresh Start" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Border Width="1" Background="#3d2a5c" Margin="4,4" />
-                        <Button
-                            Classes="vp-action"
-                            Command="{Binding ImportHeightmapCommand}"
-                            ToolTip.Tip="Import a grayscale image as terrain heightmap">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="&#x1F5BB;" FontSize="13" />
-                                <TextBlock Text="Import Heightmap" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
                     </StackPanel>
+                </Border>
+
+                <!-- Performance Overlay -->
+                <Border
+                    Margin="8"
+                    Padding="10,6"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Background="#DD120c22"
+                    BorderBrush="#442a1d42"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    IsHitTestVisible="False"
+                    IsVisible="{Binding ShowPerformanceOverlay}">
+                    <TextBlock
+                        FontFamily="Consolas, Courier New"
+                        FontSize="11"
+                        Foreground="#66dd88"
+                        Text="{Binding PerformanceText}" />
                 </Border>
 
                 <!-- Position HUD -->

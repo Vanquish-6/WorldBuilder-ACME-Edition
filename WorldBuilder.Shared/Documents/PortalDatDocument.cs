@@ -120,6 +120,7 @@ namespace WorldBuilder.Shared.Documents {
                 return true;
             }
             catch (MemoryPackSerializationException) {
+                _logger.LogWarning("[PortalDatDoc] Project cache has incompatible format (schema changed), will reset to empty");
                 _data = new();
                 _objectCache.Clear();
                 return true;

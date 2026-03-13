@@ -13,7 +13,7 @@ using WorldBuilder.Lib.Settings;
 using WorldBuilder.Shared.Documents;
 using WorldBuilder.ViewModels;
 
-public class CommandHistory {
+public class CommandHistory : IDisposable {
     private readonly List<HistoryEntry> _history = new();
     private int _currentIndex = -1;
     private readonly ILogger _logger;
@@ -36,6 +36,10 @@ public class CommandHistory {
         ValidateIndex();
 
         _settings.PropertyChanged += OnSettingsChanged;
+    }
+
+    public void Dispose() {
+        _settings.PropertyChanged -= OnSettingsChanged;
     }
 
     private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e) {

@@ -281,6 +281,9 @@ namespace WorldBuilder.Editors.Landscape {
                 BuildPolygonIndices(poly, gfxObj, scale, UVLookup, vertices, batch, useNegSurface);
             }
 
+            foreach (var atlas in localAtlases.Values)
+                atlas.FlushMipmaps();
+
             var renderData = SetupGpuBuffers(vertices, batchesByFormat, id, localAtlases);
             renderData.LocalAtlases = localAtlases;
             return renderData;
@@ -566,6 +569,9 @@ namespace WorldBuilder.Editors.Landscape {
                 }
             }
 
+            foreach (var atlas in localAtlases.Values)
+                atlas.FlushMipmaps();
+
             // Upload vertices
             gl.GenVertexArrays(1, out uint vao);
             gl.BindVertexArray(vao);
@@ -669,8 +675,8 @@ namespace WorldBuilder.Editors.Landscape {
 
             switch (renderSurface.Format) {
                 case DatReaderWriter.Enums.PixelFormat.PFID_A8R8G8B8:
-                    uploadPixelFormat = PixelFormat.Bgra;
-                    textureData = renderSurface.SourceData;
+                    textureData = TextureHelpers.ConvertBgraToRgba(renderSurface.SourceData);
+                    uploadPixelFormat = PixelFormat.Rgba;
                     break;
                 case DatReaderWriter.Enums.PixelFormat.PFID_R8G8B8:
                     uploadPixelFormat = PixelFormat.Rgb;

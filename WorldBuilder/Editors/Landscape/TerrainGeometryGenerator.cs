@@ -1,4 +1,4 @@
-﻿using Chorizite.Core.Render;
+using Chorizite.Core.Render;
 using Chorizite.Core.Render.Vertex;
 using DatReaderWriter.DBObjs;
 using SkiaSharp;

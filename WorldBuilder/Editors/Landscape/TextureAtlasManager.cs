@@ -29,7 +29,7 @@ namespace WorldBuilder.Editors.Landscape {
             _textureWidth = width;
             _textureHeight = height;
             _format = format;
-            TextureArray = renderer.GraphicsDevice.CreateTextureArray(format, width, height, InitialCapacity) as ManagedGLTextureArray;
+            TextureArray = (ManagedGLTextureArray)renderer.GraphicsDevice.CreateTextureArray(format, width, height, InitialCapacity);
         }
 
         public int AddTexture(TextureKey surfaceId, byte[] data, PixelFormat? uploadPixelFormat = null, PixelType? uploadPixelType = null) {
@@ -83,6 +83,15 @@ namespace WorldBuilder.Editors.Landscape {
                 var managedArray = TextureArray as ManagedGLTextureArray;
                 managedArray?.RemoveLayer(index);
             }
+        }
+
+        /// <summary>
+        /// Generates mipmaps for the underlying texture array if any textures have been added.
+        /// Call after finishing all AddTexture calls for a model to avoid deferred mipmap
+        /// generation during the render loop.
+        /// </summary>
+        public void FlushMipmaps() {
+            (TextureArray as ManagedGLTextureArray)?.FlushMipmaps();
         }
 
         public bool HasTexture(TextureKey surfaceId) {

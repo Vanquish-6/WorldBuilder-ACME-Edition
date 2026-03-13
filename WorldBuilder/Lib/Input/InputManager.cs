@@ -167,7 +167,17 @@ namespace WorldBuilder.Lib.Input {
         }
 
         public void SaveBinding(InputBinding binding) {
-             ReloadBindings();
+            var existing = _settings.Bindings.FirstOrDefault(b =>
+                b.ActionName == binding.ActionName && b.Key == binding.Key && b.Modifiers == binding.Modifiers);
+            if (existing != null) {
+                var idx = _settings.Bindings.IndexOf(existing);
+                _settings.Bindings[idx] = binding;
+            }
+            else {
+                _settings.Bindings.Add(binding);
+            }
+            _rootSettings.Save();
+            ReloadBindings();
         }
     }
 }

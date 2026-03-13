@@ -82,7 +82,7 @@ namespace WorldBuilder.Lib {
         public Matrix4x4 GetProjectionMatrix() {
             return Matrix4x4.CreatePerspectiveFieldOfViewLeftHanded(
                 MathHelper.DegreesToRadians(fov),
-                ScreenSize.X / ScreenSize.Y,
+                ScreenSize.X / Math.Max(ScreenSize.Y, 1f),
                 1.0f,
                 settings.Landscape.Camera.MaxDrawDistance);
         }
@@ -146,8 +146,8 @@ namespace WorldBuilder.Lib {
         }
 
         public void ProcessMouseScroll(float yOffset) {
-            movementSpeed += yOffset * 500f; // Adjust speed with scroll
-            movementSpeed = Math.Max(12f, movementSpeed);
+            movementSpeed += yOffset * 500f;
+            movementSpeed = Math.Clamp(movementSpeed, 12f, 100_000f);
         }
 
         public void SetMovementSpeed(float speed) {
@@ -245,7 +245,7 @@ namespace WorldBuilder.Lib {
 
             // For top-down view, camera looks straight down
             this.front = new Vector3(0, 0, -1);
-            this.worldUp = new Vector3(0, 0, 0); // Y is up in world space for horizontal movement
+            this.worldUp = new Vector3(0, 1, 0);
             this.up = new Vector3(0, -1, 0);
             this.right = new Vector3(1, 0, 0);
         }
@@ -255,7 +255,7 @@ namespace WorldBuilder.Lib {
         }
 
         public Matrix4x4 GetProjectionMatrix() {
-            float width = orthographicSize * (ScreenSize.X / ScreenSize.Y);
+            float width = orthographicSize * (ScreenSize.X / Math.Max(ScreenSize.Y, 1f));
             float height = orthographicSize;
 
             return Matrix4x4.CreateOrthographicLeftHanded(
@@ -307,9 +307,10 @@ namespace WorldBuilder.Lib {
                     Vector2 mouseDelta = mouseState.Position - _previousMousePosition;
 
                     // Convert delta to world space
-                    float aspectRatio = ScreenSize.X / ScreenSize.Y;
-                    float worldDeltaX = -mouseDelta.X * (orthographicSize * aspectRatio / ScreenSize.X);
-                    float worldDeltaY = mouseDelta.Y * (orthographicSize / ScreenSize.Y);
+                    float safeHeight = Math.Max(ScreenSize.Y, 1f);
+                    float aspectRatio = ScreenSize.X / safeHeight;
+                    float worldDeltaX = -mouseDelta.X * (orthographicSize * aspectRatio / Math.Max(ScreenSize.X, 1f));
+                    float worldDeltaY = mouseDelta.Y * (orthographicSize / safeHeight);
 
                     // Update camera position
                     position += new Vector3(worldDeltaX, worldDeltaY, 0);
@@ -384,6 +385,7 @@ namespace WorldBuilder.Lib {
 
         public void SetPosition(float x, float y, float z) {
             position = new Vector3(x, y, z);
+            orthographicSize = z;
         }
 
         public void LookAt(Vector3 target) {
