@@ -5,9 +5,10 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+263</title>
+      <title>WorldBuilder 0.1.0+264</title>
       <description>## Changes
 
+- world mini map fix, remove templates, some performance stuff ([6a317bc](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/6a317bc45656063f918a7cde65f198a5772df93a))
 - dungeon 'world template' WIP ([cd3e377](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/cd3e3775748e44205632449e1b6e96531775b997))
 - mini map for terrain editor ([7293629](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/7293629dc2678a926b2f6f6113ed89029b28a544))
 - Dungeon editor improvements: autofurnish, portal cache, undo fix, cell reclaim, UX ([9a0dbc3](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/9a0dbc39f95ac84f0c27a7657425432c04e9ca8c))
@@ -56,13 +57,12 @@
 - Replace drag-to-dock with dropdown menu on viewport panels ([1b2e49f](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/1b2e49f43c8b836ed15a79a6aeb9492858221232))
 - Add camera bookmarks panel, fix navigation using stale CameraManager.Current ([48bb8c7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/48bb8c78937339a8f10810df2e7bd6aaf0199319))
 - readme ([e0b2e58](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e0b2e58a25124359ac49aae2b0c37ced3f78ce9d))
-- swap install/appdata folders, fix thumbnail render ([140879b](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/140879b0ec5cc20a51edcf437cee454e3da4ac87))
-- Overhaul editor UI: dark purple theme and more ([ddd1674](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/ddd1674c5e06a7237606221b9a064f474ce11eae))</description>
-      <pubDate>Thu, 12 Mar 2026 07:16:39 +00:00</pubDate>
-      <sparkle:version>0.1.0+263</sparkle:version>
+- swap install/appdata folders, fix thumbnail render ([140879b](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/140879b0ec5cc20a51edcf437cee454e3da4ac87))</description>
+      <pubDate>Fri, 13 Mar 2026 05:59:12 +00:00</pubDate>
+      <sparkle:version>0.1.0+264</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B263.exe" sparkle:version="0.1.0+263" sparkle:shortVersionString="0.1.0" length="23377096" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="WJlehnzYlX0y89BXxbNW2A3ctO/NT2mDw6qUD/56guXhrZfFcF1/R5+OyqkXxbwbSkFsP0xS4sdZ13+jAVLGDQ==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B264.exe" sparkle:version="0.1.0+264" sparkle:shortVersionString="0.1.0" length="23365749" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="NuEXhMYJo7QfgUyBNELt8gRzP/nvz8L9SdScPYPgl6T6JatdcytawMpRvlnsmz/B6akm4a/cWeAq5HpbfiMWAw==" />
     </item>
   </channel>
 </rss>
