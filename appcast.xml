@@ -5,9 +5,10 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+265</title>
+      <title>WorldBuilder 0.1.0+266</title>
       <description>## Changes
 
+- weenie editor, layout editor overhaul, transform gizmo, world gen, mesh import/export, texture import import improvements ([f26345e](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/f26345e552c360f0f93f9bf348d5acc06c3fd5fb))
 - landscape refactor, dungeon scene and settings updates ([0998c38](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/0998c38af47842b7ce7787694850d783c526b818))
 - world mini map fix, remove templates, some performance stuff ([6a317bc](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/6a317bc45656063f918a7cde65f198a5772df93a))
 - dungeon 'world template' WIP ([cd3e377](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/cd3e3775748e44205632449e1b6e96531775b997))
@@ -56,13 +57,12 @@
 - Add sections layout mode to dock regions ([3c50da3](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/3c50da311232616b868797fd6a48b0afc54eaf9c))
 - Fix LandscapeEditorView encoding (UTF-8 no BOM), float-dock visibility, and set C# charset in editorconfig ([5335fb4](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/5335fb4b3dbb267cb00bea89d8ca951331b88822))
 - Replace drag-to-dock with dropdown menu on viewport panels ([1b2e49f](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/1b2e49f43c8b836ed15a79a6aeb9492858221232))
-- Add camera bookmarks panel, fix navigation using stale CameraManager.Current ([48bb8c7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/48bb8c78937339a8f10810df2e7bd6aaf0199319))
-- readme ([e0b2e58](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e0b2e58a25124359ac49aae2b0c37ced3f78ce9d))</description>
-      <pubDate>Fri, 13 Mar 2026 11:35:36 +00:00</pubDate>
-      <sparkle:version>0.1.0+265</sparkle:version>
+- Add camera bookmarks panel, fix navigation using stale CameraManager.Current ([48bb8c7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/48bb8c78937339a8f10810df2e7bd6aaf0199319))</description>
+      <pubDate>Mon, 23 Mar 2026 01:42:12 +00:00</pubDate>
+      <sparkle:version>0.1.0+266</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B265.exe" sparkle:version="0.1.0+265" sparkle:shortVersionString="0.1.0" length="23377174" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="RmnvJagZHHO4qLOm89Icy5hc//AD7cKntgO80CpCqMv4O4IfpOwO4v6inImqj0vadvqiuuCzDXwaDhr0pS4CCg==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B266.exe" sparkle:version="0.1.0+266" sparkle:shortVersionString="0.1.0" length="23571610" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="l07rvqQhVQ4ZfTXH2iqVrB0OqBpGeQnC9GHuIjoUetCW03NGXnkE45eo5Sj8DuPuMdjEjwyH1ouv8TQTevF6CA==" />
     </item>
   </channel>
 </rss>
