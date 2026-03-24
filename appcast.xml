@@ -5,9 +5,10 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+270</title>
+      <title>WorldBuilder 0.1.0+271</title>
       <description>## Changes
 
+- fix(landscape): skip redundant terrain apply after brush preview; fix command doc IDs ([5f963ee](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/5f963eec4828394260c8f99b3bf243787a64b362))
 - gizmo improvement ([44f47f8](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/44f47f8f2f76200e7b00f853680acf490368bf87))
 - Weenie property enums and DID/int pickers; expand templates and wire dungeon/landscape browsers ([4dc3983](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/4dc398320f7fb639450f2e19dc857916de1a0a35))
 - fix dungeon export crash on corrupt setup entries in dat ([ee39f71](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/ee39f71421fc59260bad4138068b70bffc96d38b))
@@ -56,13 +57,12 @@
 - dungeon stuff from other laptop ([09a0017](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/09a0017e71c886855944a86235427ee01f9edff4))
 - Add dungeon static object placement, surface editing, and visual improvements ([e2aaba5](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e2aaba584538a46779b6b9722f9cc50614127cdf))
 - Add dungeon static object rendering, undo/redo, and selection visualization ([7b721a7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/7b721a76ddc06ca8cc40eaf40c1f93d878a65c1f))
-- Add dungeon building workflow with room palette and portal snapping ([44685e6](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/44685e668b7c03e99f8c1768bf04a894c31feb2b))
-- add dugeon shell with location search database for goto ([07ba04a](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/07ba04ab5a8fc7f020b32078e1a9d15da9a5f9b4))</description>
-      <pubDate>Mon, 23 Mar 2026 21:35:35 +00:00</pubDate>
-      <sparkle:version>0.1.0+270</sparkle:version>
+- Add dungeon building workflow with room palette and portal snapping ([44685e6](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/44685e668b7c03e99f8c1768bf04a894c31feb2b))</description>
+      <pubDate>Tue, 24 Mar 2026 21:41:23 +00:00</pubDate>
+      <sparkle:version>0.1.0+271</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B270.exe" sparkle:version="0.1.0+270" sparkle:shortVersionString="0.1.0" length="23626743" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="rVZS8hcgsiadf5SJl0FYgr3gQG9FMZeuv1kA0ughKoWGyzXN43QH3iXmZqGImHIGtWfmHlV9gsnAezGQCqDRAg==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B271.exe" sparkle:version="0.1.0+271" sparkle:shortVersionString="0.1.0" length="23626949" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="EdzF7E32MvfoT2dFwhW10K3e78MJ+JVRaFIValZrK7/7sm1Wk77ZB3vwn5D1IPOnN3RMqXy+3kO8nnvt1HnLAw==" />
     </item>
   </channel>
 </rss>
