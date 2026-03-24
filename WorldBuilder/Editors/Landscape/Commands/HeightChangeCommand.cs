@@ -14,6 +14,7 @@ namespace WorldBuilder.Editors.Landscape.Commands {
 
         public HeightChangeCommand(TerrainEditingContext context, string description, Dictionary<ushort, List<(int VertexIndex, byte OriginalValue, byte NewValue)>> changes) : base(context) {
             _description = description;
+            _changesPreApplied = true;
             foreach (var kvp in changes) {
                 _changes[kvp.Key] = kvp.Value;
             }

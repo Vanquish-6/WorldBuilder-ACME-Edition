@@ -18,12 +18,18 @@ namespace WorldBuilder.Editors.Landscape.Commands {
         /// </summary>
         private Dictionary<ushort, List<(int ObjectIndex, float OriginalZ, float NewZ)>>? _staticObjectChanges;
 
+        /// <summary>
+        /// When true, terrain vertex changes were already applied during live preview.
+        /// First Execute() skips re-applying them to avoid edge-sync corruption.
+        /// </summary>
+        protected bool _changesPreApplied;
+
         public abstract string Description { get; }
         public abstract TerrainField Field { get; }
         public bool CanExecute => true;
         public bool CanUndo => true;
 
-        public List<string> AffectedDocumentIds => new() { _context.TerrainDocument.Id };
+        public List<string> AffectedDocumentIds { get; } = new();
 
         protected TerrainVertexChangeCommand(TerrainEditingContext context) {
             _context = context ?? throw new ArgumentNullException(nameof(context));
@@ -37,37 +43,45 @@ namespace WorldBuilder.Editors.Landscape.Commands {
             if (_changes.Count == 0) return false;
 
             bool collectObjectChanges = _staticObjectChanges == null;
+            bool skipTerrainApply = collectObjectChanges && !isUndo && _changesPreApplied;
 
-            // Convert changes to batch format
-            var batchChanges = new Dictionary<ushort, Dictionary<byte, uint>>();
-            var landblockDataCache = new Dictionary<ushort, TerrainEntry[]>();
+            // When the preview has already applied terrain changes (including edge
+            // synchronisation), re-applying from _changes would overwrite edge-synced
+            // values with the pre-sync brush values, then trigger a cascading edge
+            // sync that corrupts neighbouring landblocks. Skip the redundant terrain
+            // update; only apply for undo / redo or non-preview commands.
+            if (!skipTerrainApply) {
+                var batchChanges = new Dictionary<ushort, Dictionary<byte, uint>>();
+                var landblockDataCache = new Dictionary<ushort, TerrainEntry[]>();
 
-            foreach (var (lbId, changeList) in _changes) {
-                if (!landblockDataCache.TryGetValue(lbId, out var data)) {
-                    data = _context.TerrainSystem.GetLandblockTerrain(lbId);
-                    if (data == null) continue;
-                    landblockDataCache[lbId] = data;
+                foreach (var (lbId, changeList) in _changes) {
+                    if (!landblockDataCache.TryGetValue(lbId, out var data)) {
+                        data = _context.TerrainSystem.GetLandblockTerrain(lbId);
+                        if (data == null) continue;
+                        landblockDataCache[lbId] = data;
+                    }
+
+                    if (!batchChanges.TryGetValue(lbId, out var lbChanges)) {
+                        lbChanges = new Dictionary<byte, uint>();
+                        batchChanges[lbId] = lbChanges;
+                    }
+
+                    foreach (var (vIndex, original, newVal) in changeList) {
+                        byte val = isUndo ? original : newVal;
+
+                        // Skip if already at target value
+                        if (GetEntryValue(data[vIndex]) == val) continue;
+
+                        var updatedEntry = SetEntryValue(data[vIndex], val);
+                        lbChanges[(byte)vIndex] = updatedEntry.ToUInt();
+                    }
                 }
 
-                if (!batchChanges.TryGetValue(lbId, out var lbChanges)) {
-                    lbChanges = new Dictionary<byte, uint>();
-                    batchChanges[lbId] = lbChanges;
-                }
-
-                foreach (var (vIndex, original, newVal) in changeList) {
-                    byte val = isUndo ? original : newVal;
-
-                    // Skip if already at target value
-                    if (GetEntryValue(data[vIndex]) == val) continue;
-
-                    var updatedEntry = SetEntryValue(data[vIndex], val);
-                    lbChanges[(byte)vIndex] = updatedEntry.ToUInt();
-                }
+                var modifiedLandblocks = _context.TerrainSystem.UpdateLandblocksBatch(Field, batchChanges);
+                _context.MarkLandblocksModified(modifiedLandblocks);
+            } else {
+                _context.MarkLandblocksModified(new HashSet<ushort>(_changes.Keys));
             }
-
-            // Single batch update with all changes
-            var modifiedLandblocks = _context.TerrainSystem.UpdateLandblocksBatch(Field, batchChanges);
-            _context.MarkLandblocksModified(modifiedLandblocks);
 
             // Only compute/apply static object height adjustments for Height field changes.
             // Other fields (Type, Road, Scenery) don't affect terrain geometry, so objects
@@ -148,6 +162,10 @@ namespace WorldBuilder.Editors.Landscape.Commands {
 
                 if (objectChanges.Count > 0) {
                     _staticObjectChanges[lbId] = objectChanges;
+                    var lbDocId = $"landblock_{lbId:X4}";
+                    if (!AffectedDocumentIds.Contains(lbDocId)) {
+                        AffectedDocumentIds.Add(lbDocId);
+                    }
                 }
             }
         }

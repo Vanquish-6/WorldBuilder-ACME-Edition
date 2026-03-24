@@ -16,6 +16,7 @@ namespace WorldBuilder.Editors.Landscape.Commands {
 
         public RoadChangeCommand(TerrainEditingContext context, List<(ushort LandblockId, int VertexIndex, byte OriginalRoad, byte NewRoad)> changes, byte newRoad) : base(context) {
             _newRoad = newRoad;
+            _changesPreApplied = true;
             foreach (var (lbId, vIndex, original, newV) in changes) {
                 if (!_changes.TryGetValue(lbId, out var list)) {
                     list = new List<(int, byte, byte)>();

@@ -18,6 +18,7 @@ namespace WorldBuilder.Editors.Landscape.Commands {
 
         public PaintCommand(TerrainEditingContext context, TerrainTextureType terrainType, Dictionary<ushort, List<(int VertexIndex, byte OriginalType, byte NewType)>> changes) : base(context) {
             _terrainType = (byte)terrainType;
+            _changesPreApplied = true;
             foreach (var kvp in changes) {
                 _changes[kvp.Key] = kvp.Value;
             }
