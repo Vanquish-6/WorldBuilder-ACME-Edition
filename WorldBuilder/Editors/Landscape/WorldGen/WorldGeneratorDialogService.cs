@@ -181,6 +181,8 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             var islandCountBox = new NumericUpDown { Value = 0, Minimum = 0, Maximum = 20, Width = 90, FontSize = 12 };
             var landCoverageSlider = new Slider { Minimum = 0, Maximum = 1, Value = 0.5, Width = 180 };
             var roughnessSlider = new Slider { Minimum = 0, Maximum = 1, Value = 0.5, Width = 180 };
+            var seaLevelBox = new NumericUpDown { Value = 20, Minimum = 5, Maximum = 50, Width = 90, FontSize = 12 };
+            var mountainScaleSlider = new Slider { Minimum = 0.3, Maximum = 2.0, Value = 1.0, Width = 180 };
             var townCountBox = new NumericUpDown { Value = 5, Minimum = 0, Maximum = 50, Width = 90, FontSize = 12 };
             var roadsCheck = new CheckBox { Content = "Generate roads", IsChecked = true, FontSize = 12 };
             var buildingsCheck = new CheckBox { Content = "Generate buildings", IsChecked = true, FontSize = 12 };
@@ -244,6 +246,8 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                     MakeRow("Islands:", islandCountBox),
                     MakeRow("Land Coverage:", landCoverageSlider),
                     MakeRow("Roughness:", roughnessSlider),
+                    MakeRow("Sea Level:", seaLevelBox),
+                    MakeRow("Mountain Scale:", mountainScaleSlider),
 
                     new Separator { Margin = new Thickness(0, 4) },
                     new TextBlock { Text = "Civilization", FontSize = 14, FontWeight = FontWeight.SemiBold },
@@ -281,6 +285,8 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                                         IslandCount = (int)(islandCountBox.Value ?? 0),
                                         LandCoverage = (float)landCoverageSlider.Value,
                                         Roughness = (float)roughnessSlider.Value,
+                                        SeaLevelIndex = (int)(seaLevelBox.Value ?? 20),
+                                        MountainScale = (float)mountainScaleSlider.Value,
                                         TownCount = (int)(townCountBox.Value ?? 5),
                                         GenerateRoads = roadsCheck.IsChecked == true,
                                         GenerateBuildings = buildingsCheck.IsChecked == true,

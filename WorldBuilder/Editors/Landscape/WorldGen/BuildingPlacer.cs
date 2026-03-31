@@ -4,6 +4,7 @@ using System.Numerics;
 using DatReaderWriter;
 using WorldBuilder.Shared.Documents;
 using WorldBuilder.Shared.Lib;
+using static WorldBuilder.Shared.Lib.TerrainHeightSampler;
 
 namespace WorldBuilder.Editors.Landscape.WorldGen {
     public static class BuildingPlacer {
@@ -50,7 +51,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             { BuildingRole.Shop,      (0, 1) },
         };
 
-        private const int FlattenRadius = 2;
+        private const int FlattenRadius = 3;
 
         public record struct PlaceResult(
             Dictionary<ushort, List<PlannedBuilding>> Buildings,
@@ -61,7 +62,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
 
         public static PlaceResult Place(
             List<TownSite> towns, float[,] elevation, float[] landHeightTable,
-            WorldGeneratorParams p, IDatReaderWriter dats, Random rng) {
+            float seaLevelNorm, WorldGeneratorParams p, IDatReaderWriter dats, Random rng) {
 
             var townBuildingIds = new List<uint>(BuildingAnalyzer.GetTownBuildings(dats, p.RetailTownBuildingsOnly));
             if (townBuildingIds.Count == 0) {
@@ -82,7 +83,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                     _ => HamletLayout
                 };
 
-                var plots = GeneratePlots(town, layout, rng);
+                var plots = GeneratePlots(town, layout, rng, elevation, seaLevelNorm, p);
                 int placedCount = 0;
 
                 foreach (var plot in plots) {
@@ -191,18 +192,55 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             return true;
         }
 
+        /// <summary>
+        /// AC-accurate triangle-interpolated height sample on the in-memory elevation
+        /// array, matching <see cref="TerrainHeightSampler.SampleHeightTriangle"/>.
+        /// Uses the same pseudo-random cell split and bilinear triangle interpolation
+        /// that the client/renderer uses so placed objects sit flush on the terrain.
+        /// </summary>
         private static float SampleTerrainHeight(float worldX, float worldY,
             float[,] elevation, float[] landHeightTable, WorldGeneratorParams p) {
-            int vxGlobal = (int)Math.Floor(worldX / 24f);
-            int vyGlobal = (int)Math.Floor(worldY / 24f);
-            int vxLocal = vxGlobal - p.StartX * 8;
-            int vyLocal = vyGlobal - p.StartY * 8;
-            if (vxLocal >= 0 && vxLocal < elevation.GetLength(0) &&
-                vyLocal >= 0 && vyLocal < elevation.GetLength(1)) {
-                byte hIdx = HeightMapGenerator.ElevationToHeightIndex(elevation[vxLocal, vyLocal], landHeightTable);
-                return landHeightTable[hIdx];
+
+            int w = elevation.GetLength(0);
+            int h = elevation.GetLength(1);
+
+            float cellXf = worldX / 24f;
+            float cellYf = worldY / 24f;
+
+            int cellX = (int)Math.Floor(cellXf);
+            int cellY = (int)Math.Floor(cellYf);
+
+            float fracX = cellXf - cellX;
+            float fracY = cellYf - cellY;
+
+            int ofsX = p.StartX * 8;
+            int ofsY = p.StartY * 8;
+
+            float HeightAt(int gx, int gy) {
+                int lx = gx - ofsX, ly = gy - ofsY;
+                if (lx < 0 || lx >= w || ly < 0 || ly >= h) return 0f;
+                byte idx = HeightMapGenerator.ElevationToHeightIndex(elevation[lx, ly], landHeightTable);
+                return landHeightTable[idx];
             }
-            return 0f;
+
+            float hSW = HeightAt(cellX, cellY);
+            float hSE = HeightAt(cellX + 1, cellY);
+            float hNW = HeightAt(cellX, cellY + 1);
+            float hNE = HeightAt(cellX + 1, cellY + 1);
+
+            bool swToNE = IsSWtoNEcut((uint)cellX, (uint)cellY);
+
+            if (swToNE) {
+                if (fracX > fracY)
+                    return hSW + fracX * (hSE - hSW) + fracY * (hNE - hSE);
+                else
+                    return hSW + fracX * (hNE - hNW) + fracY * (hNW - hSW);
+            } else {
+                if (fracX + fracY <= 1.0f)
+                    return hSW + fracX * (hSE - hSW) + fracY * (hNW - hSW);
+                else
+                    return hNE + (1.0f - fracX) * (hNW - hNE) + (1.0f - fracY) * (hSE - hNE);
+            }
         }
 
         /// <summary>
@@ -230,18 +268,24 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                 }
             }
 
-            // Set all vertices in the footprint to the max elevation
-            for (int dx = -FlattenRadius; dx <= FlattenRadius; dx++) {
-                for (int dy = -FlattenRadius; dy <= FlattenRadius; dy++) {
+            // Flatten inner footprint and blend a transition ring for natural terrain merge
+            int transitionRadius = FlattenRadius + 2;
+            for (int dx = -transitionRadius; dx <= transitionRadius; dx++) {
+                for (int dy = -transitionRadius; dy <= transitionRadius; dy++) {
                     int vx = cvx + dx, vy = cvy + dy;
-                    if (vx >= 0 && vx < w && vy >= 0 && vy < h) {
+                    if (vx < 0 || vx >= w || vy < 0 || vy >= h) continue;
+                    float dist = MathF.Sqrt(dx * dx + dy * dy);
+                    if (dist <= FlattenRadius) {
                         elevation[vx, vy] = maxElev;
+                    } else if (dist <= transitionRadius) {
+                        float t = (dist - FlattenRadius) / (transitionRadius - FlattenRadius);
+                        t *= t;
+                        elevation[vx, vy] = maxElev + t * (elevation[vx, vy] - maxElev);
                     }
                 }
             }
 
-            byte hIdx = HeightMapGenerator.ElevationToHeightIndex(maxElev, landHeightTable);
-            return landHeightTable[hIdx];
+            return SampleTerrainHeight(worldX, worldY, elevation, landHeightTable, p);
         }
 
         private static void AddBuilding(Dictionary<ushort, List<PlannedBuilding>> result,
@@ -285,7 +329,8 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             });
         }
 
-        private static List<PlotInfo> GeneratePlots(TownSite town, Dictionary<BuildingRole, (int min, int max)> layout, Random rng) {
+        private static List<PlotInfo> GeneratePlots(TownSite town, Dictionary<BuildingRole, (int min, int max)> layout, Random rng,
+            float[,] elevation, float seaLevelNorm, WorldGeneratorParams p) {
             float cx = town.WorldCenter.X;
             float cy = town.WorldCenter.Y;
             float radiusWorld = town.Radius * 192f;
@@ -295,7 +340,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             foreach (var (role, range) in layout) {
                 int count = rng.Next(range.min, range.max + 1);
                 for (int i = 0; i < count; i++) {
-                    var plot = PlaceSingleBuilding(cx, cy, radiusWorld, role, occupied, rng);
+                    var plot = PlaceSingleBuilding(cx, cy, radiusWorld, role, occupied, rng, elevation, seaLevelNorm, p);
                     if (plot.HasValue) {
                         plots.Add(plot.Value);
                         occupied.Add((plot.Value.X, plot.Value.Y, plot.Value.MinSpacing));
@@ -308,7 +353,8 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
 
         private static PlotInfo? PlaceSingleBuilding(
             float cx, float cy, float radiusWorld,
-            BuildingRole role, List<(float x, float y, float r)> occupied, Random rng) {
+            BuildingRole role, List<(float x, float y, float r)> occupied, Random rng,
+            float[,] elevation, float seaLevelNorm, WorldGeneratorParams p) {
 
             float ringMin, ringMax, minSpacing;
             switch (role) {
@@ -350,6 +396,16 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                     }
                 }
                 if (collision) continue;
+
+                // Reject plots on or near water
+                int vxGlobal = (int)Math.Floor(px / 24f);
+                int vyGlobal = (int)Math.Floor(py / 24f);
+                int vxLocal = vxGlobal - p.StartX * 8;
+                int vyLocal = vyGlobal - p.StartY * 8;
+                if (vxLocal >= 0 && vxLocal < elevation.GetLength(0) &&
+                    vyLocal >= 0 && vyLocal < elevation.GetLength(1) &&
+                    elevation[vxLocal, vyLocal] < seaLevelNorm + 0.02f)
+                    continue;
 
                 float yaw = CardinalYaws[rng.Next(4)] + (float)(rng.NextDouble() - 0.5) * 0.25f;
                 return new PlotInfo(px, py, yaw, role, minSpacing);

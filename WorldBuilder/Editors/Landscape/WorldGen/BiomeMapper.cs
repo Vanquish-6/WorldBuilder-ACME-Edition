@@ -11,10 +11,12 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
         }
 
         private static readonly BiomeRule[] Rules = {
-            // Underwater
-            Rule(0.00f, 0.10f, 0.0f, 0.5f, TerrainTextureType.WaterDeepSea, 0),
-            Rule(0.00f, 0.10f, 0.5f, 0.8f, TerrainTextureType.WaterShallowSea, 0),
-            Rule(0.00f, 0.10f, 0.8f, 1.0f, TerrainTextureType.WaterRunning, 0),
+            // Underwater — depth bands based on elevation so shallow water hugs coastlines
+            Rule(0.00f, 0.03f, 0.0f, 1.0f, TerrainTextureType.WaterDeepSea, 0),
+            Rule(0.03f, 0.06f, 0.0f, 0.5f, TerrainTextureType.WaterDeepSea, 0),
+            Rule(0.03f, 0.06f, 0.5f, 1.0f, TerrainTextureType.WaterShallowSea, 0),
+            Rule(0.06f, 0.10f, 0.0f, 0.7f, TerrainTextureType.WaterShallowSea, 0),
+            Rule(0.06f, 0.10f, 0.7f, 1.0f, TerrainTextureType.WaterRunning, 0),
 
             // Beach / coastal
             Rule(0.10f, 0.18f, 0.0f, 0.4f, TerrainTextureType.SandYellow, 0),

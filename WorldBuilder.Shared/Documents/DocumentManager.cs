@@ -289,6 +289,43 @@ namespace WorldBuilder.Shared.Documents {
             }
         }
 
+        /// <summary>
+        /// Wipes all landblock and dungeon content from both the in-memory cache and the
+        /// document database. Called by "Fresh Start" to guarantee a clean slate regardless
+        /// of which landblocks the user has visited in this session.
+        ///
+        /// Active LandblockDocuments are cleared in-memory (marked dirty so the empty state
+        /// persists). Inactive ones are deleted from the DB so they reload fresh.
+        /// All DungeonDocuments are evicted from the cache and deleted from the DB.
+        /// </summary>
+        public async Task ResetWorldDocumentsAsync() {
+            // --- LandblockDocuments ---
+            // Active ones: clear statics in-memory (they're already marked dirty by ClearAllStatics).
+            // Inactive ones: delete the DB row so the next load starts from scratch.
+            var lbIds = await DocumentStorageService.GetDocumentIdsByPrefixAsync("landblock_");
+            foreach (var docId in lbIds) {
+                if (_activeDocs.TryGetValue(docId, out var active) && active is LandblockDocument lbDoc) {
+                    lbDoc.ClearAllStatics();
+                }
+                else {
+                    await DocumentStorageService.DeleteDocumentAsync(docId);
+                }
+            }
+
+            // --- DungeonDocuments ---
+            // Evict from active cache without saving, then delete from DB.
+            var dungeonIds = await DocumentStorageService.GetDocumentIdsByPrefixAsync("dungeon_");
+            foreach (var docId in dungeonIds) {
+                if (_activeDocs.TryRemove(docId, out var doc)) {
+                    doc.Update -= HandleDocumentUpdate;
+                }
+                await DocumentStorageService.DeleteDocumentAsync(docId);
+            }
+
+            _logger.LogInformation("[DocumentManager] ResetWorldDocuments: cleared {LbCount} landblock doc(s), deleted {DungeonCount} dungeon doc(s)",
+                lbIds.Count, dungeonIds.Count);
+        }
+
         public async Task FlushPendingUpdatesAsync() {
             var remainingUpdates = new List<DocumentUpdate>();
             await foreach (var update in _updateReader.ReadAllAsync(_cancellationTokenSource.Token)) {

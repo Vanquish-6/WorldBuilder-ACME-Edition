@@ -155,11 +155,11 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             float variance = sumSq / count - mean * mean;
             flatness = 1f - Math.Clamp(variance * 500f, 0f, 1f);
 
-            if (mean < seaLevelNorm + 0.05f) { flatness = 0; return 0; }
+            if (mean < seaLevelNorm + 0.08f) { flatness = 0; return 0; }
             if (mean > 0.7f) { flatness = 0; return 0; }
 
             float landRatio = (float)landCount / count;
-            if (landRatio < 0.8f) { flatness = 0; return 0; }
+            if (landRatio < 0.9f) { flatness = 0; return 0; }
 
             float elevScore = 1f - MathF.Abs(mean - 0.35f) * 3f;
             elevScore = Math.Clamp(elevScore, 0f, 1f);

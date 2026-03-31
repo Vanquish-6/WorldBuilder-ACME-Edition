@@ -15,6 +15,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
         private static bool _cachedTownBuildingsRetailOnly;
         private static List<uint>? _cachedEditorCompleteBuildings;
         private static Dictionary<uint, RetailTownBuildingScanner.RetailTownModelStats>? _cachedRetailTownStats;
+        private static List<BuildingProfile>? _cachedProfiles;
         private static readonly object _lock = new();
 
         /// <summary>
@@ -39,10 +40,11 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             public int TotalStatics { get; init; }
             public int OccurrenceCount { get; init; }
             public int UniqueLandblocks { get; init; }
+            public int MaxPerLandblock { get; init; }
             public float AvgPerLandblock => UniqueLandblocks > 0 ? (float)OccurrenceCount / UniqueLandblocks : 0;
             public bool HasInterior => CellCount > 0;
-            /// <summary>AC often places two mirrored halves of one structure in the same landblock (~2x).</summary>
-            public bool IsPairedHalf => AvgPerLandblock >= 1.45f;
+            /// <summary>Detects multi-piece structures: mirrored halves, quad-part mansions, etc.</summary>
+            public bool IsPairedHalf => AvgPerLandblock >= 1.35f || MaxPerLandblock >= 3;
         }
 
         public static void ClearCache() {
@@ -51,6 +53,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                 _cachedTownBuildingsRetailOnly = false;
                 _cachedEditorCompleteBuildings = null;
                 _cachedRetailTownStats = null;
+                _cachedProfiles = null;
             }
             BuildingBlueprintCache.ClearCache();
         }
@@ -88,7 +91,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
         /// Runs and logs a full analysis of all building models in the DAT.
         /// </summary>
         public static List<BuildingProfile> AnalyzeAll(IDatReaderWriter dats) {
-            var profiles = RunAnalysis(dats, verbose: true);
+            var profiles = GetOrBuildProfiles(dats, verbose: true);
             var retail = GetOrBuildRetailTownStats(dats);
             RetailTownBuildingScanner.LogTopRetailTownModels(retail, profiles);
             return profiles;
@@ -100,6 +103,19 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                 if (_cachedRetailTownStats != null) return _cachedRetailTownStats;
                 _cachedRetailTownStats = RetailTownBuildingScanner.Scan(dats);
                 return _cachedRetailTownStats;
+            }
+        }
+
+        /// <summary>
+        /// Returns the raw building profiles, running the full DAT scan at most once per
+        /// <see cref="ClearCache"/> call. All higher-level callers share the same result.
+        /// </summary>
+        private static List<BuildingProfile> GetOrBuildProfiles(IDatReaderWriter dats, bool verbose = false) {
+            if (_cachedProfiles != null) return _cachedProfiles;
+            lock (_lock) {
+                if (_cachedProfiles != null) return _cachedProfiles;
+                _cachedProfiles = RunAnalysis(dats, verbose);
+                return _cachedProfiles;
             }
         }
 
@@ -117,7 +133,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
         /// (that re-admitted junk when blueprint extraction failed).
         /// </summary>
         private static List<uint> AnalyzeEditorComplete(IDatReaderWriter dats) {
-            var profiles = RunAnalysis(dats, verbose: false);
+            var profiles = GetOrBuildProfiles(dats);
 
             bool AllowedId(BuildingProfile p) =>
                 !KnownStructuralPieceModelIds.Contains(p.ModelId);
@@ -173,7 +189,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
         /// </summary>
         public static HashSet<uint> GetEditorEnvCellFallbackModelIds(IDatReaderWriter dats) {
             lock (_lock) {
-                var profiles = RunAnalysis(dats, verbose: false);
+                var profiles = GetOrBuildProfiles(dats);
                 return profiles
                     .Where(p => !KnownStructuralPieceModelIds.Contains(p.ModelId))
                     .Where(p => !p.IsPairedHalf)
@@ -185,7 +201,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
         }
 
         private static List<uint> Analyze(IDatReaderWriter dats, bool retailTownBuildingsOnly) {
-            var profiles = RunAnalysis(dats, verbose: false);
+            var profiles = GetOrBuildProfiles(dats);
             var retail = GetOrBuildRetailTownStats(dats);
 
             // Strict filter: complete, standalone buildings only.
@@ -253,6 +269,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             var buildingCellCounts = new Dictionary<uint, int>();
             var buildingStaticCounts = new Dictionary<uint, int>();
             var buildingLandblocks = new Dictionary<uint, HashSet<uint>>();
+            var buildingMaxPerLb = new Dictionary<uint, int>();
 
             var allLbiIds = dats.Dats.Cell.GetAllIdsOfType<LandBlockInfo>().ToArray();
 
@@ -275,10 +292,12 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                 lbWithBuildings++;
                 uint lbKey = (infoId >> 16) & 0xFFFF;
 
+                var lbModelCounts = new Dictionary<uint, int>();
                 foreach (var building in lbi.Buildings) {
                     uint mid = building.ModelId;
                     buildingOccurrences.TryGetValue(mid, out int occ);
                     buildingOccurrences[mid] = occ + 1;
+                    lbModelCounts[mid] = lbModelCounts.GetValueOrDefault(mid) + 1;
 
                     if (!buildingLandblocks.TryGetValue(mid, out var lbSet)) {
                         lbSet = new HashSet<uint>();
@@ -329,6 +348,9 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                     buildingCellCounts[mid] = Math.Max(buildingCellCounts.GetValueOrDefault(mid), cellCount);
                     buildingStaticCounts[mid] = Math.Max(buildingStaticCounts.GetValueOrDefault(mid), staticCount);
                 }
+
+                foreach (var (mid, cnt) in lbModelCounts)
+                    buildingMaxPerLb[mid] = Math.Max(buildingMaxPerLb.GetValueOrDefault(mid), cnt);
             }
 
             var profiles = new List<BuildingProfile>();
@@ -346,7 +368,8 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                     PortalCount = portalCount,
                     TotalStatics = staticCount,
                     OccurrenceCount = occCount,
-                    UniqueLandblocks = uniqueLbs
+                    UniqueLandblocks = uniqueLbs,
+                    MaxPerLandblock = buildingMaxPerLb.GetValueOrDefault(modelId)
                 });
             }
 

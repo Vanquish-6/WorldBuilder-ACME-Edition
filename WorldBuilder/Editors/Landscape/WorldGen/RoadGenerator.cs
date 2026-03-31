@@ -5,7 +5,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
     public static class RoadGenerator {
         /// <summary>
         /// Generates a road network connecting all towns via minimum spanning tree,
-        /// then A* pathfinds each road segment on the vertex grid.
+        /// then A* pathfinds each road segment on the vertex grid with path smoothing.
         /// Returns set of (landblock-local lbX, lbY, vertexIndex) that should have Road bits.
         /// </summary>
         public static HashSet<(ushort lbKey, byte vertexIndex)> Generate(
@@ -31,7 +31,8 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                 bx = Math.Clamp(bx, 0, verticesX - 1);
                 by = Math.Clamp(by, 0, verticesY - 1);
 
-                var path = AStarPath(elevation, seaLevelNorm, ax, ay, bx, by, verticesX, verticesY);
+                var rawPath = AStarPath(elevation, seaLevelNorm, ax, ay, bx, by, verticesX, verticesY);
+                var path = SmoothPath(rawPath);
                 foreach (var (vx, vy) in path) {
                     AddRoadVertex(roadVertices, vx, vy, p);
                     for (int dx = -1; dx <= 1; dx++) {
@@ -48,20 +49,116 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             return roadVertices;
         }
 
+        /// <summary>
+        /// Marks a road vertex in the result set, including shared boundary vertices
+        /// in adjacent landblocks to prevent road breaks at landblock edges.
+        /// </summary>
         private static void AddRoadVertex(HashSet<(ushort, byte)> set, int vx, int vy, WorldGeneratorParams p) {
             int lbX = vx / 8;
             int lbY = vy / 8;
             int localX = vx % 8;
             int localY = vy % 8;
 
-            int globalLbX = p.StartX + lbX;
-            int globalLbY = p.StartY + lbY;
-            if (globalLbX < 0 || globalLbX > 254 || globalLbY < 0 || globalLbY > 254) return;
+            MarkVertex(set, p.StartX + lbX, p.StartY + lbY, localX, localY);
 
+            if (localX == 0 && lbX > 0)
+                MarkVertex(set, p.StartX + lbX - 1, p.StartY + lbY, 8, localY);
+
+            if (localY == 0 && lbY > 0)
+                MarkVertex(set, p.StartX + lbX, p.StartY + lbY - 1, localX, 8);
+
+            if (localX == 0 && localY == 0 && lbX > 0 && lbY > 0)
+                MarkVertex(set, p.StartX + lbX - 1, p.StartY + lbY - 1, 8, 8);
+        }
+
+        private static void MarkVertex(HashSet<(ushort, byte)> set, int globalLbX, int globalLbY, int localX, int localY) {
+            if (globalLbX < 0 || globalLbX > 254 || globalLbY < 0 || globalLbY > 254) return;
             ushort lbKey = (ushort)((globalLbX << 8) | globalLbY);
             byte vertexIdx = (byte)(localX * 9 + localY);
-            if (vertexIdx < 81)
+            if (vertexIdx <= 80)
                 set.Add((lbKey, vertexIdx));
+        }
+
+        /// <summary>
+        /// Smooths an A* path by simplifying with Ramer-Douglas-Peucker then
+        /// re-interpolating waypoints via Bresenham lines. Eliminates the staircase
+        /// artifacts inherent in grid-based pathfinding.
+        /// </summary>
+        private static List<(int x, int y)> SmoothPath(List<(int x, int y)> path) {
+            if (path.Count <= 2) return path;
+
+            var waypoints = RDPSimplify(path, 0, path.Count - 1, 2.5f);
+
+            var result = new List<(int x, int y)>();
+            for (int i = 0; i < waypoints.Count - 1; i++) {
+                var line = BresenhamLine(waypoints[i].x, waypoints[i].y,
+                    waypoints[i + 1].x, waypoints[i + 1].y);
+                int start = (i > 0 && result.Count > 0 && result[^1] == line[0]) ? 1 : 0;
+                for (int j = start; j < line.Count; j++)
+                    result.Add(line[j]);
+            }
+
+            return result;
+        }
+
+        private static List<(int x, int y)> RDPSimplify(
+            List<(int x, int y)> points, int startIdx, int endIdx, float epsilon) {
+            if (endIdx - startIdx <= 1)
+                return new List<(int, int)> { points[startIdx], points[endIdx] };
+
+            float maxDist = 0;
+            int maxIdx = startIdx;
+
+            for (int i = startIdx + 1; i < endIdx; i++) {
+                float d = PerpendicularDistance(points[i], points[startIdx], points[endIdx]);
+                if (d > maxDist) {
+                    maxDist = d;
+                    maxIdx = i;
+                }
+            }
+
+            if (maxDist > epsilon) {
+                var left = RDPSimplify(points, startIdx, maxIdx, epsilon);
+                var right = RDPSimplify(points, maxIdx, endIdx, epsilon);
+                left.RemoveAt(left.Count - 1);
+                left.AddRange(right);
+                return left;
+            }
+
+            return new List<(int, int)> { points[startIdx], points[endIdx] };
+        }
+
+        private static float PerpendicularDistance(
+            (int x, int y) point, (int x, int y) lineStart, (int x, int y) lineEnd) {
+            float dx = lineEnd.x - lineStart.x;
+            float dy = lineEnd.y - lineStart.y;
+            float lineLenSq = dx * dx + dy * dy;
+
+            if (lineLenSq < 0.001f) {
+                dx = point.x - lineStart.x;
+                dy = point.y - lineStart.y;
+                return MathF.Sqrt(dx * dx + dy * dy);
+            }
+
+            float num = MathF.Abs(dy * point.x - dx * point.y +
+                lineEnd.x * lineStart.y - lineEnd.y * lineStart.x);
+            return num / MathF.Sqrt(lineLenSq);
+        }
+
+        private static List<(int x, int y)> BresenhamLine(int x0, int y0, int x1, int y1) {
+            var points = new List<(int, int)>();
+            int dx = Math.Abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+            int dy = -Math.Abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+            int err = dx + dy;
+
+            while (true) {
+                points.Add((x0, y0));
+                if (x0 == x1 && y0 == y1) break;
+                int e2 = 2 * err;
+                if (e2 >= dy) { err += dy; x0 += sx; }
+                if (e2 <= dx) { err += dx; y0 += sy; }
+            }
+            return points;
         }
 
         /// <summary>Kruskal's MST over town indices.</summary>
@@ -101,6 +198,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             var open = new PriorityQueue<(int x, int y), float>();
             var cameFrom = new Dictionary<(int, int), (int, int)>();
             var gScore = new Dictionary<(int, int), float>();
+            var closed = new HashSet<(int, int)>();
 
             var start = (sx, sy);
             var goal = (gx, gy);
@@ -118,12 +216,16 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                 var current = open.Dequeue();
                 if (current == goal) break;
 
+                // Skip nodes already settled — prevents redundant re-expansion
+                if (!closed.Add(current)) continue;
+
                 float curG = gScore.GetValueOrDefault(current, float.MaxValue);
 
                 for (int d = 0; d < 8; d++) {
                     int nx = current.x + dx[d];
                     int ny = current.y + dy[d];
                     if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                    if (closed.Contains((nx, ny))) continue;
 
                     float slopeCost = MathF.Abs(elevation[nx, ny] - elevation[current.x, current.y]) * 50f;
                     float waterCost = elevation[nx, ny] < seaLevelNorm ? 100f : 0f;
@@ -138,6 +240,11 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                     }
                 }
             }
+
+            // If goal was never reached return an empty path rather than a garbage
+            // partial route that would stamp road bits only near the source town.
+            if (!cameFrom.ContainsKey(goal))
+                return new List<(int, int)>();
 
             var path = new List<(int, int)>();
             var pos = goal;

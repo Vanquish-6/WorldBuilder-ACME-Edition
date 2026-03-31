@@ -55,5 +55,11 @@ namespace WorldBuilder.Shared.Documents {
         Task<List<DBSnapshot>> GetSnapshotsAsync(string documentId);
         Task<bool> DeleteSnapshotAsync(Guid snapshotId);
         Task UpdateSnapshotNameAsync(Guid snapshotId, string newName);
+
+        /// <summary>
+        /// Returns all document IDs whose prefix matches <paramref name="prefix"/>.
+        /// Used by bulk-reset operations that need to act on categories of documents.
+        /// </summary>
+        Task<List<string>> GetDocumentIdsByPrefixAsync(string prefix);
     }
 }

@@ -17,6 +17,8 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
         public float Roughness { get; init; } = 0.5f;
         public int TownCount { get; init; } = 5;
         public float TownSpacing { get; init; } = 30f;
+        public int SeaLevelIndex { get; init; } = 20;
+        public float MountainScale { get; init; } = 1.0f;
         public bool GenerateRoads { get; init; } = true;
         public bool GenerateBuildings { get; init; } = true;
         /// <summary>

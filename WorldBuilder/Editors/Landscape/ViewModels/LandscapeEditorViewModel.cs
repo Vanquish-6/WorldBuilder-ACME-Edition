@@ -707,11 +707,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
             TerrainSystem.DocumentManager.SkipDatStatics = true;
 
-            foreach (var doc in TerrainSystem.DocumentManager.ActiveDocs.Values) {
-                if (doc is LandblockDocument lbDoc) {
-                    lbDoc.ClearAllStatics();
-                }
-            }
+            // Clear all landblock statics (active + inactive in DB) and delete all dungeon documents.
+            await TerrainSystem.DocumentManager.ResetWorldDocumentsAsync();
 
             TerrainSystem.Scene.InvalidateStaticObjectsCache();
             TerrainSystem.Scene.ClearAllCaches();
@@ -777,26 +774,18 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
 
             TerrainSystem.DocumentManager.SkipDatStatics = true;
 
-            foreach (var doc in TerrainSystem.DocumentManager.ActiveDocs.Values) {
-                if (doc is LandblockDocument lbDoc) {
-                    lbDoc.ClearAllStatics();
-                }
-            }
+            // Clear all landblock statics (active + inactive in DB) and delete all dungeon documents.
+            await TerrainSystem.DocumentManager.ResetWorldDocumentsAsync();
 
             TerrainSystem.TerrainDoc.ApplyBulkImport(result.TerrainChanges);
 
-            // Place buildings as StaticObjects first (always visible as exterior).
-            // Attempt blueprint instantiation for interiors; failures are fine --
-            // LandblockDocument.SaveToDatsInternal will retry at save time.
-            int blueprintSuccess = 0, blueprintFail = 0;
-            var lbiCache = new Dictionary<ushort, (DatReaderWriter.DBObjs.LandBlockInfo lbi, uint numCells)>();
-
+            // Place buildings as StaticObjects. Blueprint instantiation (LBI + EnvCells) is
+            // deferred to export time via LandblockDocument.SaveToDatsInternal — no dat writes here.
             foreach (var (lbKey, plannedBuildings) in result.BuildingPlacements) {
                 var docId = $"landblock_{lbKey:X4}";
                 var lbDoc = await TerrainSystem.DocumentManager.GetOrCreateDocumentAsync<LandblockDocument>(docId);
 
                 foreach (var planned in plannedBuildings) {
-                    // Always add the exterior StaticObject so the building is visible
                     lbDoc.AddStaticObject(new StaticObject {
                         Id = planned.ModelId,
                         IsSetup = (planned.ModelId & 0x02000000) != 0,
@@ -804,54 +793,7 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
                         Orientation = planned.Orientation,
                         Scale = Vector3.One
                     });
-
-                    // Try to instantiate blueprint for immediate interior
-                    try {
-                        var blueprint = BuildingBlueprintCache.GetBlueprint(planned.ModelId, _dats!);
-                        if (blueprint != null && blueprint.Cells.Count > 0) {
-                            uint lbId = lbKey;
-                            if (!lbiCache.TryGetValue(lbKey, out var cached)) {
-                                uint infoId = (lbId << 16) | 0xFFFE;
-                                if (!_dats!.TryGet<DatReaderWriter.DBObjs.LandBlockInfo>(infoId, out var lbi)) {
-                                    lbi = new DatReaderWriter.DBObjs.LandBlockInfo { Id = infoId };
-                                }
-                                cached = (lbi, lbi.NumCells);
-                                lbiCache[lbKey] = cached;
-                            }
-
-                            uint lbX = (uint)((lbKey >> 8) & 0xFF);
-                            uint lbY = (uint)(lbKey & 0xFF);
-                            var localOrigin = new Vector3(
-                                planned.WorldPosition.X - lbX * 192f,
-                                planned.WorldPosition.Y - lbY * 192f,
-                                planned.WorldPosition.Z);
-
-                            var instantiated = BuildingBlueprintCache.InstantiateBlueprint(
-                                blueprint, localOrigin, planned.Orientation,
-                                lbId, cached.numCells, _dats!, iteration: 0, logger: null);
-
-                            if (instantiated.HasValue) {
-                                cached.lbi.Buildings.Add(instantiated.Value.building);
-                                cached = (cached.lbi, cached.numCells + (uint)instantiated.Value.cellCount);
-                                lbiCache[lbKey] = cached;
-                                blueprintSuccess++;
-                            } else {
-                                blueprintFail++;
-                            }
-                        } else {
-                            blueprintFail++;
-                        }
-                    } catch (Exception ex) {
-                        Console.WriteLine($"[WorldGen] Blueprint error for 0x{planned.ModelId:X8}: {ex.Message}");
-                        blueprintFail++;
-                    }
                 }
-            }
-
-            // Save LandBlockInfos that got blueprint buildings
-            foreach (var (lbKey, cached) in lbiCache) {
-                cached.lbi.NumCells = cached.numCells;
-                _dats!.TrySave(cached.lbi, iteration: 0);
             }
 
             // Add decorations as regular static objects
@@ -879,8 +821,8 @@ namespace WorldBuilder.Editors.Landscape.ViewModels {
             }
 
             Console.WriteLine($"[WorldGen] Applied: {result.TotalVerticesModified} terrain vertices, " +
-                $"{result.Towns.Count} towns, {blueprintSuccess} buildings (blueprinted), " +
-                $"{blueprintFail} failed, {result.TotalDecorationsPlaced} decorations, " +
+                $"{result.Towns.Count} towns, {result.TotalBuildingsPlaced} buildings, " +
+                $"{result.TotalDecorationsPlaced} decorations, " +
                 $"{result.TotalRoadVertices} road vertices, {warmupIds.Count} models queued for warmup");
 
             await ShowWorldGenSummary(result);

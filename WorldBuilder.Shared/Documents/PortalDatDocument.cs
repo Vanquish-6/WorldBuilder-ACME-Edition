@@ -150,11 +150,14 @@ namespace WorldBuilder.Shared.Documents {
                 }
 
                 if (!saved && entry.Data.Length > 0) {
-                    saved = TrySaveFromBytes(datwriter, entry, iteration);
+                    saved = TrySaveFromBytes(datwriter, entry, fileId, iteration);
                 }
 
                 if (saved) {
                     _logger.LogInformation("[PortalDatDoc] Exported 0x{FileId:X8} ({Type})", fileId, entry.TypeName);
+                }
+                else if (_unpackFailures.Contains(fileId)) {
+                    _logger.LogWarning("[PortalDatDoc] Skipped 0x{FileId:X8} ({Type}): malformed DAT data (duplicate key)", fileId, entry.TypeName);
                 }
                 else {
                     _logger.LogError("[PortalDatDoc] Failed to export 0x{FileId:X8} ({Type})", fileId, entry.TypeName);
@@ -195,7 +198,7 @@ namespace WorldBuilder.Shared.Documents {
             };
         }
 
-        private bool TrySaveFromBytes(IDatReaderWriter writer, PortalDatEntry entry, int iteration) {
+        private bool TrySaveFromBytes(IDatReaderWriter writer, PortalDatEntry entry, uint fileId, int iteration) {
             try {
                 return entry.TypeName switch {
                     nameof(SpellTable) => UnpackAndSave<SpellTable>(writer, entry.Data, iteration),
@@ -207,6 +210,11 @@ namespace WorldBuilder.Shared.Documents {
                     nameof(Setup) => UnpackAndSave<Setup>(writer, entry.Data, iteration),
                     _ => false
                 };
+            }
+            catch (ArgumentException) {
+                // Malformed DAT entry (e.g. duplicate key in GfxObj vertex table) — record and skip
+                _unpackFailures.Add(fileId);
+                return false;
             }
             catch (Exception ex) {
                 _logger.LogError(ex, "[PortalDatDoc] Failed to unpack-and-save {Type}", entry.TypeName);

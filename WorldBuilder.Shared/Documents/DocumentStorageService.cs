@@ -473,6 +473,21 @@ namespace WorldBuilder.Shared.Documents {
             return ids;
         }
 
+        public async Task<List<string>> GetDocumentIdsByPrefixAsync(string prefix) {
+            return await ExecuteWithLockAsync(async () => {
+                var conn = GetOpenConnection();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT Id FROM Documents WHERE Id LIKE @Prefix";
+                AddParameter(cmd, "@Prefix", prefix + "%");
+                using var reader = await cmd.ExecuteReaderAsync();
+                var ids = new List<string>();
+                while (await reader.ReadAsync()) {
+                    ids.Add(reader.GetString("Id"));
+                }
+                return ids;
+            }, $"Got document IDs by prefix '{prefix}'");
+        }
+
         private async Task<T> ExecuteWithLockAsync<T>(Func<Task<T>> operation, string successMessage) {
             await _contextLock.WaitAsync();
             try {

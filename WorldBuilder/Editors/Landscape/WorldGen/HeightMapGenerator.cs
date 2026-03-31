@@ -28,6 +28,12 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
 
                     float landInfluence = ComputeLandInfluence(x, y, landmasses, noise);
 
+                    // Edge falloff to prevent continent overflow beyond world boundary
+                    int edgeMargin = Math.Max(verticesX, verticesY) / 20;
+                    int edgeDist = Math.Min(Math.Min(x, verticesX - 1 - x), Math.Min(y, verticesY - 1 - y));
+                    if (edgeDist < edgeMargin)
+                        landInfluence *= (float)edgeDist / edgeMargin;
+
                     float detail = noise.FBM(wx * 2f, wy * 2f, 6, 0.45f + p.Roughness * 0.1f, 2.1f);
                     float ridged = noise.RidgedNoise(wx * 1.5f + 500f, wy * 1.5f + 500f, 4, 0.5f, 2f);
 
@@ -72,16 +78,17 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             float maxH = landHeightTable[landHeightTable.Length - 1];
             float targetZ = minH + elevation * (maxH - minH);
 
-            int best = 0;
-            float bestDist = float.MaxValue;
-            for (int i = 0; i < landHeightTable.Length; i++) {
-                float d = MathF.Abs(landHeightTable[i] - targetZ);
-                if (d < bestDist) {
-                    bestDist = d;
-                    best = i;
-                }
+            // Binary search for the nearest entry (table is sorted ascending).
+            int lo = 0, hi = landHeightTable.Length - 1;
+            while (lo < hi) {
+                int mid = (lo + hi) >> 1;
+                if (landHeightTable[mid] < targetZ) lo = mid + 1;
+                else hi = mid;
             }
-            return (byte)best;
+            // lo is the first index >= targetZ; compare with lo-1 to find the closest.
+            if (lo > 0 && MathF.Abs(landHeightTable[lo - 1] - targetZ) <= MathF.Abs(landHeightTable[lo] - targetZ))
+                lo--;
+            return (byte)lo;
         }
 
         public static float SeaLevelNormalized(int seaLevelIndex, float[] landHeightTable) {
@@ -183,7 +190,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             List<Landmass> existing, float radius,
             int w, int h, Random rng, float minSpacing) {
 
-            float margin = Math.Min(radius * 0.3f, Math.Min(w, h) * 0.1f);
+            float margin = Math.Max(radius * 0.5f, Math.Min(w, h) * 0.15f);
 
             for (int attempt = 0; attempt < 200; attempt++) {
                 float x = margin + (float)rng.NextDouble() * (w - 2f * margin);

@@ -341,5 +341,13 @@ namespace WorldBuilder.Shared.Documents {
         public Task UpdateSnapshotNameAsync(Guid snapshotId, string newName) {
             throw new NotImplementedException();
         }
+
+        public Task<List<string>> GetDocumentIdsByPrefixAsync(string prefix) {
+            var ids = Directory.EnumerateFiles(_storageDirectory, "*.doc")
+                .Select(f => Path.GetFileNameWithoutExtension(f))
+                .Where(id => id.StartsWith(prefix, StringComparison.Ordinal))
+                .ToList();
+            return Task.FromResult(ids);
+        }
     }
 }

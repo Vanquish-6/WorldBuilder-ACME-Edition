@@ -38,7 +38,19 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
             progress?.Invoke("Generating moisture map...");
             var moisture = HeightMapGenerator.GenerateMoisture(effectiveParams, noise, verticesX, verticesY);
 
-            float seaLevelNorm = HeightMapGenerator.SeaLevelNormalized(20, heightTable);
+            float seaLevelNorm = HeightMapGenerator.SeaLevelNormalized(effectiveParams.SeaLevelIndex, heightTable);
+
+            // Rescale mountains if MountainScale is not default
+            if (MathF.Abs(effectiveParams.MountainScale - 1f) > 0.01f) {
+                for (int x = 0; x < verticesX; x++) {
+                    for (int y = 0; y < verticesY; y++) {
+                        if (elevation[x, y] > seaLevelNorm) {
+                            float aboveSea = elevation[x, y] - seaLevelNorm;
+                            elevation[x, y] = Math.Clamp(seaLevelNorm + aboveSea * effectiveParams.MountainScale, 0f, 1f);
+                        }
+                    }
+                }
+            }
 
             progress?.Invoke("Assigning biomes...");
             BiomeMapper.Assign(elevation, moisture, seaLevelNorm,
@@ -65,7 +77,7 @@ namespace WorldBuilder.Editors.Landscape.WorldGen {
                 BuildingAnalyzer.AnalyzeAll(dats);
 
                 progress?.Invoke("Placing buildings and decorations...");
-                placeResult = BuildingPlacer.Place(towns, elevation, heightTable, effectiveParams, dats, rng);
+                placeResult = BuildingPlacer.Place(towns, elevation, heightTable, seaLevelNorm, effectiveParams, dats, rng);
             }
 
             progress?.Invoke("Packing terrain data...");
