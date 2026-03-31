@@ -5,9 +5,10 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+272</title>
+      <title>WorldBuilder 0.1.0+273</title>
       <description>## Changes
 
+- Dungeon editor: per-static scale, surface alignment, hover/placement indicators, and incremental static transform updates ([33709a5](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/33709a57ca905bceb9e969545e960d878afb8520))
 - World gen: coastal water bands, building/road tweaks; Fresh Start resets landblocks/dungeons; DAT export skips bad entries ([39d68d7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/39d68d7cf6601d0d17c66a2ce4e704d9941aa533))
 - fix(landscape): skip redundant terrain apply after brush preview; fix command doc IDs ([5f963ee](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/5f963eec4828394260c8f99b3bf243787a64b362))
 - gizmo improvement ([44f47f8](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/44f47f8f2f76200e7b00f853680acf490368bf87))
@@ -56,13 +57,12 @@
 - Add spell, skill, vital, experience, chargen, spellset, and layout editors ([71a37e7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/71a37e76ec3b24fda848f775cd24ae5fb0e49946))
 - Upgrade DatReaderWriter to 2.1.2, fix portal rendering pipeline and texture export ([c96fff1](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/c96fff135184c3013d7e86432d88f5666b3982f0))
 - dungeon stuff from other laptop ([09a0017](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/09a0017e71c886855944a86235427ee01f9edff4))
-- Add dungeon static object placement, surface editing, and visual improvements ([e2aaba5](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e2aaba584538a46779b6b9722f9cc50614127cdf))
-- Add dungeon static object rendering, undo/redo, and selection visualization ([7b721a7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/7b721a76ddc06ca8cc40eaf40c1f93d878a65c1f))</description>
-      <pubDate>Tue, 31 Mar 2026 13:55:51 +00:00</pubDate>
-      <sparkle:version>0.1.0+272</sparkle:version>
+- Add dungeon static object placement, surface editing, and visual improvements ([e2aaba5](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e2aaba584538a46779b6b9722f9cc50614127cdf))</description>
+      <pubDate>Tue, 31 Mar 2026 14:51:31 +00:00</pubDate>
+      <sparkle:version>0.1.0+273</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B272.exe" sparkle:version="0.1.0+272" sparkle:shortVersionString="0.1.0" length="23636935" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="yf+ciEC/Xd49T5dNWnoNIpZlDoYxeh3+TOljcPbvx4ETPGbvMiD/2RRMVMLcyWNurwXWY/aJnlidMZP12hYFBA==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B273.exe" sparkle:version="0.1.0+273" sparkle:shortVersionString="0.1.0" length="23639861" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="QsT3QVhsbXizVSyv90Go8qWavrXr1ETn+bFVPCzAijT0V2P2ARFa3zxZ1j7uTzA+2vFzskjTK5kktt0YDentCA==" />
     </item>
   </channel>
 </rss>
