@@ -5,9 +5,10 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+274</title>
+      <title>WorldBuilder 0.1.0+275</title>
       <description>## Changes
 
+- monster editor improvements ([92fafff](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/92fafffc74d34e1aa42b00b5a13a1cae44207e1c))
 - fix buildings - again... add new monster builder *thx Derpy for how to do it so could make easier - random stuff people can find ([239c0c1](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/239c0c13955e7439ddcb2beb93b19734ab478b3d))
 - Dungeon editor: per-static scale, surface alignment, hover/placement indicators, and incremental static transform updates ([33709a5](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/33709a57ca905bceb9e969545e960d878afb8520))
 - World gen: coastal water bands, building/road tweaks; Fresh Start resets landblocks/dungeons; DAT export skips bad entries ([39d68d7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/39d68d7cf6601d0d17c66a2ce4e704d9941aa533))
@@ -56,13 +57,12 @@
 - Update README with all current features and beta disclaimer ([e593725](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e593725dcb01ec1d0e180f54d6c316aa4babb27d))
 - Add demo recording system for promo videos ([984adef](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/984adef09d8afe71171f67ffc9e670635599372d))
 - Add spell, skill, vital, experience, chargen, spellset, and layout editors ([71a37e7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/71a37e76ec3b24fda848f775cd24ae5fb0e49946))
-- Upgrade DatReaderWriter to 2.1.2, fix portal rendering pipeline and texture export ([c96fff1](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/c96fff135184c3013d7e86432d88f5666b3982f0))
-- dungeon stuff from other laptop ([09a0017](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/09a0017e71c886855944a86235427ee01f9edff4))</description>
-      <pubDate>Thu, 09 Apr 2026 19:08:08 +00:00</pubDate>
-      <sparkle:version>0.1.0+274</sparkle:version>
+- Upgrade DatReaderWriter to 2.1.2, fix portal rendering pipeline and texture export ([c96fff1](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/c96fff135184c3013d7e86432d88f5666b3982f0))</description>
+      <pubDate>Thu, 09 Apr 2026 22:07:22 +00:00</pubDate>
+      <sparkle:version>0.1.0+275</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B274.exe" sparkle:version="0.1.0+274" sparkle:shortVersionString="0.1.0" length="23709267" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="aoo4FIezV5s0ezzy3HDO6FxJHQLtJRLuvScV/cHxkeFWniRTzVYQbxYKkuSo/vgDbfH1gpR0bJ0uDNjrZNMYCA==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B275.exe" sparkle:version="0.1.0+275" sparkle:shortVersionString="0.1.0" length="23717367" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="9TJxVabDP197CJVt9C7T6UMXj3xPw5yf2Tps0pIuUYNZTBb4VcYpMSQT+MhqR0WvuYfdx0+t2cKoHOBbzitDDg==" />
     </item>
   </channel>
 </rss>
