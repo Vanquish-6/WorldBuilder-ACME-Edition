@@ -137,7 +137,7 @@
             <StackPanel Spacing="8">
                 <TextBlock Text="Auto-Scale All Progression Tables"
                            FontSize="12" FontWeight="SemiBold" Foreground="#c0b0d8" />
-                <TextBlock Text="Generates XP curves for levels, attributes, vitals, and skills using the same power formula. Costs are proportional: attributes ~25%, vitals ~20%, trained skills ~33%, specialized ~20% of level XP."
+                <TextBlock Text="Preserves the default 1–275 levels and base rank tables (190 attr / 196 vital / 226 skill) verbatim from the loaded DAT. Only levels and ranks beyond those defaults are generated using the power formula below. Costs are proportional: attributes ~25%, vitals ~20%, trained skills ~33%, specialized ~20% of level XP."
                            FontSize="10" Foreground="#8a7a9e" TextWrapping="Wrap" MaxWidth="700" />
                 <WrapPanel Orientation="Horizontal">
                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,16,4">
@@ -187,7 +187,7 @@
                     <Button Classes="toolbar-btn"
                             Content="Generate All"
                             Command="{Binding GenerateAutoScaleCommand}"
-                            ToolTip.Tip="Replace ALL progression tables with generated curves"
+                            ToolTip.Tip="Preserve base 1–275 levels and default ranks; generate extended levels/ranks using the power curve"
                             Foreground="#6ec07a"
                             VerticalAlignment="Center" />
                 </WrapPanel>

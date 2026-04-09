@@ -205,15 +205,6 @@ namespace WorldBuilder.Editors.Experience {
                 StatusText = "Credits-every-N must be >= 1"; return;
             }
 
-            // Levels + Skill Credits
-            Levels.Clear();
-            for (int i = 0; i < totalLevels; i++) {
-                ulong xp = SafePow(baseXp, exponent, i);
-                uint credits = (i > 0 && i % creditsEveryN == 0) ? 1u : 0u;
-                Levels.Add(new LevelRow(i, xp.ToString(), credits.ToString()));
-            }
-
-            // Attribute, Vital, Skill rank tables
             int attrRanks = 190, vitalRanks = 196, skillRanks = 226;
             int.TryParse(AutoScaleAttributeRanks, out attrRanks);
             int.TryParse(AutoScaleVitalRanks, out vitalRanks);
@@ -222,31 +213,133 @@ namespace WorldBuilder.Editors.Experience {
             if (vitalRanks < 1) vitalRanks = 196;
             if (skillRanks < 1) skillRanks = 226;
 
+            // Base counts that are preserved verbatim from the loaded DAT table
+            const int baseDefaultLevels = 275;
+            const int baseDefaultAttrRanks = 190;
+            const int baseDefaultVitalRanks = 196;
+            const int baseDefaultSkillRanks = 226;
+
+            // Levels + Skill Credits:
+            // Copy the base 1-275 rows from the loaded table unchanged; only generate beyond that.
+            Levels.Clear();
+            int baseLevelCopy = Math.Min(baseDefaultLevels, totalLevels);
+            for (int i = 0; i < baseLevelCopy; i++) {
+                if (_table != null && i < _table.Levels.Length) {
+                    var credits = i < _table.SkillCredits.Length ? _table.SkillCredits[i].ToString() : "0";
+                    Levels.Add(new LevelRow(i, _table.Levels[i].ToString(), credits));
+                }
+                else {
+                    ulong xp = SafePow(baseXp, exponent, i);
+                    uint credits = (i > 0 && i % creditsEveryN == 0) ? 1u : 0u;
+                    Levels.Add(new LevelRow(i, xp.ToString(), credits.ToString()));
+                }
+            }
+            // Fit the effective base from the last preserved retail level so the power curve
+            // continues at the scale the retail data already defines, not from baseXp.
+            // effectiveBase = retail[274] / 274^exp  →  level[i] = effectiveBase * i^exp
+            double effectiveLevelBase = baseXp;
+            if (_table != null && baseLevelCopy > 1) {
+                int lastLevelIdx = baseLevelCopy - 1;
+                if (lastLevelIdx > 0 && lastLevelIdx < _table.Levels.Length && _table.Levels[lastLevelIdx] > 0)
+                    effectiveLevelBase = (double)_table.Levels[lastLevelIdx] / Math.Pow(lastLevelIdx, exponent);
+            }
+            for (int i = baseLevelCopy; i < totalLevels; i++) {
+                double val = effectiveLevelBase * Math.Pow(i, exponent);
+                ulong xp = val > (double)ulong.MaxValue ? ulong.MaxValue : (ulong)val;
+                uint credits = (i % creditsEveryN == 0) ? 1u : 0u;
+                Levels.Add(new LevelRow(i, xp.ToString(), credits.ToString()));
+            }
+
+            // Attribute ranks: copy base 190 ranks, extend with curve fitted to last retail rank
             double attrBase = baseXp * 0.25;
             var newAttrs = new ObservableCollection<XpRow>();
-            for (int i = 0; i < attrRanks; i++)
-                newAttrs.Add(new XpRow(i, SafePowUint(attrBase, exponent, i).ToString()));
+            int baseAttrCopy = Math.Min(baseDefaultAttrRanks, attrRanks);
+            for (int i = 0; i < baseAttrCopy; i++) {
+                if (_table != null && i < _table.Attributes.Length)
+                    newAttrs.Add(new XpRow(i, _table.Attributes[i].ToString()));
+                else
+                    newAttrs.Add(new XpRow(i, SafePowUint(attrBase, exponent, i).ToString()));
+            }
+            double effectiveAttrBase = attrBase;
+            if (_table != null && baseAttrCopy > 1) {
+                int lastIdx = baseAttrCopy - 1;
+                if (lastIdx > 0 && lastIdx < _table.Attributes.Length && _table.Attributes[lastIdx] > 0)
+                    effectiveAttrBase = (double)_table.Attributes[lastIdx] / Math.Pow(lastIdx, exponent);
+            }
+            for (int i = baseAttrCopy; i < attrRanks; i++) {
+                double val = effectiveAttrBase * Math.Pow(i, exponent);
+                newAttrs.Add(new XpRow(i, (val > uint.MaxValue ? uint.MaxValue : (uint)val).ToString()));
+            }
             Attributes = newAttrs;
 
+            // Vital ranks: copy base 196 ranks, extend with curve fitted to last retail rank
             double vitalBase = baseXp * 0.2;
             var newVitals = new ObservableCollection<XpRow>();
-            for (int i = 0; i < vitalRanks; i++)
-                newVitals.Add(new XpRow(i, SafePowUint(vitalBase, exponent, i).ToString()));
+            int baseVitalCopy = Math.Min(baseDefaultVitalRanks, vitalRanks);
+            for (int i = 0; i < baseVitalCopy; i++) {
+                if (_table != null && i < _table.Vitals.Length)
+                    newVitals.Add(new XpRow(i, _table.Vitals[i].ToString()));
+                else
+                    newVitals.Add(new XpRow(i, SafePowUint(vitalBase, exponent, i).ToString()));
+            }
+            double effectiveVitalBase = vitalBase;
+            if (_table != null && baseVitalCopy > 1) {
+                int lastIdx = baseVitalCopy - 1;
+                if (lastIdx > 0 && lastIdx < _table.Vitals.Length && _table.Vitals[lastIdx] > 0)
+                    effectiveVitalBase = (double)_table.Vitals[lastIdx] / Math.Pow(lastIdx, exponent);
+            }
+            for (int i = baseVitalCopy; i < vitalRanks; i++) {
+                double val = effectiveVitalBase * Math.Pow(i, exponent);
+                newVitals.Add(new XpRow(i, (val > uint.MaxValue ? uint.MaxValue : (uint)val).ToString()));
+            }
             Vitals = newVitals;
 
+            // Trained skill ranks: copy base 226 ranks, extend with curve fitted to last retail rank
             double trainedBase = baseXp * 0.33;
             var newTrained = new ObservableCollection<XpRow>();
-            for (int i = 0; i < skillRanks; i++)
-                newTrained.Add(new XpRow(i, SafePowUint(trainedBase, exponent, i).ToString()));
+            int baseSkillCopy = Math.Min(baseDefaultSkillRanks, skillRanks);
+            for (int i = 0; i < baseSkillCopy; i++) {
+                if (_table != null && i < _table.TrainedSkills.Length)
+                    newTrained.Add(new XpRow(i, _table.TrainedSkills[i].ToString()));
+                else
+                    newTrained.Add(new XpRow(i, SafePowUint(trainedBase, exponent, i).ToString()));
+            }
+            double effectiveTrainedBase = trainedBase;
+            if (_table != null && baseSkillCopy > 1) {
+                int lastIdx = baseSkillCopy - 1;
+                if (lastIdx > 0 && lastIdx < _table.TrainedSkills.Length && _table.TrainedSkills[lastIdx] > 0)
+                    effectiveTrainedBase = (double)_table.TrainedSkills[lastIdx] / Math.Pow(lastIdx, exponent);
+            }
+            for (int i = baseSkillCopy; i < skillRanks; i++) {
+                double val = effectiveTrainedBase * Math.Pow(i, exponent);
+                newTrained.Add(new XpRow(i, (val > uint.MaxValue ? uint.MaxValue : (uint)val).ToString()));
+            }
             TrainedSkills = newTrained;
 
+            // Specialized skill ranks: copy base 226 ranks, extend with curve fitted to last retail rank
             double specBase = baseXp * 0.2;
             var newSpec = new ObservableCollection<XpRow>();
-            for (int i = 0; i < skillRanks; i++)
-                newSpec.Add(new XpRow(i, SafePowUint(specBase, exponent, i).ToString()));
+            for (int i = 0; i < baseSkillCopy; i++) {
+                if (_table != null && i < _table.SpecializedSkills.Length)
+                    newSpec.Add(new XpRow(i, _table.SpecializedSkills[i].ToString()));
+                else
+                    newSpec.Add(new XpRow(i, SafePowUint(specBase, exponent, i).ToString()));
+            }
+            double effectiveSpecBase = specBase;
+            if (_table != null && baseSkillCopy > 1) {
+                int lastIdx = baseSkillCopy - 1;
+                if (lastIdx > 0 && lastIdx < _table.SpecializedSkills.Length && _table.SpecializedSkills[lastIdx] > 0)
+                    effectiveSpecBase = (double)_table.SpecializedSkills[lastIdx] / Math.Pow(lastIdx, exponent);
+            }
+            for (int i = baseSkillCopy; i < skillRanks; i++) {
+                double val = effectiveSpecBase * Math.Pow(i, exponent);
+                newSpec.Add(new XpRow(i, (val > uint.MaxValue ? uint.MaxValue : (uint)val).ToString()));
+            }
             SpecializedSkills = newSpec;
 
-            StatusText = $"Generated all: {totalLevels} levels, {attrRanks} attr, {vitalRanks} vital, {skillRanks} skill ranks";
+            int extendedLevels = Math.Max(0, totalLevels - baseDefaultLevels);
+            StatusText = $"Generated: {totalLevels} levels ({baseLevelCopy} preserved + {extendedLevels} new), " +
+                         $"{attrRanks} attr, {vitalRanks} vital, {skillRanks} skill ranks";
         }
 
         private ObservableCollection<XpRow>? GetActiveRankCollection() {
