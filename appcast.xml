@@ -5,9 +5,10 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+275</title>
+      <title>WorldBuilder 0.1.0+276</title>
       <description>## Changes
 
+- fix xp auto scale for my bff ([4ee4211](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/4ee4211bb2fa51241c7660ff7f4416f406f72eb7))
 - monster editor improvements ([92fafff](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/92fafffc74d34e1aa42b00b5a13a1cae44207e1c))
 - fix buildings - again... add new monster builder *thx Derpy for how to do it so could make easier - random stuff people can find ([239c0c1](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/239c0c13955e7439ddcb2beb93b19734ab478b3d))
 - Dungeon editor: per-static scale, surface alignment, hover/placement indicators, and incremental static transform updates ([33709a5](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/33709a57ca905bceb9e969545e960d878afb8520))
@@ -56,13 +57,12 @@
 - Release setup: ACME-WorldBuilderInstall.exe, logo, work flows ([8b40a7d](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/8b40a7d4f948eee779635b7cd3ebed1a03135480))
 - Update README with all current features and beta disclaimer ([e593725](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e593725dcb01ec1d0e180f54d6c316aa4babb27d))
 - Add demo recording system for promo videos ([984adef](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/984adef09d8afe71171f67ffc9e670635599372d))
-- Add spell, skill, vital, experience, chargen, spellset, and layout editors ([71a37e7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/71a37e76ec3b24fda848f775cd24ae5fb0e49946))
-- Upgrade DatReaderWriter to 2.1.2, fix portal rendering pipeline and texture export ([c96fff1](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/c96fff135184c3013d7e86432d88f5666b3982f0))</description>
-      <pubDate>Thu, 09 Apr 2026 22:07:22 +00:00</pubDate>
-      <sparkle:version>0.1.0+275</sparkle:version>
+- Add spell, skill, vital, experience, chargen, spellset, and layout editors ([71a37e7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/71a37e76ec3b24fda848f775cd24ae5fb0e49946))</description>
+      <pubDate>Thu, 09 Apr 2026 22:21:37 +00:00</pubDate>
+      <sparkle:version>0.1.0+276</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B275.exe" sparkle:version="0.1.0+275" sparkle:shortVersionString="0.1.0" length="23717367" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="9TJxVabDP197CJVt9C7T6UMXj3xPw5yf2Tps0pIuUYNZTBb4VcYpMSQT+MhqR0WvuYfdx0+t2cKoHOBbzitDDg==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B276.exe" sparkle:version="0.1.0+276" sparkle:shortVersionString="0.1.0" length="23718479" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="AIUe/j62282jW2zQYmfsGWqs6+eAhnl4HYgPaGsQQvyWHS9tlKJd1seGfhIwsJboDJ0n/FuzjORzzLctmkI2CA==" />
     </item>
   </channel>
 </rss>
