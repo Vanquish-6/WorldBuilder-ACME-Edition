@@ -2,19 +2,23 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DatReaderWriter.DBObjs;
 using DatReaderWriter.Enums;
+using DatReaderWriter.Types;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using WorldBuilder.Lib;
 using WorldBuilder.Lib.Settings;
+using WorldBuilder.Services;
 using WorldBuilder.Shared.Lib;
 using WorldBuilder.Shared.Lib.AceDb;
 using WorldBuilder.Shared.Models;
@@ -93,14 +97,19 @@ namespace WorldBuilder.Editors.Monster {
     public partial class MonsterEditorViewModel : ViewModelBase {
         private Project? _project;
         private IDatReaderWriter? _dats;
+        private readonly TextureImportService? _textureImport;
 
         private uint[] _allTextureIds = Array.Empty<uint>();
         private int _browserDisplayCount = 300;
 
         public WorldBuilderSettings Settings { get; }
 
-        public MonsterEditorViewModel(WorldBuilderSettings settings) {
+        /// <summary>True when a TextureImportService is available (project is open with write support).</summary>
+        public bool CanImportTexture => _textureImport != null;
+
+        public MonsterEditorViewModel(WorldBuilderSettings settings, TextureImportService? textureImport = null) {
             Settings = settings;
+            _textureImport = textureImport;
         }
 
         // Creature picker
@@ -121,6 +130,7 @@ namespace WorldBuilder.Editors.Monster {
         [ObservableProperty] private Dictionary<uint, uint>? _previewTextureOverrides;
         [ObservableProperty] private HashSet<int>? _previewHiddenParts;
         [ObservableProperty] private Dictionary<int, uint>? _previewGfxObjRemapping;
+        [ObservableProperty] private DatReaderWriter.Types.ColorARGB[]? _previewCreaturePalette;
 
         // Donor creature (mix & match parts)
         [ObservableProperty] private string _donorSearchText = "";
@@ -199,13 +209,14 @@ namespace WorldBuilder.Editors.Monster {
             // Load DB overrides first so we can match them when DAT parts arrive
             List<AceTextureMapRow>? dbTexRows = null;
             List<AceAnimPartRow>? dbAnimRows = null;
+            AceCreatureOverrides? overrides = null;
 
             if (Settings?.AceDbConnection != null) {
                 StatusText = $"Loading overrides for WCID {entry.ClassId}…";
                 try {
                     var aceSettings = Settings.AceDbConnection.ToAceDbSettings();
                     using var connector = new AceDbConnector(aceSettings);
-                    var overrides = await connector.LoadCreatureOverridesAsync(entry.ClassId);
+                    overrides = await connector.LoadCreatureOverridesAsync(entry.ClassId);
                     dbTexRows = overrides.TextureMap;
                     dbAnimRows = overrides.AnimParts;
                     StatusText = $"{entry.Name} — WCID {entry.ClassId}";
@@ -214,6 +225,11 @@ namespace WorldBuilder.Editors.Monster {
             }
 
             await LoadDatPartsAsync(entry.SetupId, dbTexRows, dbAnimRows);
+
+            // Build creature palette from ClothingBase + PaletteTemplate + Shade in background
+            if (overrides != null)
+                _ = BuildAndApplyCreaturePaletteAsync(overrides);
+
             RegenerateSql();
         }
 
@@ -236,30 +252,59 @@ namespace WorldBuilder.Editors.Monster {
                     return (null, $"Setup 0x{setupDid:X8} not found in DAT.");
 
                 for (int i = 0; i < setup.Parts.Count; i++) {
-                    uint gfxObjId = setup.Parts[i];
-                    if (!dats.TryGet<GfxObj>(gfxObjId, out var gfxObj) || gfxObj?.Polygons == null) continue;
+                    uint originalGfxObjId = setup.Parts[i];
 
-                    var group = new PartGroupVm { PartIndex = (byte)i, GfxObjId = gfxObjId };
-                    var seen = new HashSet<uint>();
+                    // If the DB already has a non-hide anim_part for this index, load surfaces
+                    // from that GfxObj so texture slot old_Ids match weenie_properties_texture_map.
+                    var animOverride = dbAnimRows?.FirstOrDefault(
+                        r => r.Index == i && r.AnimationId != 0x010001EC);
+                    uint effectiveGfxObjId = animOverride?.AnimationId ?? originalGfxObjId;
+
+                    if (!dats.TryGet<GfxObj>(effectiveGfxObjId, out var gfxObj) || gfxObj?.Polygons == null) {
+                        if (effectiveGfxObjId != originalGfxObjId &&
+                            dats.TryGet<GfxObj>(originalGfxObjId, out gfxObj) && gfxObj?.Polygons != null) {
+                            effectiveGfxObjId = originalGfxObjId;
+                        }
+                        else continue;
+                    }
+
+                    var group = new PartGroupVm { PartIndex = (byte)i, GfxObjId = originalGfxObjId };
+
+                    // Pre-populate the donor field so the UI and SQL reflect the existing override.
+                    if (animOverride != null) {
+                        group.DonorGfxObjHex = "0x" + animOverride.AnimationId.ToString("X8", CultureInfo.InvariantCulture);
+                        group.DonorLabel = animOverride.Comment.Length > 0
+                            ? animOverride.Comment
+                            : $"0x{animOverride.AnimationId:X8}";
+                    }
+
+                    var seenSurfaces = new HashSet<uint>();  // Surface DIDs (0x08...)
+                    var seenTextures = new HashSet<uint>();  // SurfaceTexture IDs — one slot per unique old_Id
 
                     foreach (var poly in gfxObj.Polygons.Values) {
-                        if (poly.Stippling == StipplingType.NoPos) continue;
-                        int si = poly.PosSurface;
-                        if (si < 0 || si >= gfxObj.Surfaces.Count) continue;
+                        // Walk both polygon sides so NegSurface (e.g. "Torso back") is not missed.
+                        for (int side = 0; side < 2; side++) {
+                            bool isNeg = side == 1;
+                            if (isNeg  && poly.Stippling == StipplingType.NoNeg) continue;
+                            if (!isNeg && poly.Stippling == StipplingType.NoPos) continue;
 
-                        uint surfaceId = gfxObj.Surfaces[si]; // 0x08...
-                        if (!seen.Add(surfaceId)) continue;
+                            int si = isNeg ? poly.NegSurface : poly.PosSurface;
+                            if (si < 0 || si >= gfxObj.Surfaces.Count) continue;
 
-                        if (!dats.TryGet<Surface>(surfaceId, out var surface) || surface == null) continue;
-                        if (surface.Type.HasFlag(SurfaceType.Base1Solid)) continue;
+                            uint surfaceId = gfxObj.Surfaces[si]; // 0x08...
+                            if (!seenSurfaces.Add(surfaceId)) continue;
 
-                        uint texId = surface.OrigTextureId; // 0x05... — this is old_Id in texture_map
-                        if (texId == 0) continue;
+                            if (!dats.TryGet<Surface>(surfaceId, out var surface) || surface == null) continue;
+                            if (surface.Type.HasFlag(SurfaceType.Base1Solid)) continue;
 
-                        group.Surfaces.Add(new SurfaceOverrideVm {
-                            PartIndex = (byte)i,
-                            OriginalTextureId = texId,
-                        });
+                            uint texId = surface.OrigTextureId; // 0x05... — this is old_Id in texture_map
+                            if (texId == 0 || !seenTextures.Add(texId)) continue;
+
+                            group.Surfaces.Add(new SurfaceOverrideVm {
+                                PartIndex = (byte)i,
+                                OriginalTextureId = texId,
+                            });
+                        }
                     }
 
                     if (group.Surfaces.Count > 0)
@@ -278,11 +323,13 @@ namespace WorldBuilder.Editors.Monster {
             }
 
             foreach (var group in result.Item1) {
-                // Apply matching DB anim_part overrides
+                // Hide flag: anim_part row with the sentinel "invisible" GfxObj
                 if (dbAnimRows?.Any(r => r.Index == group.PartIndex && r.AnimationId == 0x010001EC) == true)
                     group.IsRemoved = true;
 
-                // Apply matching DB texture overrides
+                // Apply matching DB texture overrides.
+                // Surfaces are already keyed to the effective (possibly donor-overridden) GfxObj,
+                // so old_Ids here will correctly match weenie_properties_texture_map entries.
                 foreach (var surf in group.Surfaces) {
                     var match = dbTexRows?.FirstOrDefault(r => r.Index == surf.PartIndex && r.OldId == surf.OriginalTextureId);
                     if (match != null) {
@@ -338,7 +385,13 @@ namespace WorldBuilder.Editors.Monster {
             }
             var dats = _dats;
             if (dats == null) return;
-            var bmp = await Task.Run(() => DatIconLoader.LoadSurfaceTextureIcon(dats, id, 64));
+            var customEntry = _textureImport?.Store.GetDungeonSurfaces()
+                .FirstOrDefault(e => e.SurfaceTextureGid == id);
+            WriteableBitmap? bmp;
+            if (customEntry != null && _textureImport != null)
+                bmp = await Task.Run(() => _textureImport.GenerateThumbnail(customEntry, 64));
+            else
+                bmp = await Task.Run(() => DatIconLoader.LoadSurfaceTextureIcon(dats, id, 64));
             surf.ReplacementThumbnail = bmp;
         }
 
@@ -428,18 +481,23 @@ namespace WorldBuilder.Editors.Monster {
                     uint gfxObjId = setup.Parts[i];
                     if (!dats.TryGet<GfxObj>(gfxObjId, out var gfxObj) || gfxObj?.Polygons == null) continue;
                     var group = new PartGroupVm { PartIndex = (byte)i, GfxObjId = gfxObjId };
-                    var seen = new HashSet<uint>();
+                    var seenSurfaces = new HashSet<uint>();
+                    var seenTextures = new HashSet<uint>();
                     foreach (var poly in gfxObj.Polygons.Values) {
-                        if (poly.Stippling == StipplingType.NoPos) continue;
-                        int si = poly.PosSurface;
-                        if (si < 0 || si >= gfxObj.Surfaces.Count) continue;
-                        uint surfaceId = gfxObj.Surfaces[si];
-                        if (!seen.Add(surfaceId)) continue;
-                        if (!dats.TryGet<Surface>(surfaceId, out var surface) || surface == null) continue;
-                        if (surface.Type.HasFlag(SurfaceType.Base1Solid)) continue;
-                        uint texId = surface.OrigTextureId;
-                        if (texId == 0) continue;
-                        group.Surfaces.Add(new SurfaceOverrideVm { PartIndex = (byte)i, OriginalTextureId = texId });
+                        for (int side = 0; side < 2; side++) {
+                            bool isNeg = side == 1;
+                            if (isNeg  && poly.Stippling == StipplingType.NoNeg) continue;
+                            if (!isNeg && poly.Stippling == StipplingType.NoPos) continue;
+                            int si = isNeg ? poly.NegSurface : poly.PosSurface;
+                            if (si < 0 || si >= gfxObj.Surfaces.Count) continue;
+                            uint surfaceId = gfxObj.Surfaces[si];
+                            if (!seenSurfaces.Add(surfaceId)) continue;
+                            if (!dats.TryGet<Surface>(surfaceId, out var surface) || surface == null) continue;
+                            if (surface.Type.HasFlag(SurfaceType.Base1Solid)) continue;
+                            uint texId = surface.OrigTextureId;
+                            if (texId == 0 || !seenTextures.Add(texId)) continue;
+                            group.Surfaces.Add(new SurfaceOverrideVm { PartIndex = (byte)i, OriginalTextureId = texId });
+                        }
                     }
                     if (group.Surfaces.Count > 0) groups.Add(group);
                 }
@@ -483,6 +541,7 @@ namespace WorldBuilder.Editors.Monster {
         /// <summary>
         /// Applies the currently selected donor part's GfxObj to the given target part
         /// — regardless of part index. This is what enables cross-index mixing.
+        /// Rebuilds the part's surface slots from the donor GfxObj so texture overrides work.
         /// </summary>
         [RelayCommand]
         private void ApplySelectedDonorToPart(PartGroupVm? targetGroup) {
@@ -493,6 +552,7 @@ namespace WorldBuilder.Editors.Monster {
             RebuildPreviewOverrides();
             RegenerateSql();
             StatusText = $"Applied {SelectedDonorWeenie?.Name} Part {SelectedDonorPart.PartIndex} ({SelectedDonorPart.GfxObjLabel}) → Part {targetGroup.PartIndex}";
+            _ = ReloadGroupSurfacesAsync(targetGroup, SelectedDonorPart.GfxObjId);
         }
 
         [RelayCommand]
@@ -502,6 +562,55 @@ namespace WorldBuilder.Editors.Monster {
             group.DonorLabel = "";
             RebuildPreviewOverrides();
             RegenerateSql();
+            // Restore surfaces from the original GfxObj
+            _ = ReloadGroupSurfacesAsync(group, group.GfxObjId);
+        }
+
+        /// <summary>
+        /// Rebuilds the surface slots for <paramref name="group"/> from the given GfxObj.
+        /// Called after a donor part is applied or cleared so texture overrides always
+        /// reference the texture IDs that are actually rendered.
+        /// </summary>
+        async Task ReloadGroupSurfacesAsync(PartGroupVm group, uint gfxObjId) {
+            if (_dats == null || gfxObjId == 0) return;
+            var dats = _dats;
+
+            var surfaces = await Task.Run(() => {
+                var result = new List<SurfaceOverrideVm>();
+                if (!dats.TryGet<GfxObj>(gfxObjId, out var gfxObj) || gfxObj?.Polygons == null)
+                    return result;
+
+                var seenSurfaces = new HashSet<uint>();
+                var seenTextures = new HashSet<uint>();
+
+                foreach (var poly in gfxObj.Polygons.Values) {
+                    for (int side = 0; side < 2; side++) {
+                        bool isNeg = side == 1;
+                        if (isNeg  && poly.Stippling == StipplingType.NoNeg) continue;
+                        if (!isNeg && poly.Stippling == StipplingType.NoPos) continue;
+                        int si = isNeg ? poly.NegSurface : poly.PosSurface;
+                        if (si < 0 || si >= gfxObj.Surfaces.Count) continue;
+                        uint surfaceId = gfxObj.Surfaces[si];
+                        if (!seenSurfaces.Add(surfaceId)) continue;
+                        if (!dats.TryGet<Surface>(surfaceId, out var surface) || surface == null) continue;
+                        if (surface.Type.HasFlag(SurfaceType.Base1Solid)) continue;
+                        uint texId = surface.OrigTextureId;
+                        if (texId == 0 || !seenTextures.Add(texId)) continue;
+                        result.Add(new SurfaceOverrideVm { PartIndex = group.PartIndex, OriginalTextureId = texId });
+                    }
+                }
+                return result;
+            });
+
+            group.Surfaces.Clear();
+            foreach (var surf in surfaces) {
+                SubscribeSurface(surf);
+                group.Surfaces.Add(surf);
+            }
+
+            RebuildPreviewOverrides();
+            RegenerateSql();
+            _ = LoadOriginalThumbnailsAsync();
         }
 
         // ─── Preview / SQL ────────────────────────────────────────────────────
@@ -641,9 +750,83 @@ namespace WorldBuilder.Editors.Monster {
             PreviewTextureOverrides = null;
             PreviewHiddenParts = null;
             PreviewGfxObjRemapping = null;
+            PreviewCreaturePalette = null;
             PartGroups.Clear();
             DatPartsStatus = "Select a creature to load its body parts.";
             SqlOutput = "";
+        }
+
+        // ─── Palette Building ─────────────────────────────────────────────────
+
+        async Task BuildAndApplyCreaturePaletteAsync(AceCreatureOverrides overrides) {
+            var dats = _dats;
+            if (dats == null) return;
+            var palette = await Task.Run(() => BuildCreaturePalette(dats, overrides));
+            PreviewCreaturePalette = palette;
+        }
+
+        static ColorARGB[]? BuildCreaturePalette(IDatReaderWriter dats, AceCreatureOverrides overrides) {
+            if (overrides.PaletteBase == 0) return null;
+
+            if (!dats.TryGet<Palette>(overrides.PaletteBase, out var basePalette) || basePalette?.Colors == null)
+                return null;
+
+            // Copy base palette into a working array
+            var palette = new ColorARGB[basePalette.Colors.Count];
+            for (int i = 0; i < basePalette.Colors.Count; i++)
+                palette[i] = basePalette.Colors[i];
+
+            // Apply ClothingBase sub-palette effects
+            if (overrides.ClothingBase != 0 &&
+                dats.TryGet<ClothingTable>(overrides.ClothingBase, out var clothingTable) &&
+                clothingTable?.ClothingSubPalEffects != null) {
+
+                float shade = overrides.Shade > 0f ? overrides.Shade : 1f;
+
+                foreach (var kvp in clothingTable.ClothingSubPalEffects) {
+                    foreach (var subPalette in kvp.Value.CloSubPalettes) {
+                        uint palSetId = subPalette.PaletteSet.DataId;
+                        if (!dats.TryGet<PalSet>(palSetId, out var palSet) || palSet?.Palettes == null)
+                            continue;
+
+                        int templateIdx = overrides.PaletteTemplate;
+                        if (templateIdx < 0 || templateIdx >= palSet.Palettes.Count) continue;
+
+                        uint subPalDid = palSet.Palettes[templateIdx].DataId;
+                        if (!dats.TryGet<Palette>(subPalDid, out var subPal) || subPal?.Colors == null)
+                            continue;
+
+                        foreach (var range in subPalette.Ranges) {
+                            int destOffset = (int)range.Offset;
+                            int numColors = (int)range.NumColors;
+                            for (int i = 0; i < numColors; i++) {
+                                if (i >= subPal.Colors.Count) break;
+                                if (destOffset + i >= palette.Length) break;
+                                var src = subPal.Colors[i];
+                                palette[destOffset + i] = new ColorARGB {
+                                    Red = (byte)Math.Min(255, (int)(src.Red * shade)),
+                                    Green = (byte)Math.Min(255, (int)(src.Green * shade)),
+                                    Blue = (byte)Math.Min(255, (int)(src.Blue * shade)),
+                                    Alpha = src.Alpha,
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Apply explicit weenie_properties_palette overrides
+            foreach (var row in overrides.PaletteOverrides) {
+                if (!dats.TryGet<Palette>(row.SubPaletteId, out var subPal) || subPal?.Colors == null)
+                    continue;
+                for (int i = 0; i < (int)row.Length; i++) {
+                    if (i >= subPal.Colors.Count) break;
+                    if (row.Offset + i >= (uint)palette.Length) break;
+                    palette[row.Offset + i] = subPal.Colors[i];
+                }
+            }
+
+            return palette;
         }
 
         // ─── Texture Browser ─────────────────────────────────────────────────
@@ -659,6 +842,14 @@ namespace WorldBuilder.Editors.Monster {
                 }
                 catch { return Array.Empty<uint>(); }
             });
+
+            // Merge any already-imported custom SurfaceTexture GIDs
+            if (_textureImport != null) {
+                var customIds = _textureImport.Store.GetDungeonSurfaces()
+                    .Select(e => e.SurfaceTextureGid)
+                    .Where(id => id != 0);
+                ids = ids.Concat(customIds).Distinct().OrderBy(id => id).ToArray();
+            }
 
             _allTextureIds = ids;
             BrowserStatus = $"{ids.Length} textures loaded.";
@@ -692,7 +883,13 @@ namespace WorldBuilder.Editors.Monster {
             foreach (var item in items.ToArray()) {
                 if (item.Thumbnail != null) continue;
                 var id = item.FullId;
-                var bmp = await Task.Run(() => DatIconLoader.LoadSurfaceTextureIcon(dats, id, 56));
+                var customEntry = _textureImport?.Store.GetDungeonSurfaces()
+                    .FirstOrDefault(e => e.SurfaceTextureGid == id);
+                WriteableBitmap? bmp;
+                if (customEntry != null && _textureImport != null)
+                    bmp = await Task.Run(() => _textureImport.GenerateThumbnail(customEntry, 56));
+                else
+                    bmp = await Task.Run(() => DatIconLoader.LoadSurfaceTextureIcon(dats, id, 56));
                 item.Thumbnail = bmp;
             }
         }
@@ -701,6 +898,52 @@ namespace WorldBuilder.Editors.Monster {
         private void LoadMoreBrowser() {
             _browserDisplayCount += 300;
             ApplyBrowserFilter();
+        }
+
+        [RelayCommand]
+        private async Task ImportTextureAsync() {
+            if (_textureImport == null) return;
+            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop
+                || desktop.MainWindow == null) return;
+            var topLevel = TopLevel.GetTopLevel(desktop.MainWindow);
+            if (topLevel == null) return;
+
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
+                Title = "Import Texture",
+                AllowMultiple = false,
+                FileTypeFilter = new[] {
+                    new FilePickerFileType("Image Files") {
+                        Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.bmp" }
+                    }
+                }
+            });
+
+            if (files.Count == 0) return;
+            var localPath = files[0].TryGetLocalPath();
+            if (localPath == null) return;
+
+            try {
+                var name = Path.GetFileNameWithoutExtension(localPath);
+                var entry = _textureImport.ImportDungeonSurface(localPath, name);
+                var stGid = entry.SurfaceTextureGid;
+
+                // Merge the new SurfaceTexture GID into the browser list
+                if (stGid != 0 && !_allTextureIds.Contains(stGid))
+                    _allTextureIds = _allTextureIds.Append(stGid).OrderBy(id => id).ToArray();
+
+                _browserDisplayCount = Math.Max(_browserDisplayCount, _allTextureIds.Length);
+                ApplyBrowserFilter();
+
+                // Auto-apply to the active slot
+                if (ActiveSlot != null && stGid != 0)
+                    ActiveSlot.ReplacementHex = "0x" + stGid.ToString("X8", CultureInfo.InvariantCulture);
+
+                StatusText = $"Imported '{name}' as 0x{stGid:X8} — will be written to DAT on export.";
+                Console.WriteLine($"[MonsterEditor] Imported texture '{name}' ST=0x{stGid:X8}");
+            }
+            catch (Exception ex) {
+                StatusText = $"Import failed: {ex.Message}";
+            }
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────

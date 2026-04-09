@@ -5,6 +5,7 @@ using Chorizite.OpenGLSDLBackend;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using WorldBuilder.Editors.Landscape;
 using WorldBuilder.Editors.ObjectDebug.ViewModels;
@@ -33,6 +34,9 @@ namespace WorldBuilder.Editors.Monster.Views {
         public static readonly StyledProperty<Dictionary<int, uint>?> GfxObjRemappingProperty =
             AvaloniaProperty.Register<MonsterPreviewView, Dictionary<int, uint>?>(nameof(GfxObjRemapping));
 
+        public static readonly StyledProperty<DatReaderWriter.Types.ColorARGB[]?> CreaturePaletteProperty =
+            AvaloniaProperty.Register<MonsterPreviewView, DatReaderWriter.Types.ColorARGB[]?>(nameof(CreaturePalette));
+
         public uint SetupDid {
             get => GetValue(SetupDidProperty);
             set => SetValue(SetupDidProperty, value);
@@ -53,6 +57,11 @@ namespace WorldBuilder.Editors.Monster.Views {
             set => SetValue(GfxObjRemappingProperty, value);
         }
 
+        public DatReaderWriter.Types.ColorARGB[]? CreaturePalette {
+            get => GetValue(CreaturePaletteProperty);
+            set => SetValue(CreaturePaletteProperty, value);
+        }
+
         private ObjectDebugViewModel? _vm;
         private IDatReaderWriter? _dats;
         private StaticObjectManager? _staticObjectManager;
@@ -64,12 +73,14 @@ namespace WorldBuilder.Editors.Monster.Views {
         /// <summary>Cached copy of HiddenPartIndices safe to read from the GL render thread.</summary>
         private HashSet<int>? _cachedHiddenPartIndices;
         private Dictionary<int, uint>? _cachedGfxObjRemapping;
+        private DatReaderWriter.Types.ColorARGB[]? _cachedCreaturePalette;
 
         static MonsterPreviewView() {
             SetupDidProperty.Changed.AddClassHandler<MonsterPreviewView>((v, _) => v.OnSetupDidChanged());
             TextureOverridesProperty.Changed.AddClassHandler<MonsterPreviewView>((v, _) => v.OnTextureOverridesChanged());
             HiddenPartIndicesProperty.Changed.AddClassHandler<MonsterPreviewView>((v, _) => v.OnHiddenPartIndicesChanged());
             GfxObjRemappingProperty.Changed.AddClassHandler<MonsterPreviewView>((v, _) => v.OnGfxObjRemappingChanged());
+            CreaturePaletteProperty.Changed.AddClassHandler<MonsterPreviewView>((v, _) => v.OnCreaturePaletteChanged());
         }
 
         public MonsterPreviewView() {
@@ -98,11 +109,19 @@ namespace WorldBuilder.Editors.Monster.Views {
             ApplyAllOverrides();
         }
 
+        void OnCreaturePaletteChanged() {
+            _cachedCreaturePalette = CreaturePalette;
+            if (_staticObjectManager != null)
+                _staticObjectManager.CreaturePalette = _cachedCreaturePalette;
+            ApplyAllOverrides();
+        }
+
         void ApplyAllOverrides() {
             if (_staticObjectManager == null) return;
             _staticObjectManager.TextureRemapping = _cachedTextureOverrides;
             _staticObjectManager.HiddenPartIndices = _cachedHiddenPartIndices;
             _staticObjectManager.GfxObjRemapping = _cachedGfxObjRemapping;
+            _staticObjectManager.CreaturePalette = _cachedCreaturePalette;
             _staticObjectManager.ClearAll();
             ApplySetupDid(_cachedSetupDid);
         }
@@ -141,6 +160,21 @@ namespace WorldBuilder.Editors.Monster.Views {
             _staticObjectManager.TextureRemapping = _cachedTextureOverrides;
             _staticObjectManager.HiddenPartIndices = _cachedHiddenPartIndices;
             _staticObjectManager.GfxObjRemapping = _cachedGfxObjRemapping;
+            _staticObjectManager.CreaturePalette = _cachedCreaturePalette;
+
+            // Wire custom-texture resolver so imported textures show immediately
+            // without needing a DAT export first.
+            try {
+                var textureImport = ProjectManager.Instance.GetProjectService<WorldBuilder.Services.TextureImportService>();
+                _staticObjectManager.CustomTextureResolver = (surfTexId) => {
+                    var entry = textureImport.Store.GetDungeonSurfaces()
+                        .FirstOrDefault(e => e.SurfaceTextureGid == surfTexId);
+                    if (entry == null) return null;
+                    var rgba = textureImport.LoadTextureRgba(entry, entry.Width, entry.Height);
+                    return rgba != null ? (rgba, entry.Width, entry.Height) : null;
+                };
+            }
+            catch { }
 
             _vm!.Init(Renderer, _dats!, _staticObjectManager, ThreadSafeInvalidate);
             ApplySetupDid(_cachedSetupDid);

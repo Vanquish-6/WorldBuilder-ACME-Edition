@@ -48,6 +48,8 @@ namespace WorldBuilder.Shared.Lib {
                     Type _ when typeof(T) == typeof(SkillTable) => Dats.Portal.TryGet(id, out file),
                     Type _ when typeof(T) == typeof(VitalTable) => Dats.Portal.TryGet(id, out file),
                     Type _ when typeof(T) == typeof(CharGen) => Dats.Portal.TryGet(id, out file),
+                    Type _ when typeof(T) == typeof(ClothingTable) => Dats.Portal.TryGet(id, out file),
+                    Type _ when typeof(T) == typeof(PalSet) => Dats.Portal.TryGet(id, out file),
                     Type _ when typeof(T) == typeof(LayoutDesc) => Dats.TryGet(id, out file),
                     _ => throw new NotImplementedException($"DefaultDatReaderWriter does not currently support {typeof(T)}"),
                 };

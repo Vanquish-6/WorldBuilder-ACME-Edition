@@ -46,6 +46,21 @@ namespace WorldBuilder.Editors.Landscape {
         /// </summary>
         public Dictionary<int, uint>? GfxObjRemapping { get; set; }
 
+        /// <summary>
+        /// When set, this pre-built 256-entry RGBA palette is used instead of the DAT's
+        /// <c>DefaultPaletteId</c> when decoding INDEX16 textures. Populated by the monster
+        /// editor after applying ClothingBase sub-palette effects, Shade, and any explicit
+        /// weenie_properties_palette overrides.
+        /// </summary>
+        public DatReaderWriter.Types.ColorARGB[]? CreaturePalette { get; set; }
+
+        /// <summary>
+        /// Optional fallback for loading texture pixel data when a SurfaceTexture DID is not
+        /// present in the DAT (e.g. a custom texture imported but not yet exported).
+        /// Given the SurfaceTexture DID, returns (rgbaData, width, height) or null.
+        /// </summary>
+        public Func<uint, (byte[] Data, int Width, int Height)?>? CustomTextureResolver { get; set; }
+
         public StaticObjectManager(OpenGLRenderer renderer, IDatReaderWriter dats, TextureDiskCache? textureCache = null) {
             _renderer = renderer;
             _dats = dats;
@@ -739,6 +754,11 @@ namespace WorldBuilder.Editors.Landscape {
                 ? remapped : (uint)surface.OrigTextureId;
             if (!_dats.TryGet<SurfaceTexture>(surfTexId, out var surfaceTexture) ||
                 surfaceTexture.Textures?.Any() != true) {
+                // Fallback: check for a custom imported texture not yet in the DAT
+                if (CustomTextureResolver?.Invoke(surfTexId) is { } custom) {
+                    uploadPixelFormat = PixelFormat.Rgba;
+                    return (custom.Data, custom.Width, custom.Height, TextureFormat.RGBA8, uploadPixelFormat, null, 0);
+                }
                 return null;
             }
 
@@ -779,14 +799,19 @@ namespace WorldBuilder.Editors.Landscape {
                         return (cached, w, h, TextureFormat.RGBA8, uploadPixelFormat, null, paletteId);
                     }
 
-                    if (!_dats.TryGet<Palette>(renderSurface.DefaultPaletteId, out var paletteData))
-                        throw new Exception($"Unable to load Palette: 0x{renderSurface.DefaultPaletteId:X8}");
                     textureData = new byte[w * h * 4];
-                    TextureHelpers.FillIndex16(renderSurface.SourceData, paletteData, textureData.AsSpan(), w, h);
                     uploadPixelFormat = PixelFormat.Rgba;
 
-                    // Store in cache for future sessions
-                    _textureCache?.Store(surfaceId, paletteId, textureData);
+                    if (CreaturePalette != null) {
+                        TextureHelpers.FillIndex16(renderSurface.SourceData, CreaturePalette, textureData.AsSpan(), w, h);
+                    }
+                    else {
+                        if (!_dats.TryGet<Palette>(renderSurface.DefaultPaletteId, out var paletteData))
+                            throw new Exception($"Unable to load Palette: 0x{renderSurface.DefaultPaletteId:X8}");
+                        TextureHelpers.FillIndex16(renderSurface.SourceData, paletteData, textureData.AsSpan(), w, h);
+                        // Store in cache for future sessions (only when using the default DAT palette)
+                        _textureCache?.Store(surfaceId, paletteId, textureData);
+                    }
                     break;
                 }
                 default:

@@ -8,8 +8,10 @@ namespace WorldBuilder.Shared.Lib.AceDb {
     public partial class AceDbConnector {
 
         /// <summary>
-        /// Loads all <c>weenie_properties_texture_map</c> and <c>weenie_properties_anim_part</c>
-        /// rows for the given object/weenie ID. Returns an empty result (not null) on failure.
+        /// Loads all override rows for the given object/weenie ID: texture_map, anim_part,
+        /// palette rows, and the scalar palette properties (PaletteBase, ClothingBase,
+        /// PaletteTemplate, Shade) needed to build an accurate INDEX16 palette for the preview.
+        /// Returns an empty result (not null) on failure.
         /// </summary>
         public async Task<AceCreatureOverrides> LoadCreatureOverridesAsync(uint objectId, CancellationToken ct = default) {
             var result = new AceCreatureOverrides { ObjectId = objectId };
@@ -46,6 +48,64 @@ namespace WorldBuilder.Shared.Lib.AceDb {
                         result.AnimParts.Add(new AceAnimPartRow {
                             Index = reader.GetByte("index"),
                             AnimationId = reader.GetUInt32("animation_Id"),
+                        });
+                    }
+                }
+
+                // PaletteBase (DID type 6) and ClothingBase (DID type 7)
+                const string didSql = @"
+                    SELECT `type`, `value`
+                    FROM `weenie_properties_d_i_d`
+                    WHERE `object_Id` = @id AND `type` IN (6, 7)";
+                await using (var cmd = new MySqlCommand(didSql, conn)) {
+                    cmd.Parameters.AddWithValue("@id", objectId);
+                    await using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct)) {
+                        int type = reader.GetInt32("type");
+                        uint value = reader.GetUInt32("value");
+                        if (type == 6) result.PaletteBase = value;
+                        else if (type == 7) result.ClothingBase = value;
+                    }
+                }
+
+                // PaletteTemplate (int type 3)
+                const string intSql = @"
+                    SELECT `value`
+                    FROM `weenie_properties_int`
+                    WHERE `object_Id` = @id AND `type` = 3";
+                await using (var cmd = new MySqlCommand(intSql, conn)) {
+                    cmd.Parameters.AddWithValue("@id", objectId);
+                    var val = await cmd.ExecuteScalarAsync(ct);
+                    if (val != null && val != DBNull.Value)
+                        result.PaletteTemplate = Convert.ToInt32(val);
+                }
+
+                // Shade (float type 12)
+                const string floatSql = @"
+                    SELECT `value`
+                    FROM `weenie_properties_float`
+                    WHERE `object_Id` = @id AND `type` = 12";
+                await using (var cmd = new MySqlCommand(floatSql, conn)) {
+                    cmd.Parameters.AddWithValue("@id", objectId);
+                    var val = await cmd.ExecuteScalarAsync(ct);
+                    if (val != null && val != DBNull.Value)
+                        result.Shade = (float)Convert.ToDouble(val);
+                }
+
+                // Explicit palette overrides from weenie_properties_palette
+                const string palSql = @"
+                    SELECT `sub_Palette_Id`, `offset`, `length`
+                    FROM `weenie_properties_palette`
+                    WHERE `object_Id` = @id
+                    ORDER BY `offset`";
+                await using (var cmd = new MySqlCommand(palSql, conn)) {
+                    cmd.Parameters.AddWithValue("@id", objectId);
+                    await using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct)) {
+                        result.PaletteOverrides.Add(new AcePaletteRow {
+                            SubPaletteId = reader.GetUInt32("sub_Palette_Id"),
+                            Offset = reader.GetUInt32("offset"),
+                            Length = reader.GetUInt32("length"),
                         });
                     }
                 }

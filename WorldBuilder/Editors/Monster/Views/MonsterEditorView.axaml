@@ -508,7 +508,8 @@
                                 SetupDid="{Binding PreviewSetupDid}"
                                 TextureOverrides="{Binding PreviewTextureOverrides}"
                                 HiddenPartIndices="{Binding PreviewHiddenParts}"
-                                GfxObjRemapping="{Binding PreviewGfxObjRemapping}" />
+                                GfxObjRemapping="{Binding PreviewGfxObjRemapping}"
+                                CreaturePalette="{Binding PreviewCreaturePalette}" />
                             <!-- floating label — IsHitTestVisible=False so it never blocks the GL surface -->
                             <TextBlock Text="Live preview  ·  drag to rotate  ·  scroll to zoom"
                                        FontSize="9" Foreground="#3a2a5e"
@@ -523,9 +524,18 @@
                         <Border DockPanel.Dock="Top" Padding="8,6"
                                 Background="#100c1e" BorderBrush="#1e1535" BorderThickness="0,0,0,1">
                             <StackPanel Spacing="5">
-                                <TextBlock Text="{Binding ActiveSlotLabel}"
-                                           FontSize="11" Foreground="#7a6ab8"
-                                           TextTrimming="CharacterEllipsis" />
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right"
+                                            Content="Import…"
+                                            Command="{Binding ImportTextureCommand}"
+                                            IsVisible="{Binding CanImportTexture}"
+                                            FontSize="10" Padding="6,2"
+                                            ToolTip.Tip="Import an image file as a new texture. Writes to DAT on project export." />
+                                    <TextBlock Text="{Binding ActiveSlotLabel}"
+                                               FontSize="11" Foreground="#7a6ab8"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
                                 <TextBox Text="{Binding BrowserSearchText}"
                                          Watermark="Filter by hex ID…"
                                          FontSize="11" MinHeight="26" Padding="6,3"
