@@ -5,9 +5,11 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+276</title>
+      <title>WorldBuilder 0.1.0+278</title>
       <description>## Changes
 
+- Merge pull request #13 from DarktideLegend/feat(SpellEditor)/copy-spell ([7694923](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/769492375aed2b01dec97d8ccbc120e4905ce68a))
+- feat(SpellEditor): add copy spell ([3457ea7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/3457ea76e4b50b00612cd3a3efc56187d3e3dde1))
 - fix xp auto scale for my bff ([4ee4211](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/4ee4211bb2fa51241c7660ff7f4416f406f72eb7))
 - monster editor improvements ([92fafff](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/92fafffc74d34e1aa42b00b5a13a1cae44207e1c))
 - fix buildings - again... add new monster builder *thx Derpy for how to do it so could make easier - random stuff people can find ([239c0c1](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/239c0c13955e7439ddcb2beb93b19734ab478b3d))
@@ -55,14 +57,12 @@
 - Trigger Build Edge ([3438f4d](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/3438f4d99a5a5be8b0b5ec73653d53f7d08258fb))
 - readme ([57a902c](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/57a902c35b6ddc7218babd7e2bc1d196851f1758))
 - Release setup: ACME-WorldBuilderInstall.exe, logo, work flows ([8b40a7d](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/8b40a7d4f948eee779635b7cd3ebed1a03135480))
-- Update README with all current features and beta disclaimer ([e593725](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e593725dcb01ec1d0e180f54d6c316aa4babb27d))
-- Add demo recording system for promo videos ([984adef](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/984adef09d8afe71171f67ffc9e670635599372d))
-- Add spell, skill, vital, experience, chargen, spellset, and layout editors ([71a37e7](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/71a37e76ec3b24fda848f775cd24ae5fb0e49946))</description>
-      <pubDate>Thu, 09 Apr 2026 22:21:37 +00:00</pubDate>
-      <sparkle:version>0.1.0+276</sparkle:version>
+- Update README with all current features and beta disclaimer ([e593725](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/e593725dcb01ec1d0e180f54d6c316aa4babb27d))</description>
+      <pubDate>Sat, 11 Apr 2026 07:54:20 +00:00</pubDate>
+      <sparkle:version>0.1.0+278</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B276.exe" sparkle:version="0.1.0+276" sparkle:shortVersionString="0.1.0" length="23718479" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="AIUe/j62282jW2zQYmfsGWqs6+eAhnl4HYgPaGsQQvyWHS9tlKJd1seGfhIwsJboDJ0n/FuzjORzzLctmkI2CA==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B278.exe" sparkle:version="0.1.0+278" sparkle:shortVersionString="0.1.0" length="23774328" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="BXLzebLumtVPvRTBss5XJ1LvL2baKEx6qujttADxx0DiYQsck7nnMeGYoh5xFoRQ47JZXK/++Xt748lcD/EuBA==" />
     </item>
   </channel>
 </rss>
