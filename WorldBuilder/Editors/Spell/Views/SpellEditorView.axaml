@@ -7,467 +7,926 @@
              x:Class="WorldBuilder.Editors.Spell.Views.SpellEditorView"
              x:DataType="vm:SpellEditorViewModel">
 
-    <UserControl.Styles>
-        <Style Selector="TextBlock.section-header">
-            <Setter Property="FontSize" Value="15" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#d8d0ec" />
-            <Setter Property="Margin" Value="0,14,0,6" />
-        </Style>
-        <Style Selector="TextBlock.field-label">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#b0a0c8" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Width" Value="120" />
-        </Style>
-        <Style Selector="TextBox.field-input">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="MinHeight" Value="30" />
-            <Setter Property="Padding" Value="8,4" />
-        </Style>
-        <Style Selector="ComboBox.field-input">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="MinHeight" Value="30" />
-        </Style>
-        <Style Selector="Button.toolbar-btn">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="10,6" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="Focusable" Value="False" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Foreground" Value="#a89bbe" />
-        </Style>
-        <Style Selector="Button.toolbar-btn:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#33ffffff" />
-            <Setter Property="Foreground" Value="#e0d8ef" />
-        </Style>
-        <Style Selector="TextBlock.help-icon">
-            <Setter Property="Text" Value="?" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#8a7a9e" />
-            <Setter Property="Background" Value="#2e1e48" />
-            <Setter Property="Padding" Value="6,2" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="6,0,0,0" />
-        </Style>
-        <Style Selector="Button.field-dropdown">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="MinHeight" Value="30" />
-            <Setter Property="Padding" Value="8,4,28,4" />
-            <Setter Property="HorizontalContentAlignment" Value="Left" />
-            <Setter Property="HorizontalAlignment" Value="Left" />
-            <Setter Property="MaxWidth" Value="300" />
-        </Style>
-        <Style Selector="Button.field-dropdown TextBlock.dropdown-arrow">
-            <Setter Property="Text" Value="&#x25BC;" />
-            <Setter Property="FontSize" Value="9" />
-            <Setter Property="Foreground" Value="#8a7a9e" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="6,0,0,0" />
-        </Style>
-        <Style Selector="Button.sm-btn">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#2a1d42" />
-            <Setter Property="Padding" Value="6,2" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="MinHeight" Value="0" />
-            <Setter Property="CornerRadius" Value="3" />
-            <Setter Property="Foreground" Value="#a89bbe" />
-        </Style>
-        <Style Selector="Button.sm-btn:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#33ffffff" />
-            <Setter Property="Foreground" Value="#e0d8ef" />
-        </Style>
-    </UserControl.Styles>
+	<UserControl.Styles>
+		<Style Selector="TextBlock.section-header">
+			<Setter Property="FontSize" Value="15" />
+			<Setter Property="FontWeight" Value="SemiBold" />
+			<Setter Property="Foreground" Value="#d8d0ec" />
+			<Setter Property="Margin" Value="0,14,0,6" />
+		</Style>
+		<Style Selector="TextBlock.field-label">
+			<Setter Property="FontSize" Value="12" />
+			<Setter Property="Foreground" Value="#b0a0c8" />
+			<Setter Property="VerticalAlignment" Value="Center" />
+			<Setter Property="Width" Value="120" />
+		</Style>
+		<Style Selector="TextBox.field-input">
+			<Setter Property="FontSize" Value="13" />
+			<Setter Property="MinHeight" Value="30" />
+			<Setter Property="Padding" Value="8,4" />
+		</Style>
+		<Style Selector="ComboBox.field-input">
+			<Setter Property="FontSize" Value="13" />
+			<Setter Property="MinHeight" Value="30" />
+		</Style>
+		<Style Selector="Button.toolbar-btn">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="BorderThickness" Value="0" />
+			<Setter Property="Padding" Value="10,6" />
+			<Setter Property="FontSize" Value="12" />
+			<Setter Property="MinWidth" Value="0" />
+			<Setter Property="Focusable" Value="False" />
+			<Setter Property="CornerRadius" Value="4" />
+			<Setter Property="Foreground" Value="#a89bbe" />
+		</Style>
+		<Style Selector="Button.toolbar-btn:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#33ffffff" />
+			<Setter Property="Foreground" Value="#e0d8ef" />
+		</Style>
+		<Style Selector="TextBlock.help-icon">
+			<Setter Property="Text" Value="?" />
+			<Setter Property="FontSize" Value="12" />
+			<Setter Property="Foreground" Value="#8a7a9e" />
+			<Setter Property="Background" Value="#2e1e48" />
+			<Setter Property="Padding" Value="6,2" />
+			<Setter Property="VerticalAlignment" Value="Center" />
+			<Setter Property="Margin" Value="6,0,0,0" />
+		</Style>
+		<Style Selector="Button.field-dropdown">
+			<Setter Property="FontSize" Value="13" />
+			<Setter Property="MinHeight" Value="30" />
+			<Setter Property="Padding" Value="8,4,28,4" />
+			<Setter Property="HorizontalContentAlignment" Value="Left" />
+			<Setter Property="HorizontalAlignment" Value="Left" />
+			<Setter Property="MaxWidth" Value="300" />
+		</Style>
+		<Style Selector="Button.field-dropdown TextBlock.dropdown-arrow">
+			<Setter Property="Text" Value="&#x25BC;" />
+			<Setter Property="FontSize" Value="9" />
+			<Setter Property="Foreground" Value="#8a7a9e" />
+			<Setter Property="VerticalAlignment" Value="Center" />
+			<Setter Property="Margin" Value="6,0,0,0" />
+		</Style>
+		<Style Selector="Button.sm-btn">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="BorderThickness" Value="1" />
+			<Setter Property="BorderBrush" Value="#2a1d42" />
+			<Setter Property="Padding" Value="6,2" />
+			<Setter Property="FontSize" Value="12" />
+			<Setter Property="MinWidth" Value="0" />
+			<Setter Property="MinHeight" Value="0" />
+			<Setter Property="CornerRadius" Value="3" />
+			<Setter Property="Foreground" Value="#a89bbe" />
+		</Style>
+		<Style Selector="Button.sm-btn:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#33ffffff" />
+			<Setter Property="Foreground" Value="#e0d8ef" />
+		</Style>
+	</UserControl.Styles>
 
-    <DockPanel>
-        <!-- Toolbar -->
-        <Border DockPanel.Dock="Top" Background="#120c22" BorderBrush="#2a1d42" BorderThickness="0,0,0,1" Padding="4,2">
-            <DockPanel>
-                <StackPanel Orientation="Horizontal" Spacing="4" DockPanel.Dock="Left">
-                    <Button Classes="toolbar-btn" Content="Save Spell" Command="{Binding SaveSpellCommand}" Foreground="#6ec07a" />
-                    <Button Classes="toolbar-btn" Content="+ New Spell" Command="{Binding AddSpellCommand}" />
-                    <Button Classes="toolbar-btn" Content="Delete Spell" Command="{Binding DeleteSpellCommand}" Foreground="#c45858" />
-                    <Border Width="1" Background="#2a1d42" Margin="4,2" />
-                    <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="12" Foreground="#a89bbe" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                    <TextBlock Text="{Binding FilteredSpellCount, StringFormat='Showing {0}'}" VerticalAlignment="Center" FontSize="12" Foreground="#8a7a9e" />
-                    <TextBlock Text="{Binding TotalSpellCount, StringFormat='of {0} spells'}" VerticalAlignment="Center" FontSize="12" Foreground="#8a7a9e" />
-                </StackPanel>
-            </DockPanel>
-        </Border>
+	<DockPanel>
+		<!-- Toolbar -->
+		<Border DockPanel.Dock="Top" Background="#120c22" BorderBrush="#2a1d42" BorderThickness="0,0,0,1" Padding="4,2">
+			<DockPanel>
+				<StackPanel Orientation="Horizontal" Spacing="4" DockPanel.Dock="Left">
+					<Button Classes="toolbar-btn" Content="Save Spell" Command="{Binding SaveSpellCommand}" Foreground="#6ec07a" />
+					<CheckBox Content="Save to DB" IsChecked="{Binding SaveToDb}" HorizontalAlignment="Left" FontSize="10" Padding="4,2" />
+					<Button Classes="toolbar-btn" Content="+ New Spell" Command="{Binding AddSpellCommand}" />
+					<Button Classes="toolbar-btn" Content="+ Copy Spell" Command="{Binding CopySpellCommand}" />
+					<Button Classes="toolbar-btn" Content="Delete Spell" Command="{Binding DeleteSpellCommand}" Foreground="#c45858" />
+					<Border Width="1" Background="#2a1d42" Margin="4,2" />
+					<TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="12" Foreground="#a89bbe" />
+				</StackPanel>
+				<StackPanel Orientation="Horizontal" Spacing="8" DockPanel.Dock="Right" HorizontalAlignment="Right">
+					<TextBlock Text="{Binding FilteredSpellCount, StringFormat='Showing {0}'}" VerticalAlignment="Center" FontSize="12" Foreground="#8a7a9e" />
+					<TextBlock Text="{Binding TotalSpellCount, StringFormat='of {0} spells'}" VerticalAlignment="Center" FontSize="12" Foreground="#8a7a9e" />
+				</StackPanel>
+			</DockPanel>
+		</Border>
 
-        <Grid ColumnDefinitions="350,1,*">
-            <!-- Left panel -->
-            <DockPanel Grid.Column="0" Background="#1a1030">
-                <Border DockPanel.Dock="Top" Background="#120c22" Padding="8,6" BorderBrush="#2a1d42" BorderThickness="0,0,0,1">
-                    <StackPanel Spacing="6">
-                        <TextBox Text="{Binding SearchText}" Watermark="Search spells by name or 0x ID..." FontSize="13" MinHeight="30" Padding="8,4" />
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Classes="toolbar-btn" Content="Clear" Command="{Binding ClearFiltersCommand}" Margin="4,0,0,0" />
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <ComboBox ItemsSource="{Binding SchoolOptions}" SelectedItem="{Binding FilterSchool}" PlaceholderText="School" MinWidth="100" FontSize="12" MinHeight="28" />
-                                <ComboBox ItemsSource="{Binding SpellTypeOptions}" SelectedItem="{Binding FilterSpellType}" PlaceholderText="Type" MinWidth="100" FontSize="12" MinHeight="28" />
-                            </StackPanel>
-                        </DockPanel>
-                    </StackPanel>
-                </Border>
-                <ListBox ItemsSource="{Binding Spells}" SelectedItem="{Binding SelectedSpell}" Background="Transparent" FontSize="13">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:SpellListItem">
-                            <DockPanel Margin="6,3">
-                                <TextBlock DockPanel.Dock="Right" Text="{Binding School}" FontSize="11" Foreground="#8a7a9e" VerticalAlignment="Center" Margin="8,0,0,0" />
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Name}" Foreground="#e0d8ef" FontSize="14" />
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="{Binding IdHex}" FontSize="11" Foreground="#8a7a9e" />
-                                        <TextBlock Text="{Binding MetaSpellType, StringFormat='Type: {0}'}" FontSize="11" Foreground="#8a7a9e" />
-                                        <TextBlock Text="{Binding Power, StringFormat='Pow: {0}'}" FontSize="11" Foreground="#8a7a9e" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </DockPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </DockPanel>
+		<Grid ColumnDefinitions="350,1,*">
+			<!-- Left panel -->
+			<DockPanel Grid.Column="0" Background="#1a1030">
+				<Border DockPanel.Dock="Top" Background="#120c22" Padding="8,6" BorderBrush="#2a1d42" BorderThickness="0,0,0,1">
+					<StackPanel Spacing="6">
+						<TextBox Text="{Binding SearchText}" Watermark="Search spells by name or 0x ID..." FontSize="13" MinHeight="30" Padding="8,4" />
+						<DockPanel>
+							<Button DockPanel.Dock="Right" Classes="toolbar-btn" Content="Clear" Command="{Binding ClearFiltersCommand}" Margin="4,0,0,0" />
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<ComboBox ItemsSource="{Binding SchoolOptions}" SelectedItem="{Binding FilterSchool}" PlaceholderText="School" MinWidth="100" FontSize="12" MinHeight="28" />
+								<ComboBox ItemsSource="{Binding SpellTypeOptions}" SelectedItem="{Binding FilterSpellType}" PlaceholderText="Type" MinWidth="100" FontSize="12" MinHeight="28" />
+							</StackPanel>
+						</DockPanel>
+					</StackPanel>
+				</Border>
+				<ListBox ItemsSource="{Binding Spells}" SelectedItem="{Binding SelectedSpell}" Background="Transparent" FontSize="13">
+					<ListBox.ItemTemplate>
+						<DataTemplate x:DataType="vm:SpellListItem">
+							<DockPanel Margin="6,3">
+								<TextBlock DockPanel.Dock="Right" Text="{Binding School}" FontSize="11" Foreground="#8a7a9e" VerticalAlignment="Center" Margin="8,0,0,0" />
+								<StackPanel>
+									<TextBlock Text="{Binding Name}" Foreground="#e0d8ef" FontSize="14" />
+									<StackPanel Orientation="Horizontal" Spacing="8">
+										<TextBlock Text="{Binding IdHex}" FontSize="11" Foreground="#8a7a9e" />
+										<TextBlock Text="{Binding MetaSpellType, StringFormat='Type: {0}'}" FontSize="11" Foreground="#8a7a9e" />
+										<TextBlock Text="{Binding Power, StringFormat='Pow: {0}'}" FontSize="11" Foreground="#8a7a9e" />
+									</StackPanel>
+								</StackPanel>
+							</DockPanel>
+						</DataTemplate>
+					</ListBox.ItemTemplate>
+				</ListBox>
+			</DockPanel>
 
-            <GridSplitter Grid.Column="1" Width="1" Background="#2a1d42" ResizeDirection="Columns" />
+			<GridSplitter Grid.Column="1" Width="1" Background="#2a1d42" ResizeDirection="Columns" />
 
-            <!-- Right panel -->
-            <Border Grid.Column="2" Background="#1a1030">
-                <Panel>
-                    <TextBlock Text="Select a spell from the list to view its details"
+			<!-- Right panel -->
+			<Border Grid.Column="2" Background="#1a1030">
+				<Panel>
+					<TextBlock Text="Select a spell from the list to view its details"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontSize="14" Foreground="#8a7a9e" Opacity="0.6"
                                IsVisible="{Binding SelectedDetail, Converter={x:Static ObjectConverters.IsNull}}" />
 
-                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
-                                  IsVisible="{Binding SelectedDetail, Converter={x:Static ObjectConverters.IsNotNull}}">
-                        <StackPanel Margin="16,8,16,16" Spacing="4"
-                                    x:CompileBindings="False"
-                                    x:Name="DetailPanel"
-                                    DataContext="{Binding SelectedDetail}">
+					<TabControl IsVisible="{Binding SelectedDetail, Converter={x:Static ObjectConverters.IsNotNull}}">
+						<TabItem Header="DAT">
+							<ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+								<StackPanel Margin="16,8,16,16" Spacing="4"
+                                            x:CompileBindings="False"
+                                            x:Name="DetailPanel"
+                                            DataContext="{Binding SelectedDetail}">
 
-                            <!-- Identity + Icon -->
-                            <TextBlock Classes="section-header" Text="Identity" />
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <!-- Spell Icon with picker -->
-                                <StackPanel Spacing="4">
-                                    <Border Width="48" Height="48" Background="#221840" CornerRadius="4"
-                                            BorderBrush="#2a1d42" BorderThickness="1">
-                                        <Image Source="{Binding IconBitmap}" Width="48" Height="48" Stretch="Uniform" />
-                                    </Border>
-                                    <Button Classes="sm-btn" Content="Browse..."
-                                            Command="{Binding ToggleIconPickerCommand}"
-                                            HorizontalAlignment="Center" />
-                                </StackPanel>
+									<!-- Identity + Icon -->
+									<TextBlock Classes="section-header" Text="Identity" />
+									<StackPanel Orientation="Horizontal" Spacing="12">
+										<!-- Spell Icon with picker -->
+										<StackPanel Spacing="4">
+											<Border Width="48" Height="48" Background="#221840" CornerRadius="4"
+                                                    BorderBrush="#2a1d42" BorderThickness="1">
+												<Image Source="{Binding IconBitmap}" Width="48" Height="48" Stretch="Uniform" />
+											</Border>
+											<Button Classes="sm-btn" Content="Browse..."
+                                                    Command="{Binding ToggleIconPickerCommand}"
+                                                    HorizontalAlignment="Center" />
+										</StackPanel>
 
-                                <StackPanel Spacing="4" VerticalAlignment="Top">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Classes="field-label" Text="Spell ID" Width="90" />
-                                        <TextBlock Text="{Binding SpellId, StringFormat='0x{0:X4}'}" FontSize="13" Foreground="#e0d8ef" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Classes="field-label" Text="Icon ID" Width="90" />
-                                        <TextBox Classes="field-input" Text="{Binding Icon}" Width="120" />
-                                        <TextBlock Classes="help-icon" ToolTip.Tip="DataID for the spell icon (0x06xxxxxx range). Shown in the spellbook, spell bar, and examine panel. Type an ID or use Browse to pick visually." />
-                                    </StackPanel>
-                                </StackPanel>
-                            </StackPanel>
+										<StackPanel Spacing="4" VerticalAlignment="Top">
+											<StackPanel Orientation="Horizontal" Spacing="4">
+												<TextBlock Classes="field-label" Text="Spell ID" Width="90" />
+												<TextBlock Text="{Binding SpellId, StringFormat='0x{0:X4}'}" FontSize="13" Foreground="#e0d8ef" VerticalAlignment="Center" />
+											</StackPanel>
+											<StackPanel Orientation="Horizontal" Spacing="4">
+												<TextBlock Classes="field-label" Text="Icon ID" Width="90" />
+												<TextBox Classes="field-input" Text="{Binding Icon}" Width="120" />
+												<TextBlock Classes="help-icon" ToolTip.Tip="DataID for the spell icon (0x06xxxxxx range). Shown in the spellbook, spell bar, and examine panel. Type an ID or use Browse to pick visually." />
+											</StackPanel>
+										</StackPanel>
+									</StackPanel>
 
-                            <!-- Icon Picker Grid -->
-                            <Border IsVisible="{Binding IsIconPickerOpen}"
-                                    Background="#221840" CornerRadius="6" Padding="8"
-                                    BorderBrush="#3a2d52" BorderThickness="1"
-                                    MaxHeight="220" Margin="0,4">
-                                <DockPanel>
-                                    <TextBlock DockPanel.Dock="Top" Text="Pick an icon:" FontSize="12" Foreground="#b0a0c8" Margin="0,0,0,6" />
-                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl ItemsSource="{Binding AvailableIcons}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <WrapPanel />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Button Background="Transparent" BorderThickness="1" BorderBrush="#2a1d42"
-                                                            CornerRadius="3" Padding="2" Margin="2"
-                                                            Command="{Binding #DetailPanel.DataContext.PickIconCommand}"
-                                                            CommandParameter="{Binding}"
-                                                            ToolTip.Tip="{Binding IdHex}">
-                                                        <Image Source="{Binding Bitmap}" Width="32" Height="32" Stretch="Uniform" />
-                                                    </Button>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
-                                </DockPanel>
-                            </Border>
+									<!-- Icon Picker Grid -->
+									<Border IsVisible="{Binding IsIconPickerOpen}"
+                                            Background="#221840" CornerRadius="6" Padding="8"
+                                            BorderBrush="#3a2d52" BorderThickness="1"
+                                            MaxHeight="220" Margin="0,4">
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Top" Text="Pick an icon:" FontSize="12" Foreground="#b0a0c8" Margin="0,0,0,6" />
+											<ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+												<ItemsControl ItemsSource="{Binding AvailableIcons}">
+													<ItemsControl.ItemsPanel>
+														<ItemsPanelTemplate>
+															<WrapPanel />
+														</ItemsPanelTemplate>
+													</ItemsControl.ItemsPanel>
+													<ItemsControl.ItemTemplate>
+														<DataTemplate>
+															<Button Background="Transparent" BorderThickness="1" BorderBrush="#2a1d42"
+                                                                    CornerRadius="3" Padding="2" Margin="2"
+                                                                    Command="{Binding #DetailPanel.DataContext.PickIconCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    ToolTip.Tip="{Binding IdHex}">
+																<Image Source="{Binding Bitmap}" Width="32" Height="32" Stretch="Uniform" />
+															</Button>
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+												</ItemsControl>
+											</ScrollViewer>
+										</DockPanel>
+									</Border>
 
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Name" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="The spell's display name as shown in the spellbook, spell bar, and casting messages." />
-                                <TextBox Classes="field-input" Text="{Binding Name}" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Description" VerticalAlignment="Top" Margin="0,6,0,0" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" VerticalAlignment="Top" Margin="6,6,0,0" ToolTip.Tip="The spell's description text shown when examining the spell in the spellbook." />
-                                <TextBox Classes="field-input" Text="{Binding Description}"
-                                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" MaxHeight="120" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="School" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Magic school: War, Life, Item Enchantment, Creature Enchantment, or Void." />
-                                <ComboBox Classes="field-input" ItemsSource="{Binding AllSchools}" SelectedItem="{Binding School}" MaxWidth="300" HorizontalAlignment="Left" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Spell Type" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Determines spell behavior class: Enchantment (buff/debuff with duration), Projectile (bolt/streak), Boost (heal/harm), Transfer, Portal types, Dispel, etc. Controls which conditional fields appear below." />
-                                <ComboBox Classes="field-input" ItemsSource="{Binding AllSpellTypes}" SelectedItem="{Binding MetaSpellType}" MaxWidth="300" HorizontalAlignment="Left" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Display Order" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Sorting key for the spellbook UI. Lower values appear first. Default is -1 (unsorted)." />
-                                <TextBox Classes="field-input" Text="{Binding DisplayOrder}" MaxWidth="160" HorizontalAlignment="Left" />
-                            </DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Name" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="The spell's display name as shown in the spellbook, spell bar, and casting messages." />
+										<TextBox Classes="field-input" Text="{Binding Name}" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Description" VerticalAlignment="Top" Margin="0,6,0,0" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" VerticalAlignment="Top" Margin="6,6,0,0" ToolTip.Tip="The spell's description text shown when examining the spell in the spellbook." />
+										<TextBox Classes="field-input" Text="{Binding Description}"
+                                                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" MaxHeight="120" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="School" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Magic school: War, Life, Item Enchantment, Creature Enchantment, or Void." />
+										<ComboBox Classes="field-input" ItemsSource="{Binding AllSchools}" SelectedItem="{Binding School}" MaxWidth="300" HorizontalAlignment="Left" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Spell Type" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Determines spell behavior class: Enchantment (buff/debuff with duration), Projectile (bolt/streak), Boost (heal/harm), Transfer, Portal types, Dispel, etc. Controls which conditional fields appear below." />
+										<ComboBox Classes="field-input" ItemsSource="{Binding AllSpellTypes}" SelectedItem="{Binding MetaSpellType}" MaxWidth="300" HorizontalAlignment="Left" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Display Order" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Sorting key for the spellbook UI. Lower values appear first. Default is -1 (unsorted)." />
+										<TextBox Classes="field-input" Text="{Binding DisplayOrder}" MaxWidth="160" HorizontalAlignment="Left" />
+									</DockPanel>
 
-                            <!-- Combat Stats -->
-                            <TextBlock Classes="section-header" Text="Combat Stats" />
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Power" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Spell power level. Used to estimate spell level and for enchantment stacking — higher power wins when two spells of the same category compete." />
-                                <TextBox Classes="field-input" Text="{Binding Power}" MaxWidth="160" HorizontalAlignment="Left" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Base Mana" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Base mana cost to cast this spell. Displayed as 'Mana: {BaseMana}' in the spell examine panel." />
-                                <TextBox Classes="field-input" Text="{Binding BaseMana}" MaxWidth="160" HorizontalAlignment="Left" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Mana Mod" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Per-target mana cost for multi-target spells. If > 0, displayed as 'Mana: {BaseMana} + {ManaMod} per target'." />
-                                <TextBox Classes="field-input" Text="{Binding ManaMod}" MaxWidth="160" HorizontalAlignment="Left" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Base Range" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Cast range = (BaseRangeMod × skill level) + BaseRangeConstant, capped at 75.0. Left = constant base, right = per-skill-level multiplier." />
-                                <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left">
-                                    <TextBox Classes="field-input" Text="{Binding BaseRangeConstant}" Width="100" />
-                                    <TextBlock Text="+" FontSize="13" Foreground="#b0a0c8" VerticalAlignment="Center" />
-                                    <TextBox Classes="field-input" Text="{Binding BaseRangeMod}" Width="100" />
-                                </StackPanel>
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Economy Mod" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Spell economy modifier. Default is -1.0. Not used by the client — may be server-side only." />
-                                <TextBox Classes="field-input" Text="{Binding SpellEconomyMod}" MaxWidth="160" HorizontalAlignment="Left" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Bitfield" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Spell flags bitmask (SpellFlags). Controls spell behavior: Resistable, PKSensitive, Beneficial, SelfTargeted, Projectile, etc." />
-                                <Button Classes="field-dropdown">
-                                    <Button.Content>
-                                        <DockPanel>
-                                            <TextBlock DockPanel.Dock="Right" Classes="dropdown-arrow" />
-                                            <TextBlock Text="{Binding BitfieldDisplay}" TextTrimming="CharacterEllipsis" />
-                                        </DockPanel>
-                                    </Button.Content>
-                                    <Button.Flyout>
-                                        <Flyout Placement="BottomEdgeAlignedLeft">
-                                            <Border MaxHeight="320" MinWidth="220">
-                                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                                    <ItemsControl ItemsSource="{Binding BitfieldFlags}">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}"
-                                                                          FontSize="12" Margin="0,1" />
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                </ScrollViewer>
-                                            </Border>
-                                        </Flyout>
-                                    </Button.Flyout>
-                                </Button>
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Target Type" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Target type bitmask (ItemType). Determines valid target types for the spell. Stored in DAT for server-side target validation." />
-                                <Button Classes="field-dropdown">
-                                    <Button.Content>
-                                        <DockPanel>
-                                            <TextBlock DockPanel.Dock="Right" Classes="dropdown-arrow" />
-                                            <TextBlock Text="{Binding TargetTypeDisplay}" TextTrimming="CharacterEllipsis" />
-                                        </DockPanel>
-                                    </Button.Content>
-                                    <Button.Flyout>
-                                        <Flyout Placement="BottomEdgeAlignedLeft">
-                                            <Border MaxHeight="400" MinWidth="220">
-                                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                                    <ItemsControl ItemsSource="{Binding TargetTypeFlags}">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}"
-                                                                          FontSize="12" Margin="0,1" />
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                </ScrollViewer>
-                                            </Border>
-                                        </Flyout>
-                                    </Button.Flyout>
-                                </Button>
-                            </DockPanel>
+									<!-- Combat Stats -->
+									<TextBlock Classes="section-header" Text="Combat Stats" />
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Power" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Spell power level. Used to estimate spell level and for enchantment stacking — higher power wins when two spells of the same category compete." />
+										<TextBox Classes="field-input" Text="{Binding Power}" MaxWidth="160" HorizontalAlignment="Left" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Base Mana" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Base mana cost to cast this spell. Displayed as 'Mana: {BaseMana}' in the spell examine panel." />
+										<TextBox Classes="field-input" Text="{Binding BaseMana}" MaxWidth="160" HorizontalAlignment="Left" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Mana Mod" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Per-target mana cost for multi-target spells. If > 0, displayed as 'Mana: {BaseMana} + {ManaMod} per target'." />
+										<TextBox Classes="field-input" Text="{Binding ManaMod}" MaxWidth="160" HorizontalAlignment="Left" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Base Range" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Cast range = (BaseRangeMod × skill level) + BaseRangeConstant, capped at 75.0. Left = constant base, right = per-skill-level multiplier." />
+										<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left">
+											<TextBox Classes="field-input" Text="{Binding BaseRangeConstant}" Width="100" />
+											<TextBlock Text="+" FontSize="13" Foreground="#b0a0c8" VerticalAlignment="Center" />
+											<TextBox Classes="field-input" Text="{Binding BaseRangeMod}" Width="100" />
+										</StackPanel>
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Economy Mod" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Spell economy modifier. Default is -1.0. Not used by the client — may be server-side only." />
+										<TextBox Classes="field-input" Text="{Binding SpellEconomyMod}" MaxWidth="160" HorizontalAlignment="Left" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Bitfield" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Spell flags bitmask (SpellFlags). Controls spell behavior: Resistable, PKSensitive, Beneficial, SelfTargeted, Projectile, etc." />
+										<Button Classes="field-dropdown">
+											<Button.Content>
+												<DockPanel>
+													<TextBlock DockPanel.Dock="Right" Classes="dropdown-arrow" />
+													<TextBlock Text="{Binding BitfieldDisplay}" TextTrimming="CharacterEllipsis" />
+												</DockPanel>
+											</Button.Content>
+											<Button.Flyout>
+												<Flyout Placement="BottomEdgeAlignedLeft">
+													<Border MaxHeight="320" MinWidth="220">
+														<ScrollViewer VerticalScrollBarVisibility="Auto">
+															<ItemsControl ItemsSource="{Binding BitfieldFlags}">
+																<ItemsControl.ItemTemplate>
+																	<DataTemplate>
+																		<CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}"
+                                                                                  FontSize="12" Margin="0,1" />
+																	</DataTemplate>
+																</ItemsControl.ItemTemplate>
+															</ItemsControl>
+														</ScrollViewer>
+													</Border>
+												</Flyout>
+											</Button.Flyout>
+										</Button>
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Target Type" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Target type bitmask (ItemType). Determines valid target types for the spell. Stored in DAT for server-side target validation." />
+										<Button Classes="field-dropdown">
+											<Button.Content>
+												<DockPanel>
+													<TextBlock DockPanel.Dock="Right" Classes="dropdown-arrow" />
+													<TextBlock Text="{Binding TargetTypeDisplay}" TextTrimming="CharacterEllipsis" />
+												</DockPanel>
+											</Button.Content>
+											<Button.Flyout>
+												<Flyout Placement="BottomEdgeAlignedLeft">
+													<Border MaxHeight="400" MinWidth="220">
+														<ScrollViewer VerticalScrollBarVisibility="Auto">
+															<ItemsControl ItemsSource="{Binding TargetTypeFlags}">
+																<ItemsControl.ItemTemplate>
+																	<DataTemplate>
+																		<CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}"
+                                                                                  FontSize="12" Margin="0,1" />
+																	</DataTemplate>
+																</ItemsControl.ItemTemplate>
+															</ItemsControl>
+														</ScrollViewer>
+													</Border>
+												</Flyout>
+											</Button.Flyout>
+										</Button>
+									</DockPanel>
 
-                            <!-- Components -->
-                            <TextBlock Classes="section-header" Text="Formula &amp; Components" />
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Formula Version" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Determines how the spell's components are scrambled per-player for spell research.&#x0a;&#x0a;Version 1: Original algorithm (pre-ToD spells).&#x0a;Version 2: Updated algorithm (ToD-era spells).&#x0a;Version 3: Final algorithm (post-ToD spells).&#x0a;&#x0a;Each player sees a different component order based on their account name + this version. The 'true' components are stored encrypted in the DAT." />
-                                <TextBox Classes="field-input" Text="{Binding FormulaVersion}" MaxWidth="160" HorizontalAlignment="Left" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Component Loss" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Component loss rate. Default 0.0. Not used by the client — likely server-side logic for component consumption on cast." />
-                                <TextBox Classes="field-input" Text="{Binding ComponentLoss}" MaxWidth="160" HorizontalAlignment="Left" />
-                            </DockPanel>
+									<!-- Components -->
+									<TextBlock Classes="section-header" Text="Formula &amp; Components" />
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Formula Version" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Determines how the spell's components are scrambled per-player for spell research.&#x0a;&#x0a;Version 1: Original algorithm (pre-ToD spells).&#x0a;Version 2: Updated algorithm (ToD-era spells).&#x0a;Version 3: Final algorithm (post-ToD spells).&#x0a;&#x0a;Each player sees a different component order based on their account name + this version. The 'true' components are stored encrypted in the DAT." />
+										<TextBox Classes="field-input" Text="{Binding FormulaVersion}" MaxWidth="160" HorizontalAlignment="Left" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Component Loss" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Component loss rate. Default 0.0. Not used by the client — likely server-side logic for component consumption on cast." />
+										<TextBox Classes="field-input" Text="{Binding ComponentLoss}" MaxWidth="160" HorizontalAlignment="Left" />
+									</DockPanel>
 
-                            <DockPanel Margin="0,6,0,2">
-                                <Button DockPanel.Dock="Right" Classes="sm-btn" Content="+ Add"
-                                        Command="{Binding AddComponentCommand}"
-                                        IsEnabled="{Binding CanAddComponent}" />
-                                <TextBlock Text="Components (in casting order, max 8):"
-                                           FontSize="12" Foreground="#b0a0c8" VerticalAlignment="Center" />
-                            </DockPanel>
+									<DockPanel Margin="0,6,0,2">
+										<Button DockPanel.Dock="Right" Classes="sm-btn" Content="+ Add"
+                                                Command="{Binding AddComponentCommand}"
+                                                IsEnabled="{Binding CanAddComponent}" />
+										<TextBlock Text="Components (in casting order, max 8):"
+                                                   FontSize="12" Foreground="#b0a0c8" VerticalAlignment="Center" />
+									</DockPanel>
 
-                            <Border Background="#221840" CornerRadius="4" Padding="8,6"
-                                    BorderBrush="#2a1d42" BorderThickness="1" MinHeight="40">
-                                <ItemsControl ItemsSource="{Binding ComponentSlots}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <DockPanel Margin="0,2" MinHeight="30">
-                                                <TextBlock DockPanel.Dock="Left"
-                                                           Text="{Binding SlotLabel}"
-                                                           FontSize="11" Foreground="#8a7a9e"
-                                                           VerticalAlignment="Center"
-                                                           Width="24" />
+									<Border Background="#221840" CornerRadius="4" Padding="8,6"
+                                            BorderBrush="#2a1d42" BorderThickness="1" MinHeight="40">
+										<ItemsControl ItemsSource="{Binding ComponentSlots}">
+											<ItemsControl.ItemTemplate>
+												<DataTemplate>
+													<DockPanel Margin="0,2" MinHeight="30">
+														<TextBlock DockPanel.Dock="Left"
+                                                                   Text="{Binding SlotLabel}"
+                                                                   FontSize="11" Foreground="#8a7a9e"
+                                                                   VerticalAlignment="Center"
+                                                                   Width="24" />
 
-                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                                                    <Button Classes="sm-btn" Content="^"
-                                                            ToolTip.Tip="Move up"
-                                                            Command="{Binding #DetailPanel.DataContext.MoveComponentUpCommand}"
-                                                            CommandParameter="{Binding}" />
-                                                    <Button Classes="sm-btn" Content="v"
-                                                            ToolTip.Tip="Move down"
-                                                            Command="{Binding #DetailPanel.DataContext.MoveComponentDownCommand}"
-                                                            CommandParameter="{Binding}" />
-                                                    <Button Classes="sm-btn" Content="X" Foreground="#c45858"
-                                                            ToolTip.Tip="Remove component"
-                                                            Command="{Binding #DetailPanel.DataContext.RemoveComponentCommand}"
-                                                            CommandParameter="{Binding}" />
-                                                </StackPanel>
+														<StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+															<Button Classes="sm-btn" Content="^"
+                                                                    ToolTip.Tip="Move up"
+                                                                    Command="{Binding #DetailPanel.DataContext.MoveComponentUpCommand}"
+                                                                    CommandParameter="{Binding}" />
+															<Button Classes="sm-btn" Content="v"
+                                                                    ToolTip.Tip="Move down"
+                                                                    Command="{Binding #DetailPanel.DataContext.MoveComponentDownCommand}"
+                                                                    CommandParameter="{Binding}" />
+															<Button Classes="sm-btn" Content="X" Foreground="#c45858"
+                                                                    ToolTip.Tip="Remove component"
+                                                                    Command="{Binding #DetailPanel.DataContext.RemoveComponentCommand}"
+                                                                    CommandParameter="{Binding}" />
+														</StackPanel>
 
-                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                    <Border Width="20" Height="20" Background="#1a1030" CornerRadius="2"
-                                                            IsVisible="{Binding SelectedComponent.Icon, Converter={x:Static ObjectConverters.IsNotNull}, FallbackValue=False}">
-                                                        <Image Source="{Binding SelectedComponent.Icon}" Width="20" Height="20" Stretch="Uniform" />
-                                                    </Border>
-                                                    <ComboBox ItemsSource="{Binding #DetailPanel.DataContext.AllComponents}"
-                                                              SelectedItem="{Binding SelectedComponent}"
-                                                              MinWidth="240" FontSize="12" MinHeight="28">
-                                                        <ComboBox.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                    <Border Width="16" Height="16" Background="#1a1030" CornerRadius="2"
-                                                                            IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                                                        <Image Source="{Binding Icon}" Width="16" Height="16" Stretch="Uniform" />
-                                                                    </Border>
-                                                                    <TextBlock Text="{Binding DisplayLabel}" FontSize="12" VerticalAlignment="Center" />
-                                                                </StackPanel>
-                                                            </DataTemplate>
-                                                        </ComboBox.ItemTemplate>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                            </DockPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </Border>
+														<StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+															<Border Width="20" Height="20" Background="#1a1030" CornerRadius="2"
+                                                                    IsVisible="{Binding SelectedComponent.Icon, Converter={x:Static ObjectConverters.IsNotNull}, FallbackValue=False}">
+																<Image Source="{Binding SelectedComponent.Icon}" Width="20" Height="20" Stretch="Uniform" />
+															</Border>
+															<ComboBox ItemsSource="{Binding #DetailPanel.DataContext.AllComponents}"
+                                                                      SelectedItem="{Binding SelectedComponent}"
+                                                                      MinWidth="240" FontSize="12" MinHeight="28">
+																<ComboBox.ItemTemplate>
+																	<DataTemplate>
+																		<StackPanel Orientation="Horizontal" Spacing="6">
+																			<Border Width="16" Height="16" Background="#1a1030" CornerRadius="2"
+                                                                                    IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}">
+																				<Image Source="{Binding Icon}" Width="16" Height="16" Stretch="Uniform" />
+																			</Border>
+																			<TextBlock Text="{Binding DisplayLabel}" FontSize="12" VerticalAlignment="Center" />
+																		</StackPanel>
+																	</DataTemplate>
+																</ComboBox.ItemTemplate>
+															</ComboBox>
+														</StackPanel>
+													</DockPanel>
+												</DataTemplate>
+											</ItemsControl.ItemTemplate>
+										</ItemsControl>
+									</Border>
 
-                            <!-- Meta Spell -->
-                            <TextBlock Classes="section-header" Text="Meta Spell" />
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Meta Spell ID" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="ID within the MetaSpell sub-structure. Typically matches the spell's own ID. The MetaSpell holds the type-specific data (enchantment duration, projectile params, etc)." />
-                                <TextBox Classes="field-input" Text="{Binding MetaSpellId}" MaxWidth="160" HorizontalAlignment="Left" />
-                            </DockPanel>
+									<!-- Meta Spell -->
+									<TextBlock Classes="section-header" Text="Meta Spell" />
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Meta Spell ID" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="ID within the MetaSpell sub-structure. Typically matches the spell's own ID. The MetaSpell holds the type-specific data (enchantment duration, projectile params, etc)." />
+										<TextBox Classes="field-input" Text="{Binding MetaSpellId}" MaxWidth="160" HorizontalAlignment="Left" />
+									</DockPanel>
 
-                            <StackPanel IsVisible="{Binding IsEnchantment}" Spacing="4">
-                                <DockPanel>
-                                    <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Duration" />
-                                    <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Enchantment duration in seconds. -1.0 = permanent (never expires). Only applies to Enchantment and FellowEnchantment types." />
-                                    <TextBox Classes="field-input" Text="{Binding Duration}" MaxWidth="160" HorizontalAlignment="Left" />
-                                </DockPanel>
-                                <DockPanel>
-                                    <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Degrade Modifier" />
-                                    <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Rate at which the enchantment weakens over time. Default 0.0 (no degradation). Used in BuildEnchantment() to set decay parameters." />
-                                    <TextBox Classes="field-input" Text="{Binding DegradeModifier}" MaxWidth="160" HorizontalAlignment="Left" />
-                                </DockPanel>
-                                <DockPanel>
-                                    <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Degrade Limit" />
-                                    <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Floor value for degradation — enchantment expires when it degrades to this limit. Default -666.0 (invalid/unused). Used in BuildEnchantment()." />
-                                    <TextBox Classes="field-input" Text="{Binding DegradeLimit}" MaxWidth="160" HorizontalAlignment="Left" />
-                                </DockPanel>
-                            </StackPanel>
+									<StackPanel IsVisible="{Binding IsEnchantment}" Spacing="4">
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Duration" />
+											<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Enchantment duration in seconds. -1.0 = permanent (never expires). Only applies to Enchantment and FellowEnchantment types." />
+											<TextBox Classes="field-input" Text="{Binding Duration}" MaxWidth="160" HorizontalAlignment="Left" />
+										</DockPanel>
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Degrade Modifier" />
+											<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Rate at which the enchantment weakens over time. Default 0.0 (no degradation). Used in BuildEnchantment() to set decay parameters." />
+											<TextBox Classes="field-input" Text="{Binding DegradeModifier}" MaxWidth="160" HorizontalAlignment="Left" />
+										</DockPanel>
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Degrade Limit" />
+											<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Floor value for degradation — enchantment expires when it degrades to this limit. Default -666.0 (invalid/unused). Used in BuildEnchantment()." />
+											<TextBox Classes="field-input" Text="{Binding DegradeLimit}" MaxWidth="160" HorizontalAlignment="Left" />
+										</DockPanel>
+									</StackPanel>
 
-                            <StackPanel IsVisible="{Binding IsPortalSummon}" Spacing="4">
-                                <DockPanel>
-                                    <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Portal Lifetime" />
-                                    <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="How long a summoned portal stays open, in seconds." />
-                                    <TextBox Classes="field-input" Text="{Binding PortalLifetime}" MaxWidth="160" HorizontalAlignment="Left" />
-                                </DockPanel>
-                            </StackPanel>
+									<StackPanel IsVisible="{Binding IsPortalSummon}" Spacing="4">
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Portal Lifetime" />
+											<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="How long a summoned portal stays open, in seconds." />
+											<TextBox Classes="field-input" Text="{Binding PortalLifetime}" MaxWidth="160" HorizontalAlignment="Left" />
+										</DockPanel>
+									</StackPanel>
 
-                            <!-- Effects -->
-                            <TextBlock Classes="section-header" Text="Effects" />
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Caster Effect" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="PlayScript visual/sound effect played on the caster when casting succeeds." />
-                                <ComboBox Classes="field-input" ItemsSource="{Binding AllPlayScripts}" SelectedItem="{Binding CasterEffect}" MaxWidth="300" HorizontalAlignment="Left" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Target Effect" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="PlayScript visual/sound effect played on the target when the spell lands." />
-                                <ComboBox Classes="field-input" ItemsSource="{Binding AllPlayScripts}" SelectedItem="{Binding TargetEffect}" MaxWidth="300" HorizontalAlignment="Left" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Fizzle Effect" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="PlayScript visual/sound effect played on the caster when the spell fizzles (fails to cast)." />
-                                <ComboBox Classes="field-input" ItemsSource="{Binding AllPlayScripts}" SelectedItem="{Binding FizzleEffect}" MaxWidth="300" HorizontalAlignment="Left" />
-                            </DockPanel>
+									<!-- Effects -->
+									<TextBlock Classes="section-header" Text="Effects" />
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Caster Effect" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="PlayScript visual/sound effect played on the caster when casting succeeds." />
+										<ComboBox Classes="field-input" ItemsSource="{Binding AllPlayScripts}" SelectedItem="{Binding CasterEffect}" MaxWidth="300" HorizontalAlignment="Left" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Target Effect" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="PlayScript visual/sound effect played on the target when the spell lands." />
+										<ComboBox Classes="field-input" ItemsSource="{Binding AllPlayScripts}" SelectedItem="{Binding TargetEffect}" MaxWidth="300" HorizontalAlignment="Left" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Fizzle Effect" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="PlayScript visual/sound effect played on the caster when the spell fizzles (fails to cast)." />
+										<ComboBox Classes="field-input" ItemsSource="{Binding AllPlayScripts}" SelectedItem="{Binding FizzleEffect}" MaxWidth="300" HorizontalAlignment="Left" />
+									</DockPanel>
 
-                            <!-- Recovery -->
-                            <TextBlock Classes="section-header" Text="Recovery" />
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Recovery Interval" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Time in seconds between spell recovery ticks. Not used by the client — server-side cooldown/recovery mechanic." />
-                                <TextBox Classes="field-input" Text="{Binding RecoveryInterval}" MaxWidth="160" HorizontalAlignment="Left" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Recovery Amount" />
-                                <TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Amount recovered per recovery interval tick. Not used by the client — server-side mechanic." />
-                                <TextBox Classes="field-input" Text="{Binding RecoveryAmount}" MaxWidth="160" HorizontalAlignment="Left" />
-                            </DockPanel>
-                        </StackPanel>
-                    </ScrollViewer>
-                </Panel>
-            </Border>
-        </Grid>
-    </DockPanel>
+									<!-- Recovery -->
+									<TextBlock Classes="section-header" Text="Recovery" />
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Recovery Interval" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Time in seconds between spell recovery ticks. Not used by the client — server-side cooldown/recovery mechanic." />
+										<TextBox Classes="field-input" Text="{Binding RecoveryInterval}" MaxWidth="160" HorizontalAlignment="Left" />
+									</DockPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Recovery Amount" />
+										<TextBlock DockPanel.Dock="Right" Classes="help-icon" ToolTip.Tip="Amount recovered per recovery interval tick. Not used by the client — server-side mechanic." />
+										<TextBox Classes="field-input" Text="{Binding RecoveryAmount}" MaxWidth="160" HorizontalAlignment="Left" />
+									</DockPanel>
+								</StackPanel>
+							</ScrollViewer>
+						</TabItem>
+
+						<TabItem Header="DB">
+							<ScrollViewer HorizontalScrollBarVisibility="Disabled"
+										  VerticalScrollBarVisibility="Auto">
+
+								<StackPanel Margin="16,8,16,16"
+								            DataContext="{Binding SelectedDetail}"
+											Spacing="6">
+
+									<!-- Content -->
+									<StackPanel IsVisible="{Binding ., Converter={x:Static ObjectConverters.IsNotNull}}">
+
+										<TextBlock Classes="section-header" Text="Database Properties" />
+										<!-- Name -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Name" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbName}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<!-- NonTracking -->
+										<DockPanel>
+											<CheckBox Content="Non Tracking"
+													  IsChecked="{Binding DbNonTracking}"
+													  IsThreeState="True"
+													  HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- Damage -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Damage Type" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbDamageType}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Damage Ratio" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbDamageRatio}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<!-- Intensity -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Base Intensity" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbBaseIntensity}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Variance" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbVariance}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<!-- Projectiles -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Num Projectiles"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbNumProjectiles}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Spread Angle" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbSpreadAngle}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Vertical Angle" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbVerticalAngle}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<!-- Crit -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Crit Freq" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbCritFreq}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Crit Multiplier" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbCritMultiplier}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<!-- Modifiers -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Elemental Modifier" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbElementalModifier}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Drain %" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbDrainPercentage}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<!-- Power -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Min Power" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbMinPower}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Max Power" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbMaxPower}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+
+										<!-- DOT -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="DOT Duration" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbDotDuration}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160" />
+										</DockPanel>
+										<!-- Stat Mod -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Stat Mod Type" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbStatModType}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Stat Mod Key" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbStatModKey}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- Type -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="E Type" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbEType}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- WCID -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="WCID" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbWcid}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- Projectiles Variance -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Num Projectiles Variance" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbNumProjectilesVariance}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- Slayer -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Slayer Creature Type" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbSlayerCreatureType}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- Resist -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Ignore Magic Resist" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbIgnoreMagicResist}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- Boost -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Boost" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbBoost}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Boost Variance" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbBoostVariance}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- Transfer -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Source" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbSource}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Destination" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbDestination}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Source Loss" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbSourceLoss}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Transfer Cap" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbTransferCap}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Max Boost Allowed" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbMaxBoostAllowed}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- Linking -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Index" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbIndex}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Link" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbLink}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- Position Cell -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Position Cell ID" />
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPositionObjCellId}"
+													 HorizontalAlignment="Left" />
+										</DockPanel>
+
+										<!-- Position Origin -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Pos X"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPositionOriginX}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Pos Y"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPositionOriginY}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Pos Z"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPositionOriginZ}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<!-- Rotation -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Rot W"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPositionAnglesW}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Rot X"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPositionAnglesX}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Rot Y"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPositionAnglesY}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Rot Z"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPositionAnglesZ}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<!-- Create Offset -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Create X"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbCreateOffsetOriginX}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Create Y"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbCreateOffsetOriginY}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Create Z"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbCreateOffsetOriginZ}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<!-- Padding -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Pad X"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPaddingOriginX}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Pad Y"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPaddingOriginY}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Pad Z"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPaddingOriginZ}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<!-- Dimensions -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Dim X"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbDimsOriginX}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Dim Y"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbDimsOriginY}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Dim Z"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbDimsOriginZ}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<!-- Perturbation -->
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Perturb X"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPeturbationOriginX}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Perturb Y"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPeturbationOriginY}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Perturb Z"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbPeturbationOriginZ}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Imbued Effect"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbImbuedEffect}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+
+										<DockPanel>
+											<TextBlock DockPanel.Dock="Left" Classes="field-label" Text="Stat Mod Value"/>
+											<TextBox Classes="field-input"
+													 Text="{Binding DbStatModVal}"
+													 HorizontalAlignment="Left"
+													 MaxWidth="160"/>
+										</DockPanel>
+									</StackPanel>
+								</StackPanel>
+							</ScrollViewer>
+						</TabItem>
+					</TabControl>
+				</Panel>
+			</Border>
+		</Grid>
+	</DockPanel>
 </UserControl>

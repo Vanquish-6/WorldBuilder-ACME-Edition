@@ -14,6 +14,7 @@ using WorldBuilder.Lib;
 using WorldBuilder.Lib.Settings;
 using WorldBuilder.Shared.Documents;
 using WorldBuilder.Shared.Lib;
+using WorldBuilder.Shared.Lib.AceDb;
 using WorldBuilder.Shared.Models;
 using WorldBuilder.ViewModels;
 
@@ -22,8 +23,10 @@ namespace WorldBuilder.Editors.Spell {
         private IDatReaderWriter? _dats;
         private Project? _project;
         private PortalDatDocument? _portalDoc;
+        private SpellDbDocument? _spellDbDoc;
         private SpellTable? _spellTable;
         private Dictionary<uint, SpellBase>? _allSpells;
+        private Dictionary<uint, SpellRecord> _dbSpellCache = new();
         private SpellComponentTable? _componentTable;
         private const uint SpellTableId = 0x0E00000E;
 
@@ -36,6 +39,7 @@ namespace WorldBuilder.Editors.Spell {
         [ObservableProperty] private SpellDetailViewModel? _selectedDetail;
         [ObservableProperty] private int _totalSpellCount;
         [ObservableProperty] private int _filteredSpellCount;
+        [ObservableProperty] private bool _saveToDb;
 
         public IReadOnlyList<MagicSchool?> SchoolOptions { get; } = new List<MagicSchool?> {
             null, MagicSchool.WarMagic, MagicSchool.LifeMagic,
@@ -60,6 +64,7 @@ namespace WorldBuilder.Editors.Spell {
             _project = project;
             _dats = project.DocumentManager.Dats;
             _portalDoc = project.DocumentManager.GetOrCreateDocumentAsync<PortalDatDocument>(PortalDatDocument.DocumentId).Result;
+            _spellDbDoc = project.DocumentManager.GetOrCreateDocumentAsync<SpellDbDocument>(SpellDbDocument.DocumentId).Result;
             LoadSpells();
         }
 
@@ -90,13 +95,42 @@ namespace WorldBuilder.Editors.Spell {
         partial void OnSearchTextChanged(string value) => ApplyFilter();
         partial void OnFilterSchoolChanged(MagicSchool? value) => ApplyFilter();
         partial void OnFilterSpellTypeChanged(SpellType? value) => ApplyFilter();
-
         partial void OnSelectedSpellChanged(SpellListItem? value) {
             if (value != null && _allSpells != null && _allSpells.TryGetValue(value.Id, out var spell) && _dats != null) {
-                SelectedDetail = new SpellDetailViewModel(value.Id, spell, _componentTable, _allSpells, _dats);
+                var detail = new SpellDetailViewModel(value.Id, spell, _componentTable, _allSpells, _dats);
+                SelectedDetail = detail;
+
+                if (_dbSpellCache.TryGetValue(value.Id, out var spellCache)) {
+                    detail.LoadFromDb(spellCache);
+                } else if (_spellDbDoc != null && _spellDbDoc.TryGet(value.Id, out var localDb)) {
+                    detail.LoadFromDb(localDb);
+                }
+                else {
+                    _ = LoadDbSpellAsync(detail, value.Id);
+                }
             }
             else {
                 SelectedDetail = null;
+            }
+        }
+
+        private async Task LoadDbSpellAsync(SpellDetailViewModel detail, uint spellId) {
+            if (Settings?.AceDbConnection == null)
+                return;
+
+            try {
+                var aceSettings = Settings.AceDbConnection.ToAceDbSettings();
+                using var connector = new AceDbConnector(aceSettings);
+                var currentId = detail.SpellId;
+
+                var dbSpell = await connector.GetSpellAsync(spellId);
+
+                if (dbSpell != null && currentId == detail.SpellId) {
+                    _dbSpellCache[spellId] = dbSpell;
+                    detail.LoadFromDb(dbSpell);
+                }
+            }
+            catch {
             }
         }
 
@@ -167,7 +201,134 @@ namespace WorldBuilder.Editors.Spell {
         }
 
         [RelayCommand]
-        private void SaveSpell() {
+        private void CopySpell() {
+            if (SelectedSpell == null || SelectedDetail == null || _spellTable == null || _allSpells == null)
+                return;
+
+            if (_allSpells.Count <= 0)
+                return;
+
+            uint nextId = 1;
+            nextId = _allSpells.Keys.Max() + 1;
+
+            var newSpell = new SpellBase();
+
+            SelectedDetail.ApplyTo(newSpell);
+
+            if (SelectedDetail.DbSpell != null && _spellDbDoc != null) {
+                var original = SelectedDetail.DbSpell;
+
+                var clone = new SpellRecord {
+                    Id = nextId,
+                    Name = original.Name,
+
+                    StatModType = original.StatModType,
+                    StatModKey = original.StatModKey,
+                    StatModVal = original.StatModVal,
+
+                    EType = original.EType,
+                    BaseIntensity = original.BaseIntensity,
+                    Variance = original.Variance,
+
+                    Wcid = original.Wcid,
+
+                    NumProjectiles = original.NumProjectiles,
+                    NumProjectilesVariance = original.NumProjectilesVariance,
+                    SpreadAngle = original.SpreadAngle,
+                    VerticalAngle = original.VerticalAngle,
+                    DefaultLaunchAngle = original.DefaultLaunchAngle,
+
+                    NonTracking = original.NonTracking,
+
+                    CreateOffsetOriginX = original.CreateOffsetOriginX,
+                    CreateOffsetOriginY = original.CreateOffsetOriginY,
+                    CreateOffsetOriginZ = original.CreateOffsetOriginZ,
+
+                    PaddingOriginX = original.PaddingOriginX,
+                    PaddingOriginY = original.PaddingOriginY,
+                    PaddingOriginZ = original.PaddingOriginZ,
+
+                    DimsOriginX = original.DimsOriginX,
+                    DimsOriginY = original.DimsOriginY,
+                    DimsOriginZ = original.DimsOriginZ,
+
+                    PeturbationOriginX = original.PeturbationOriginX,
+                    PeturbationOriginY = original.PeturbationOriginY,
+                    PeturbationOriginZ = original.PeturbationOriginZ,
+
+                    ImbuedEffect = original.ImbuedEffect,
+
+                    SlayerCreatureType = original.SlayerCreatureType,
+                    SlayerDamageBonus = original.SlayerDamageBonus,
+
+                    CritFreq = original.CritFreq,
+                    CritMultiplier = original.CritMultiplier,
+
+                    IgnoreMagicResist = original.IgnoreMagicResist,
+                    ElementalModifier = original.ElementalModifier,
+
+                    DrainPercentage = original.DrainPercentage,
+                    DamageRatio = original.DamageRatio,
+
+                    DamageType = original.DamageType,
+
+                    Boost = original.Boost,
+                    BoostVariance = original.BoostVariance,
+
+                    Source = original.Source,
+                    Destination = original.Destination,
+
+                    Proportion = original.Proportion,
+                    LossPercent = original.LossPercent,
+
+                    SourceLoss = original.SourceLoss,
+                    TransferCap = original.TransferCap,
+                    MaxBoostAllowed = original.MaxBoostAllowed,
+
+                    TransferBitfield = original.TransferBitfield,
+
+                    Index = original.Index,
+                    Link = original.Link,
+
+                    PositionObjCellId = original.PositionObjCellId,
+
+                    PositionOriginX = original.PositionOriginX,
+                    PositionOriginY = original.PositionOriginY,
+                    PositionOriginZ = original.PositionOriginZ,
+
+                    PositionAnglesW = original.PositionAnglesW,
+                    PositionAnglesX = original.PositionAnglesX,
+                    PositionAnglesY = original.PositionAnglesY,
+                    PositionAnglesZ = original.PositionAnglesZ,
+
+                    MinPower = original.MinPower,
+                    MaxPower = original.MaxPower,
+                    PowerVariance = original.PowerVariance,
+
+                    DispelSchool = original.DispelSchool,
+
+                    Align = original.Align,
+                    Number = original.Number,
+                    NumberVariance = original.NumberVariance,
+
+                    DotDuration = original.DotDuration
+                };
+
+                _dbSpellCache[nextId] = clone;
+                _spellDbDoc?.Set(nextId, clone);
+            }
+
+            newSpell.Name = newSpell.Name + " - Copy";
+            _allSpells[nextId] = newSpell;
+
+            ApplyFilter();
+
+            SelectedSpell = Spells.FirstOrDefault(s => s.Id == nextId);
+            StatusText = $"Copied spell to new ID: 0x{nextId:X4}. Remember to Save.";
+        }
+
+        [RelayCommand]
+        private async Task SaveSpell() {
             if (SelectedDetail == null || _spellTable == null || _portalDoc == null || _allSpells == null) return;
 
             var detail = SelectedDetail;
@@ -179,12 +340,38 @@ namespace WorldBuilder.Editors.Spell {
 
             _portalDoc.SetEntry(SpellTableId, _spellTable);
 
-            int idx = -1;
-            for (int i = 0; i < Spells.Count; i++) {
-                if (Spells[i].Id == id) { idx = i; break; }
+            var existing = Spells.FirstOrDefault(s => s.Id == id);
+            if (existing != null) {
+                var index = Spells.IndexOf(existing);
+                Spells[index] = new SpellListItem(id, spell);
             }
-            if (idx >= 0) {
-                Spells[idx] = new SpellListItem(id, spell);
+
+            if (_spellDbDoc != null) {
+                var db = detail.DbSpell ?? new SpellRecord { Id = id };
+
+                detail.ApplyDbTo(db);
+
+                _spellDbDoc.Set(id, db);
+
+                detail.DbSpell = db;
+                _dbSpellCache.Remove(id);
+
+                if (SaveToDb && Settings?.AceDbConnection != null) {
+                    try {
+                        var aceSettings = Settings.AceDbConnection.ToAceDbSettings();
+                        using var connector = new AceDbConnector(aceSettings);
+                        var success = await connector.SaveSpellAsync(db);
+
+                        if (!success) {
+                            StatusText = $"Saved locally, but DB save failed for spell #{id}";
+                            return;
+                        }
+                    }
+                    catch {
+                        StatusText = $"Saved locally, but failed to save to DB for spell #{id}";
+                        return;
+                    }
+                }
             }
 
             StatusText = $"Saved spell #{id}: {spell.Name} to project. Use File > Export to write DATs.";
@@ -299,10 +486,304 @@ namespace WorldBuilder.Editors.Spell {
         [ObservableProperty] private uint _displayOrder;
         [ObservableProperty] private uint _nonComponentTargetType;
         [ObservableProperty] private uint _manaMod;
+        [ObservableProperty] private SpellRecord? _dbSpell;
 
         [ObservableProperty] private ObservableCollection<SpellComponentSlot> _componentSlots = new();
         [ObservableProperty] private ObservableCollection<IconPickerItem> _availableIcons = new();
         [ObservableProperty] private bool _isIconPickerOpen;
+
+
+        // ACE Spell table props
+        [ObservableProperty] private string? _dbName;
+
+        [ObservableProperty] private uint? _dbStatModType;
+        [ObservableProperty] private uint? _dbStatModKey;
+        [ObservableProperty] private float? _dbStatModVal;
+
+        [ObservableProperty] private uint? _dbEType;
+        [ObservableProperty] private int? _dbBaseIntensity;
+        [ObservableProperty] private int? _dbVariance;
+
+        [ObservableProperty] private uint? _dbWcid;
+
+        [ObservableProperty] private int? _dbNumProjectiles;
+        [ObservableProperty] private int? _dbNumProjectilesVariance;
+        [ObservableProperty] private float? _dbSpreadAngle;
+        [ObservableProperty] private float? _dbVerticalAngle;
+        [ObservableProperty] private float? _dbDefaultLaunchAngle;
+
+        [ObservableProperty] private bool? _dbNonTracking;
+
+        [ObservableProperty] private float? _dbCreateOffsetOriginX;
+        [ObservableProperty] private float? _dbCreateOffsetOriginY;
+        [ObservableProperty] private float? _dbCreateOffsetOriginZ;
+
+        [ObservableProperty] private float? _dbPaddingOriginX;
+        [ObservableProperty] private float? _dbPaddingOriginY;
+        [ObservableProperty] private float? _dbPaddingOriginZ;
+
+        [ObservableProperty] private float? _dbDimsOriginX;
+        [ObservableProperty] private float? _dbDimsOriginY;
+        [ObservableProperty] private float? _dbDimsOriginZ;
+
+        [ObservableProperty] private float? _dbPeturbationOriginX;
+        [ObservableProperty] private float? _dbPeturbationOriginY;
+        [ObservableProperty] private float? _dbPeturbationOriginZ;
+
+        [ObservableProperty] private uint? _dbImbuedEffect;
+
+        [ObservableProperty] private int? _dbSlayerCreatureType;
+        [ObservableProperty] private float? _dbSlayerDamageBonus;
+
+        [ObservableProperty] private double? _dbCritFreq;
+        [ObservableProperty] private double? _dbCritMultiplier;
+
+        [ObservableProperty] private int? _dbIgnoreMagicResist;
+        [ObservableProperty] private double? _dbElementalModifier;
+
+        [ObservableProperty] private float? _dbDrainPercentage;
+        [ObservableProperty] private float? _dbDamageRatio;
+
+        [ObservableProperty] private int? _dbDamageType;
+
+        [ObservableProperty] private int? _dbBoost;
+        [ObservableProperty] private int? _dbBoostVariance;
+
+        [ObservableProperty] private int? _dbSource;
+        [ObservableProperty] private int? _dbDestination;
+
+        [ObservableProperty] private float? _dbProportion;
+        [ObservableProperty] private float? _dbLossPercent;
+
+        [ObservableProperty] private int? _dbSourceLoss;
+        [ObservableProperty] private int? _dbTransferCap;
+        [ObservableProperty] private int? _dbMaxBoostAllowed;
+
+        [ObservableProperty] private uint? _dbTransferBitfield;
+
+        [ObservableProperty] private int? _dbIndex;
+        [ObservableProperty] private int? _dbLink;
+
+        [ObservableProperty] private uint? _dbPositionObjCellId;
+
+        [ObservableProperty] private float? _dbPositionOriginX;
+        [ObservableProperty] private float? _dbPositionOriginY;
+        [ObservableProperty] private float? _dbPositionOriginZ;
+
+        [ObservableProperty] private float? _dbPositionAnglesW;
+        [ObservableProperty] private float? _dbPositionAnglesX;
+        [ObservableProperty] private float? _dbPositionAnglesY;
+        [ObservableProperty] private float? _dbPositionAnglesZ;
+
+        [ObservableProperty] private int? _dbMinPower;
+        [ObservableProperty] private int? _dbMaxPower;
+        [ObservableProperty] private float? _dbPowerVariance;
+
+        [ObservableProperty] private int? _dbDispelSchool;
+
+        [ObservableProperty] private int? _dbAlign;
+        [ObservableProperty] private int? _dbNumber;
+        [ObservableProperty] private float? _dbNumberVariance;
+
+        [ObservableProperty] private double? _dbDotDuration;
+
+        public void LoadFromDb(SpellRecord db) {
+            if (db == null)
+                return;
+
+            DbSpell = db;
+
+            DbName = db.Name;
+
+            DbStatModType = db.StatModType;
+            DbStatModKey = db.StatModKey;
+            DbStatModVal = db.StatModVal;
+
+            DbEType = db.EType;
+            DbBaseIntensity = db.BaseIntensity;
+            DbVariance = db.Variance;
+
+            DbWcid = db.Wcid;
+
+            DbNumProjectiles = db.NumProjectiles;
+            DbNumProjectilesVariance = db.NumProjectilesVariance;
+            DbSpreadAngle = db.SpreadAngle;
+            DbVerticalAngle = db.VerticalAngle;
+            DbDefaultLaunchAngle = db.DefaultLaunchAngle;
+
+            DbNonTracking = db.NonTracking;
+
+            DbCreateOffsetOriginX = db.CreateOffsetOriginX;
+            DbCreateOffsetOriginY = db.CreateOffsetOriginY;
+            DbCreateOffsetOriginZ = db.CreateOffsetOriginZ;
+
+            DbPaddingOriginX = db.PaddingOriginX;
+            DbPaddingOriginY = db.PaddingOriginY;
+            DbPaddingOriginZ = db.PaddingOriginZ;
+
+            DbDimsOriginX = db.DimsOriginX;
+            DbDimsOriginY = db.DimsOriginY;
+            DbDimsOriginZ = db.DimsOriginZ;
+
+            DbPeturbationOriginX = db.PeturbationOriginX;
+            DbPeturbationOriginY = db.PeturbationOriginY;
+            DbPeturbationOriginZ = db.PeturbationOriginZ;
+
+            DbImbuedEffect = db.ImbuedEffect;
+
+            DbSlayerCreatureType = db.SlayerCreatureType;
+            DbSlayerDamageBonus = db.SlayerDamageBonus;
+
+            DbCritFreq = db.CritFreq;
+            DbCritMultiplier = db.CritMultiplier;
+
+            DbIgnoreMagicResist = db.IgnoreMagicResist;
+            DbElementalModifier = db.ElementalModifier;
+
+            DbDrainPercentage = db.DrainPercentage;
+            DbDamageRatio = db.DamageRatio;
+
+            DbDamageType = db.DamageType;
+
+            DbBoost = db.Boost;
+            DbBoostVariance = db.BoostVariance;
+
+            DbSource = db.Source;
+            DbDestination = db.Destination;
+
+            DbProportion = db.Proportion;
+            DbLossPercent = db.LossPercent;
+
+            DbSourceLoss = db.SourceLoss;
+            DbTransferCap = db.TransferCap;
+            DbMaxBoostAllowed = db.MaxBoostAllowed;
+
+            DbTransferBitfield = db.TransferBitfield;
+
+            DbIndex = db.Index;
+            DbLink = db.Link;
+
+            DbPositionObjCellId = db.PositionObjCellId;
+
+            DbPositionOriginX = db.PositionOriginX;
+            DbPositionOriginY = db.PositionOriginY;
+            DbPositionOriginZ = db.PositionOriginZ;
+
+            DbPositionAnglesW = db.PositionAnglesW;
+            DbPositionAnglesX = db.PositionAnglesX;
+            DbPositionAnglesY = db.PositionAnglesY;
+            DbPositionAnglesZ = db.PositionAnglesZ;
+
+            DbMinPower = db.MinPower;
+            DbMaxPower = db.MaxPower;
+            DbPowerVariance = db.PowerVariance;
+
+            DbDispelSchool = db.DispelSchool;
+
+            DbAlign = db.Align;
+            DbNumber = db.Number;
+            DbNumberVariance = db.NumberVariance;
+
+            DbDotDuration = db.DotDuration;
+        }
+
+        public void ApplyDbTo(SpellRecord db) {
+            if (db == null)
+                return;
+
+            db.Name = DbName;
+
+            db.StatModType = DbStatModType;
+            db.StatModKey = DbStatModKey;
+            db.StatModVal = DbStatModVal;
+
+            db.EType = DbEType;
+            db.BaseIntensity = DbBaseIntensity;
+            db.Variance = DbVariance;
+
+            db.Wcid = DbWcid;
+
+            db.NumProjectiles = DbNumProjectiles;
+            db.NumProjectilesVariance = DbNumProjectilesVariance;
+            db.SpreadAngle = DbSpreadAngle;
+            db.VerticalAngle = DbVerticalAngle;
+            db.DefaultLaunchAngle = DbDefaultLaunchAngle;
+
+            db.NonTracking = DbNonTracking;
+
+            db.CreateOffsetOriginX = DbCreateOffsetOriginX;
+            db.CreateOffsetOriginY = DbCreateOffsetOriginY;
+            db.CreateOffsetOriginZ = DbCreateOffsetOriginZ;
+
+            db.PaddingOriginX = DbPaddingOriginX;
+            db.PaddingOriginY = DbPaddingOriginY;
+            db.PaddingOriginZ = DbPaddingOriginZ;
+
+            db.DimsOriginX = DbDimsOriginX;
+            db.DimsOriginY = DbDimsOriginY;
+            db.DimsOriginZ = DbDimsOriginZ;
+
+            db.PeturbationOriginX = DbPeturbationOriginX;
+            db.PeturbationOriginY = DbPeturbationOriginY;
+            db.PeturbationOriginZ = DbPeturbationOriginZ;
+
+            db.ImbuedEffect = DbImbuedEffect;
+
+            db.SlayerCreatureType = DbSlayerCreatureType;
+            db.SlayerDamageBonus = DbSlayerDamageBonus;
+
+            db.CritFreq = DbCritFreq;
+            db.CritMultiplier = DbCritMultiplier;
+
+            db.IgnoreMagicResist = DbIgnoreMagicResist;
+            db.ElementalModifier = DbElementalModifier;
+
+            db.DrainPercentage = DbDrainPercentage;
+            db.DamageRatio = DbDamageRatio;
+
+            db.DamageType = DbDamageType;
+
+            db.Boost = DbBoost;
+            db.BoostVariance = DbBoostVariance;
+
+            db.Source = DbSource;
+            db.Destination = DbDestination;
+
+            db.Proportion = DbProportion;
+            db.LossPercent = DbLossPercent;
+
+            db.SourceLoss = DbSourceLoss;
+            db.TransferCap = DbTransferCap;
+            db.MaxBoostAllowed = DbMaxBoostAllowed;
+
+            db.TransferBitfield = DbTransferBitfield;
+
+            db.Index = DbIndex;
+            db.Link = DbLink;
+
+            db.PositionObjCellId = DbPositionObjCellId;
+
+            db.PositionOriginX = DbPositionOriginX;
+            db.PositionOriginY = DbPositionOriginY;
+            db.PositionOriginZ = DbPositionOriginZ;
+
+            db.PositionAnglesW = DbPositionAnglesW;
+            db.PositionAnglesX = DbPositionAnglesX;
+            db.PositionAnglesY = DbPositionAnglesY;
+            db.PositionAnglesZ = DbPositionAnglesZ;
+
+            db.MinPower = DbMinPower;
+            db.MaxPower = DbMaxPower;
+            db.PowerVariance = DbPowerVariance;
+
+            db.DispelSchool = DbDispelSchool;
+
+            db.Align = DbAlign;
+            db.Number = DbNumber;
+            db.NumberVariance = DbNumberVariance;
+
+            db.DotDuration = DbDotDuration;
+        }
 
         public List<ComponentPickerItem> AllComponents { get; private set; } = new();
 

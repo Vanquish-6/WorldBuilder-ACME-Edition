@@ -1,7 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Data;
+
 using MySqlConnector;
 using WorldBuilder.Shared.Documents;
 using WorldBuilder.Shared.Models;
@@ -364,6 +362,372 @@ namespace WorldBuilder.Shared.Lib.AceDb {
             }
 
             return result;
+        }
+
+
+        public async Task<SpellRecord?> GetSpellAsync(uint id, CancellationToken ct = default) {
+            try {
+                await using var conn = new MySqlConnection(_settings.ConnectionString);
+                await conn.OpenAsync(ct);
+
+                const string sql = "SELECT * FROM spell WHERE id = @id LIMIT 1";
+
+                await using var cmd = new MySqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@id", id);
+
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                if (!await reader.ReadAsync(ct))
+                    return null;
+
+                // Helpers
+                int? GetInt(string name) => reader.IsDBNull(name) ? null : reader.GetInt32(name);
+                uint? GetUInt(string name) => reader.IsDBNull(name) ? null : reader.GetUInt32(name);
+                float? GetFloat(string name) => reader.IsDBNull(name) ? null : reader.GetFloat(name);
+                double? GetDouble(string name) => reader.IsDBNull(name) ? null : reader.GetDouble(name);
+                bool? GetBool(string name) => reader.IsDBNull(name) ? null : reader.GetBoolean(name);
+
+                return new SpellRecord {
+                    Id = reader.GetUInt32("id"),
+                    Name = reader.GetString("name"),
+
+                    StatModType = GetUInt("stat_Mod_Type"),
+                    StatModKey = GetUInt("stat_Mod_Key"),
+                    StatModVal = GetFloat("stat_Mod_Val"),
+
+                    EType = GetUInt("e_Type"),
+                    BaseIntensity = GetInt("base_Intensity"),
+                    Variance = GetInt("variance"),
+
+                    Wcid = GetUInt("wcid"),
+
+                    NumProjectiles = GetInt("num_Projectiles"),
+                    NumProjectilesVariance = GetInt("num_Projectiles_Variance"),
+
+                    SpreadAngle = GetFloat("spread_Angle"),
+                    VerticalAngle = GetFloat("vertical_Angle"),
+                    DefaultLaunchAngle = GetFloat("default_Launch_Angle"),
+
+                    NonTracking = GetBool("non_Tracking"),
+
+                    CreateOffsetOriginX = GetFloat("create_Offset_Origin_X"),
+                    CreateOffsetOriginY = GetFloat("create_Offset_Origin_Y"),
+                    CreateOffsetOriginZ = GetFloat("create_Offset_Origin_Z"),
+
+                    PaddingOriginX = GetFloat("padding_Origin_X"),
+                    PaddingOriginY = GetFloat("padding_Origin_Y"),
+                    PaddingOriginZ = GetFloat("padding_Origin_Z"),
+
+                    DimsOriginX = GetFloat("dims_Origin_X"),
+                    DimsOriginY = GetFloat("dims_Origin_Y"),
+                    DimsOriginZ = GetFloat("dims_Origin_Z"),
+
+                    PeturbationOriginX = GetFloat("peturbation_Origin_X"),
+                    PeturbationOriginY = GetFloat("peturbation_Origin_Y"),
+                    PeturbationOriginZ = GetFloat("peturbation_Origin_Z"),
+
+                    ImbuedEffect = GetUInt("imbued_Effect"),
+
+                    SlayerCreatureType = GetInt("slayer_Creature_Type"),
+                    SlayerDamageBonus = GetFloat("slayer_Damage_Bonus"),
+
+                    CritFreq = GetDouble("crit_Freq"),
+                    CritMultiplier = GetDouble("crit_Multiplier"),
+
+                    IgnoreMagicResist = GetInt("ignore_Magic_Resist"),
+                    ElementalModifier = GetDouble("elemental_Modifier"),
+
+                    DrainPercentage = GetFloat("drain_Percentage"),
+                    DamageRatio = GetFloat("damage_Ratio"),
+
+                    DamageType = GetInt("damage_Type"),
+
+                    Boost = GetInt("boost"),
+                    BoostVariance = GetInt("boost_Variance"),
+
+                    Source = GetInt("source"),
+                    Destination = GetInt("destination"),
+
+                    Proportion = GetFloat("proportion"),
+                    LossPercent = GetFloat("loss_Percent"),
+
+                    SourceLoss = GetInt("source_Loss"),
+                    TransferCap = GetInt("transfer_Cap"),
+                    MaxBoostAllowed = GetInt("max_Boost_Allowed"),
+
+                    TransferBitfield = GetUInt("transfer_Bitfield"),
+
+                    Index = GetInt("index"),
+                    Link = GetInt("link"),
+
+                    PositionObjCellId = GetUInt("position_Obj_Cell_ID"),
+
+                    PositionOriginX = GetFloat("position_Origin_X"),
+                    PositionOriginY = GetFloat("position_Origin_Y"),
+                    PositionOriginZ = GetFloat("position_Origin_Z"),
+
+                    PositionAnglesW = GetFloat("position_Angles_W"),
+                    PositionAnglesX = GetFloat("position_Angles_X"),
+                    PositionAnglesY = GetFloat("position_Angles_Y"),
+                    PositionAnglesZ = GetFloat("position_Angles_Z"),
+
+                    MinPower = GetInt("min_Power"),
+                    MaxPower = GetInt("max_Power"),
+                    PowerVariance = GetFloat("power_Variance"),
+
+                    DispelSchool = GetInt("dispel_School"),
+
+                    Align = GetInt("align"),
+                    Number = GetInt("number"),
+                    NumberVariance = GetFloat("number_Variance"),
+
+                    DotDuration = GetDouble("dot_Duration")
+                };
+            }
+            catch (MySqlException) {
+                return null;
+            }
+        }
+
+        public async Task<bool> SaveSpellAsync(SpellRecord spell, CancellationToken ct = default) {
+            try {
+                await using var conn = new MySqlConnection(_settings.ConnectionString);
+                await conn.OpenAsync(ct);
+
+                const string sql = @"
+                    INSERT INTO spell (
+                        id, name,
+                        stat_Mod_Type, stat_Mod_Key, stat_Mod_Val,
+                        e_Type, base_Intensity, variance,
+                        wcid,
+                        num_Projectiles, num_Projectiles_Variance,
+                        spread_Angle, vertical_Angle, default_Launch_Angle,
+                        non_Tracking,
+                        create_Offset_Origin_X, create_Offset_Origin_Y, create_Offset_Origin_Z,
+                        padding_Origin_X, padding_Origin_Y, padding_Origin_Z,
+                        dims_Origin_X, dims_Origin_Y, dims_Origin_Z,
+                        peturbation_Origin_X, peturbation_Origin_Y, peturbation_Origin_Z,
+                        imbued_Effect,
+                        slayer_Creature_Type, slayer_Damage_Bonus,
+                        crit_Freq, crit_Multiplier,
+                        ignore_Magic_Resist, elemental_Modifier,
+                        drain_Percentage, damage_Ratio,
+                        damage_Type,
+                        boost, boost_Variance,
+                        source, destination,
+                        proportion, loss_Percent,
+                        source_Loss, transfer_Cap, max_Boost_Allowed,
+                        transfer_Bitfield,
+                        `index`, link,
+                        position_Obj_Cell_ID,
+                        position_Origin_X, position_Origin_Y, position_Origin_Z,
+                        position_Angles_W, position_Angles_X, position_Angles_Y, position_Angles_Z,
+                        min_Power, max_Power, power_Variance,
+                        dispel_School,
+                        align, number, number_Variance,
+                        dot_Duration
+                    )
+                    VALUES (
+                        @id, @name,
+                        @statModType, @statModKey, @statModVal,
+                        @eType, @baseIntensity, @variance,
+                        @wcid,
+                        @numProjectiles, @numProjectilesVariance,
+                        @spreadAngle, @verticalAngle, @defaultLaunchAngle,
+                        @nonTracking,
+                        @createOffsetOriginX, @createOffsetOriginY, @createOffsetOriginZ,
+                        @paddingOriginX, @paddingOriginY, @paddingOriginZ,
+                        @dimsOriginX, @dimsOriginY, @dimsOriginZ,
+                        @peturbationOriginX, @peturbationOriginY, @peturbationOriginZ,
+                        @imbuedEffect,
+                        @slayerCreatureType, @slayerDamageBonus,
+                        @critFreq, @critMultiplier,
+                        @ignoreMagicResist, @elementalModifier,
+                        @drainPercentage, @damageRatio,
+                        @damageType,
+                        @boost, @boostVariance,
+                        @source, @destination,
+                        @proportion, @lossPercent,
+                        @sourceLoss, @transferCap, @maxBoostAllowed,
+                        @transferBitfield,
+                        @index, @link,
+                        @positionObjCellId,
+                        @positionOriginX, @positionOriginY, @positionOriginZ,
+                        @positionAnglesW, @positionAnglesX, @positionAnglesY, @positionAnglesZ,
+                        @minPower, @maxPower, @powerVariance,
+                        @dispelSchool,
+                        @align, @number, @numberVariance,
+                        @dotDuration
+                    )
+                    ON DUPLICATE KEY UPDATE
+                        name = VALUES(name),
+                        stat_Mod_Type = VALUES(stat_Mod_Type),
+                        stat_Mod_Key = VALUES(stat_Mod_Key),
+                        stat_Mod_Val = VALUES(stat_Mod_Val),
+                        e_Type = VALUES(e_Type),
+                        base_Intensity = VALUES(base_Intensity),
+                        variance = VALUES(variance),
+                        wcid = VALUES(wcid),
+                        num_Projectiles = VALUES(num_Projectiles),
+                        num_Projectiles_Variance = VALUES(num_Projectiles_Variance),
+                        spread_Angle = VALUES(spread_Angle),
+                        vertical_Angle = VALUES(vertical_Angle),
+                        default_Launch_Angle = VALUES(default_Launch_Angle),
+                        non_Tracking = VALUES(non_Tracking),
+                        create_Offset_Origin_X = VALUES(create_Offset_Origin_X),
+                        create_Offset_Origin_Y = VALUES(create_Offset_Origin_Y),
+                        create_Offset_Origin_Z = VALUES(create_Offset_Origin_Z),
+                        padding_Origin_X = VALUES(padding_Origin_X),
+                        padding_Origin_Y = VALUES(padding_Origin_Y),
+                        padding_Origin_Z = VALUES(padding_Origin_Z),
+                        dims_Origin_X = VALUES(dims_Origin_X),
+                        dims_Origin_Y = VALUES(dims_Origin_Y),
+                        dims_Origin_Z = VALUES(dims_Origin_Z),
+                        peturbation_Origin_X = VALUES(peturbation_Origin_X),
+                        peturbation_Origin_Y = VALUES(peturbation_Origin_Y),
+                        peturbation_Origin_Z = VALUES(peturbation_Origin_Z),
+                        imbued_Effect = VALUES(imbued_Effect),
+                        slayer_Creature_Type = VALUES(slayer_Creature_Type),
+                        slayer_Damage_Bonus = VALUES(slayer_Damage_Bonus),
+                        crit_Freq = VALUES(crit_Freq),
+                        crit_Multiplier = VALUES(crit_Multiplier),
+                        ignore_Magic_Resist = VALUES(ignore_Magic_Resist),
+                        elemental_Modifier = VALUES(elemental_Modifier),
+                        drain_Percentage = VALUES(drain_Percentage),
+                        damage_Ratio = VALUES(damage_Ratio),
+                        damage_Type = VALUES(damage_Type),
+                        boost = VALUES(boost),
+                        boost_Variance = VALUES(boost_Variance),
+                        source = VALUES(source),
+                        destination = VALUES(destination),
+                        proportion = VALUES(proportion),
+                        loss_Percent = VALUES(loss_Percent),
+                        source_Loss = VALUES(source_Loss),
+                        transfer_Cap = VALUES(transfer_Cap),
+                        max_Boost_Allowed = VALUES(max_Boost_Allowed),
+                        transfer_Bitfield = VALUES(transfer_Bitfield),
+                        `index` = VALUES(`index`),
+                        link = VALUES(link),
+                        position_Obj_Cell_ID = VALUES(position_Obj_Cell_ID),
+                        position_Origin_X = VALUES(position_Origin_X),
+                        position_Origin_Y = VALUES(position_Origin_Y),
+                        position_Origin_Z = VALUES(position_Origin_Z),
+                        position_Angles_W = VALUES(position_Angles_W),
+                        position_Angles_X = VALUES(position_Angles_X),
+                        position_Angles_Y = VALUES(position_Angles_Y),
+                        position_Angles_Z = VALUES(position_Angles_Z),
+                        min_Power = VALUES(min_Power),
+                        max_Power = VALUES(max_Power),
+                        power_Variance = VALUES(power_Variance),
+                        dispel_School = VALUES(dispel_School),
+                        align = VALUES(align),
+                        number = VALUES(number),
+                        number_Variance = VALUES(number_Variance),
+                        dot_Duration = VALUES(dot_Duration);";
+
+                await using var cmd = new MySqlCommand(sql, conn);
+
+                cmd.Parameters.AddWithValue("@id", spell.Id);
+                cmd.Parameters.AddWithValue("@name", spell.Name ?? "");
+
+                object Db(object? v) => v ?? DBNull.Value;
+
+                cmd.Parameters.AddWithValue("@statModType", Db(spell.StatModType));
+                cmd.Parameters.AddWithValue("@statModKey", Db(spell.StatModKey));
+                cmd.Parameters.AddWithValue("@statModVal", Db(spell.StatModVal));
+
+                cmd.Parameters.AddWithValue("@eType", Db(spell.EType));
+                cmd.Parameters.AddWithValue("@baseIntensity", Db(spell.BaseIntensity));
+                cmd.Parameters.AddWithValue("@variance", Db(spell.Variance));
+
+                cmd.Parameters.AddWithValue("@wcid", Db(spell.Wcid));
+
+                cmd.Parameters.AddWithValue("@numProjectiles", Db(spell.NumProjectiles));
+                cmd.Parameters.AddWithValue("@numProjectilesVariance", Db(spell.NumProjectilesVariance));
+
+                cmd.Parameters.AddWithValue("@spreadAngle", Db(spell.SpreadAngle));
+                cmd.Parameters.AddWithValue("@verticalAngle", Db(spell.VerticalAngle));
+                cmd.Parameters.AddWithValue("@defaultLaunchAngle", Db(spell.DefaultLaunchAngle));
+
+                cmd.Parameters.AddWithValue("@nonTracking", Db(spell.NonTracking));
+
+                cmd.Parameters.AddWithValue("@createOffsetOriginX", Db(spell.CreateOffsetOriginX));
+                cmd.Parameters.AddWithValue("@createOffsetOriginY", Db(spell.CreateOffsetOriginY));
+                cmd.Parameters.AddWithValue("@createOffsetOriginZ", Db(spell.CreateOffsetOriginZ));
+
+                cmd.Parameters.AddWithValue("@paddingOriginX", Db(spell.PaddingOriginX));
+                cmd.Parameters.AddWithValue("@paddingOriginY", Db(spell.PaddingOriginY));
+                cmd.Parameters.AddWithValue("@paddingOriginZ", Db(spell.PaddingOriginZ));
+
+                cmd.Parameters.AddWithValue("@dimsOriginX", Db(spell.DimsOriginX));
+                cmd.Parameters.AddWithValue("@dimsOriginY", Db(spell.DimsOriginY));
+                cmd.Parameters.AddWithValue("@dimsOriginZ", Db(spell.DimsOriginZ));
+
+                cmd.Parameters.AddWithValue("@peturbationOriginX", Db(spell.PeturbationOriginX));
+                cmd.Parameters.AddWithValue("@peturbationOriginY", Db(spell.PeturbationOriginY));
+                cmd.Parameters.AddWithValue("@peturbationOriginZ", Db(spell.PeturbationOriginZ));
+
+                cmd.Parameters.AddWithValue("@imbuedEffect", Db(spell.ImbuedEffect));
+
+                cmd.Parameters.AddWithValue("@slayerCreatureType", Db(spell.SlayerCreatureType));
+                cmd.Parameters.AddWithValue("@slayerDamageBonus", Db(spell.SlayerDamageBonus));
+
+                cmd.Parameters.AddWithValue("@critFreq", Db(spell.CritFreq));
+                cmd.Parameters.AddWithValue("@critMultiplier", Db(spell.CritMultiplier));
+
+                cmd.Parameters.AddWithValue("@ignoreMagicResist", Db(spell.IgnoreMagicResist));
+                cmd.Parameters.AddWithValue("@elementalModifier", Db(spell.ElementalModifier));
+
+                cmd.Parameters.AddWithValue("@drainPercentage", Db(spell.DrainPercentage));
+                cmd.Parameters.AddWithValue("@damageRatio", Db(spell.DamageRatio));
+
+                cmd.Parameters.AddWithValue("@damageType", Db(spell.DamageType));
+
+                cmd.Parameters.AddWithValue("@boost", Db(spell.Boost));
+                cmd.Parameters.AddWithValue("@boostVariance", Db(spell.BoostVariance));
+
+                cmd.Parameters.AddWithValue("@source", Db(spell.Source));
+                cmd.Parameters.AddWithValue("@destination", Db(spell.Destination));
+
+                cmd.Parameters.AddWithValue("@proportion", Db(spell.Proportion));
+                cmd.Parameters.AddWithValue("@lossPercent", Db(spell.LossPercent));
+
+                cmd.Parameters.AddWithValue("@sourceLoss", Db(spell.SourceLoss));
+                cmd.Parameters.AddWithValue("@transferCap", Db(spell.TransferCap));
+                cmd.Parameters.AddWithValue("@maxBoostAllowed", Db(spell.MaxBoostAllowed));
+
+                cmd.Parameters.AddWithValue("@transferBitfield", Db(spell.TransferBitfield));
+
+                cmd.Parameters.AddWithValue("@index", Db(spell.Index));
+                cmd.Parameters.AddWithValue("@link", Db(spell.Link));
+
+                cmd.Parameters.AddWithValue("@positionObjCellId", Db(spell.PositionObjCellId));
+
+                cmd.Parameters.AddWithValue("@positionOriginX", Db(spell.PositionOriginX));
+                cmd.Parameters.AddWithValue("@positionOriginY", Db(spell.PositionOriginY));
+                cmd.Parameters.AddWithValue("@positionOriginZ", Db(spell.PositionOriginZ));
+
+                cmd.Parameters.AddWithValue("@positionAnglesW", Db(spell.PositionAnglesW));
+                cmd.Parameters.AddWithValue("@positionAnglesX", Db(spell.PositionAnglesX));
+                cmd.Parameters.AddWithValue("@positionAnglesY", Db(spell.PositionAnglesY));
+                cmd.Parameters.AddWithValue("@positionAnglesZ", Db(spell.PositionAnglesZ));
+
+                cmd.Parameters.AddWithValue("@minPower", Db(spell.MinPower));
+                cmd.Parameters.AddWithValue("@maxPower", Db(spell.MaxPower));
+                cmd.Parameters.AddWithValue("@powerVariance", Db(spell.PowerVariance));
+
+                cmd.Parameters.AddWithValue("@dispelSchool", Db(spell.DispelSchool));
+
+                cmd.Parameters.AddWithValue("@align", Db(spell.Align));
+                cmd.Parameters.AddWithValue("@number", Db(spell.Number));
+                cmd.Parameters.AddWithValue("@numberVariance", Db(spell.NumberVariance));
+
+                cmd.Parameters.AddWithValue("@dotDuration", Db(spell.DotDuration));
+
+                return await cmd.ExecuteNonQueryAsync(ct) > 0;
+            }
+            catch (MySqlException) {
+                return false;
+            }
         }
 
         public void Dispose() { }
