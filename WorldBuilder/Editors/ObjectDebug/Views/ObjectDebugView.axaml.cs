@@ -30,6 +30,7 @@ public partial class ObjectDebugView : Base3DView {
     public ObjectDebugView() {
         InitializeComponent();
         InitializeBase3DView();
+        Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x1a, 0x1a, 0x1a));
         _vm = new ObjectDebugViewModel();
         DataContext = _vm;
     }

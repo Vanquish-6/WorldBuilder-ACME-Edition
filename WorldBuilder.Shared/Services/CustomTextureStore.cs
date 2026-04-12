@@ -6,6 +6,8 @@ namespace WorldBuilder.Shared.Services {
     public enum CustomTextureUsage {
         DungeonSurface,
         TerrainReplace,
+        /// <summary>Replaces an existing RenderSurface by ID (e.g., monster/creature textures).</summary>
+        RenderSurfaceReplace,
         /// <summary>Deprecated. Was used for unsafe new portal writes; remove entries from custom_textures.json.</summary>
         UiRenderSurface
     }
@@ -18,8 +20,14 @@ namespace WorldBuilder.Shared.Services {
 
         /// <summary>
         /// For TerrainReplace: which TerrainTextureType (as int) this replaces.
+        /// For RenderSurfaceReplace: the RenderSurface DID (0x05...) to overwrite.
         /// </summary>
         public int? ReplacesTerrainType { get; set; }
+
+        /// <summary>
+        /// For RenderSurfaceReplace: which RenderSurface DID (0x05...) to overwrite.
+        /// </summary>
+        public uint ReplacesRenderSurfaceId { get; set; }
 
         public uint RenderSurfaceGid { get; set; }
         public uint SurfaceTextureGid { get; set; }
@@ -128,6 +136,12 @@ namespace WorldBuilder.Shared.Services {
 
         public CustomTextureEntry? GetTerrainReplacement(int terrainType) =>
             _entries.FirstOrDefault(e => e.Usage == CustomTextureUsage.TerrainReplace && e.ReplacesTerrainType == terrainType);
+
+        public IEnumerable<CustomTextureEntry> GetRenderSurfaceReplacements() =>
+            _entries.Where(e => e.Usage == CustomTextureUsage.RenderSurfaceReplace);
+
+        public CustomTextureEntry? GetRenderSurfaceReplacement(uint renderSurfaceId) =>
+            _entries.FirstOrDefault(e => e.Usage == CustomTextureUsage.RenderSurfaceReplace && e.ReplacesRenderSurfaceId == renderSurfaceId);
 
         /// <summary>
         /// Allocates the next available GID in a range by scanning existing IDs.

@@ -946,6 +946,84 @@ namespace WorldBuilder.Editors.Monster {
             }
         }
 
+        /// <summary>
+        /// Replaces an existing RenderSurface by ID (for monster/creature texture replacements).
+        /// Validates format compatibility before importing.
+        /// </summary>
+        [RelayCommand]
+        private async Task ReplaceRenderSurfaceAsync() {
+            if (_textureImport == null) return;
+            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop
+                || desktop.MainWindow == null) return;
+            var topLevel = TopLevel.GetTopLevel(desktop.MainWindow);
+            if (topLevel == null) return;
+
+            // Get RenderSurface ID from user
+            var inputDialog = new Window {
+                Title = "Replace RenderSurface by ID",
+                Width = 400,
+                Height = 150,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(20) };
+            stack.Children.Add(new TextBlock { Text = "Enter RenderSurface ID to replace (e.g., 0x05003305):" });
+            var textBox = new TextBox { Margin = new Thickness(0, 10, 0, 10) };
+            stack.Children.Add(textBox);
+
+            var buttonPanel = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
+            var okButton = new Button { Content = "OK", Width = 80, Margin = new Thickness(0, 0, 10, 0) };
+            var cancelButton = new Button { Content = "Cancel", Width = 80 };
+            buttonPanel.Children.Add(okButton);
+            buttonPanel.Children.Add(cancelButton);
+            stack.Children.Add(buttonPanel);
+
+            inputDialog.Content = stack;
+
+            uint? rsId = null;
+            okButton.Click += (_, _) => {
+                if (TryParseUInt(textBox.Text ?? "", out var id)) {
+                    rsId = id;
+                    inputDialog.Close();
+                }
+            };
+            cancelButton.Click += (_, _) => inputDialog.Close();
+
+            await inputDialog.ShowDialog(desktop.MainWindow);
+
+            if (rsId == null) return;
+
+            // Pick image file
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
+                Title = "Select Replacement Texture",
+                AllowMultiple = false,
+                FileTypeFilter = new[] {
+                    new FilePickerFileType("Image Files") {
+                        Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.bmp" }
+                    }
+                }
+            });
+
+            if (files.Count == 0) return;
+            var localPath = files[0].TryGetLocalPath();
+            if (localPath == null) return;
+
+            try {
+                var name = Path.GetFileNameWithoutExtension(localPath);
+                if (_textureImport.TryImportRenderSurfaceReplacement(localPath, rsId.Value, name, out var error)) {
+                    StatusText = $"Imported replacement for RenderSurface 0x{rsId.Value:X8} — will overwrite on export.";
+                    Console.WriteLine($"[MonsterEditor] Imported RenderSurface replacement '{name}' for 0x{rsId.Value:X8}");
+                }
+                else {
+                    StatusText = $"Cannot replace 0x{rsId.Value:X8}: {error}";
+                    Console.WriteLine($"[MonsterEditor] Failed to import RenderSurface replacement: {error}");
+                }
+            }
+            catch (Exception ex) {
+                StatusText = $"Import failed: {ex.Message}";
+            }
+        }
+
         // ─── Helpers ─────────────────────────────────────────────────────────
 
         static bool TryParseUInt(string s, out uint v) {

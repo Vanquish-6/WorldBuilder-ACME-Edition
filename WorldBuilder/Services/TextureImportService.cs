@@ -121,6 +121,57 @@ namespace WorldBuilder.Services {
         }
 
         /// <summary>
+        /// Imports an image to replace an existing RenderSurface by ID (for monster/creature textures).
+        /// Validates that the target RenderSurface exists and is compatible (PFID_A8R8G8B8 format).
+        /// </summary>
+        public bool TryImportRenderSurfaceReplacement(string imagePath, uint renderSurfaceId, string name, out string error) {
+            error = "";
+
+            if (!File.Exists(imagePath)) {
+                error = "Image file not found.";
+                return false;
+            }
+
+            var readDats = _project.DatReaderWriter;
+            if (readDats == null) {
+                error = "DAT files not loaded.";
+                return false;
+            }
+
+            // Validate the target RenderSurface exists and is compatible
+            if (!readDats.TryGet<RenderSurface>(renderSurfaceId, out var existing) || existing == null) {
+                error = $"RenderSurface 0x{renderSurfaceId:X8} not found in DAT files.";
+                return false;
+            }
+
+            if (existing.Width <= 0 || existing.Height <= 0) {
+                error = $"RenderSurface 0x{renderSurfaceId:X8} has invalid dimensions {existing.Width}x{existing.Height}.";
+                return false;
+            }
+
+            if (existing.Format != DatPixelFormat.PFID_A8R8G8B8) {
+                error = $"RenderSurface 0x{renderSurfaceId:X8} uses {existing.Format} format. Only PFID_A8R8G8B8 (uncompressed BGRA) can be replaced. Original is likely DXT-compressed.";
+                return false;
+            }
+
+            // Remove any existing replacement for this RenderSurface ID
+            var existingEntry = _store.GetRenderSurfaceReplacement(renderSurfaceId);
+            if (existingEntry != null) {
+                _store.Remove(existingEntry.Id);
+            }
+
+            // Import the new texture
+            var entry = _store.Import(imagePath, name, CustomTextureUsage.RenderSurfaceReplace);
+            entry.ReplacesRenderSurfaceId = renderSurfaceId;
+            entry.Width = existing.Width;
+            entry.Height = existing.Height;
+            _store.Save();
+
+            Console.WriteLine($"[TextureImport] Imported RenderSurface replacement '{name}' for 0x{renderSurfaceId:X8} ({existing.Width}x{existing.Height}, {existing.Format})");
+            return true;
+        }
+
+        /// <summary>
         /// Loads an image and converts to BGRA byte data for RenderSurface PFID_A8R8G8B8 format.
         /// </summary>
         public static byte[] LoadImageAsBgra(string imagePath, int targetWidth = 512, int targetHeight = 512) {
@@ -306,13 +357,29 @@ namespace WorldBuilder.Services {
             // Terrain replacements: overwrite existing RenderSurface in-place
             WriteTerrainReplacementsToDats(writer, iteration);
 
+            // RenderSurface replacements: overwrite specific RenderSurface IDs (monster/creature textures)
+            WriteRenderSurfaceReplacementsToDats(writer, iteration);
+
             // Dungeon surfaces: create new entries (these are genuinely new)
             foreach (var entry in _store.Entries.Where(e => e.Usage == CustomTextureUsage.DungeonSurface)) {
                 var imagePath = _store.GetImagePath(entry);
                 if (!File.Exists(imagePath)) continue;
 
                 try {
+                    // Validate dimensions are reasonable
+                    if (entry.Width <= 0 || entry.Height <= 0 || entry.Width > 4096 || entry.Height > 4096) {
+                        Console.WriteLine($"[TextureImport] Invalid dimensions {entry.Width}x{entry.Height} for dungeon surface '{entry.Name}'");
+                        continue;
+                    }
+
                     var bgraData = LoadImageAsBgra(imagePath, entry.Width, entry.Height);
+                    
+                    // Verify buffer size matches expected BGRA size
+                    int expectedSize = entry.Width * entry.Height * 4;
+                    if (bgraData.Length != expectedSize) {
+                        Console.WriteLine($"[TextureImport] Buffer size mismatch for '{entry.Name}': expected {expectedSize} bytes, got {bgraData.Length}");
+                        continue;
+                    }
 
                     var rs = CreateRenderSurface(entry.RenderSurfaceGid, bgraData, entry.Width, entry.Height);
                     writer.TrySave(rs, iteration);
@@ -325,10 +392,59 @@ namespace WorldBuilder.Services {
                         writer.TrySave(surf, iteration);
                     }
 
-                    Console.WriteLine($"[TextureImport] Exported dungeon surface '{entry.Name}' (RS=0x{entry.RenderSurfaceGid:X8}, ST=0x{entry.SurfaceTextureGid:X8}, Surf=0x{entry.SurfaceGid:X8})");
+                    Console.WriteLine($"[TextureImport] Exported dungeon surface '{entry.Name}' (RS=0x{entry.RenderSurfaceGid:X8}, ST=0x{entry.SurfaceTextureGid:X8}, Surf=0x{entry.SurfaceGid:X8}, {entry.Width}x{entry.Height}, PFID_A8R8G8B8)");
                 }
                 catch (Exception ex) {
                     Console.WriteLine($"[TextureImport] Failed to write dungeon surface '{entry.Name}': {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Overwrites specific RenderSurface entries by ID (for monster/creature textures).
+        /// Similar to terrain replacements but uses explicit RenderSurface IDs.
+        /// </summary>
+        private void WriteRenderSurfaceReplacementsToDats(IDatReaderWriter writer, int? iteration) {
+            var replacements = _store.GetRenderSurfaceReplacements().ToList();
+            if (replacements.Count == 0) return;
+
+            foreach (var entry in replacements) {
+                var targetRsId = entry.ReplacesRenderSurfaceId;
+                if (targetRsId == 0) continue;
+
+                var imagePath = _store.GetImagePath(entry);
+                if (!File.Exists(imagePath)) continue;
+
+                try {
+                    // Read the original RenderSurface to preserve its format and dimensions
+                    if (!writer.TryGet<RenderSurface>(targetRsId, out var originalRs) || originalRs == null) {
+                        Console.WriteLine($"[TextureImport] Failed to read RenderSurface 0x{targetRsId:X8} for '{entry.Name}'");
+                        continue;
+                    }
+
+                    // Validate format compatibility
+                    if (originalRs.Format != DatPixelFormat.PFID_A8R8G8B8) {
+                        Console.WriteLine($"[TextureImport] Cannot replace '{entry.Name}': RenderSurface 0x{targetRsId:X8} uses {originalRs.Format}, only PFID_A8R8G8B8 (uncompressed BGRA) can be replaced. Original is likely DXT-compressed.");
+                        continue;
+                    }
+
+                    // Validate dimensions match
+                    if (originalRs.Width != entry.Width || originalRs.Height != entry.Height) {
+                        Console.WriteLine($"[TextureImport] Warning: '{entry.Name}' size {entry.Width}x{entry.Height} doesn't match original {originalRs.Width}x{originalRs.Height}. Resizing to match original...");
+                        entry.Width = originalRs.Width;
+                        entry.Height = originalRs.Height;
+                    }
+
+                    var bgraData = LoadImageAsBgra(imagePath, entry.Width, entry.Height);
+                    
+                    // Use RenderSurfaceWithReplacedPixels to preserve original format/metadata
+                    var rs = RenderSurfaceWithReplacedPixels(originalRs, bgraData);
+                    writer.TrySave(rs, iteration);
+
+                    Console.WriteLine($"[TextureImport] Replaced RenderSurface '{entry.Name}' at 0x{targetRsId:X8} ({originalRs.Width}x{originalRs.Height}, {originalRs.Format})");
+                }
+                catch (Exception ex) {
+                    Console.WriteLine($"[TextureImport] Failed to replace RenderSurface '{entry.Name}': {ex.Message}");
                 }
             }
         }
@@ -371,11 +487,32 @@ namespace WorldBuilder.Services {
                 var originalRsId = originalSt.Textures[^1];
 
                 try {
+                    // Read the original RenderSurface to preserve its format and dimensions
+                    if (!writer.TryGet<RenderSurface>(originalRsId, out var originalRs) || originalRs == null) {
+                        Console.WriteLine($"[TextureImport] Failed to read original RenderSurface 0x{originalRsId:X8} for terrain '{entry.Name}'");
+                        continue;
+                    }
+
+                    // Validate format compatibility - we can only replace uncompressed BGRA textures
+                    if (originalRs.Format != DatPixelFormat.PFID_A8R8G8B8) {
+                        Console.WriteLine($"[TextureImport] Cannot replace terrain '{entry.Name}': RenderSurface 0x{originalRsId:X8} uses {originalRs.Format}, only PFID_A8R8G8B8 (uncompressed BGRA) can be replaced. Original is likely DXT-compressed.");
+                        continue;
+                    }
+
+                    // Validate dimensions match
+                    if (originalRs.Width != entry.Width || originalRs.Height != entry.Height) {
+                        Console.WriteLine($"[TextureImport] Warning: terrain '{entry.Name}' size {entry.Width}x{entry.Height} doesn't match original {originalRs.Width}x{originalRs.Height}. Resizing to match original...");
+                        entry.Width = originalRs.Width;
+                        entry.Height = originalRs.Height;
+                    }
+
                     var bgraData = LoadImageAsBgra(imagePath, entry.Width, entry.Height);
-                    var rs = CreateRenderSurface(originalRsId, bgraData, entry.Width, entry.Height);
+                    
+                    // Use RenderSurfaceWithReplacedPixels to preserve original format/metadata
+                    var rs = RenderSurfaceWithReplacedPixels(originalRs, bgraData);
                     writer.TrySave(rs, iteration);
 
-                    Console.WriteLine($"[TextureImport] Replaced terrain '{entry.Name}' by overwriting RS=0x{originalRsId:X8} (via ST=0x{originalStId:X8})");
+                    Console.WriteLine($"[TextureImport] Replaced terrain '{entry.Name}' by overwriting RS=0x{originalRsId:X8} (via ST=0x{originalStId:X8}, {originalRs.Width}x{originalRs.Height}, {originalRs.Format})");
                 }
                 catch (Exception ex) {
                     Console.WriteLine($"[TextureImport] Failed to replace terrain '{entry.Name}': {ex.Message}");

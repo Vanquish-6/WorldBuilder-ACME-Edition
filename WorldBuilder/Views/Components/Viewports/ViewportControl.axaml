@@ -7,5 +7,5 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="WorldBuilder.Views.Components.Viewports.ViewportControl"
              x:DataType="vm:ViewportViewModel">
-  <Panel x:Name="Viewport" Background="Transparent" />
+  <Panel x:Name="Viewport" Background="#1a1a1a" />
 </views:Base3DView>

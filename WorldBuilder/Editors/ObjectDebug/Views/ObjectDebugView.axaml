@@ -6,8 +6,9 @@
     xmlns:views="using:WorldBuilder.Views"
     xmlns:vm="using:WorldBuilder.Editors.ObjectDebug.ViewModels"
     x:CompileBindings="True"
-    x:DataType="vm:ObjectDebugViewModel">
-    <Grid ColumnDefinitions="250, Auto, *">
+    x:DataType="vm:ObjectDebugViewModel"
+    Background="#1a1a1a">
+    <Grid ColumnDefinitions="Auto, Auto, *">
         <Border
             Grid.Column="0"
             Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
@@ -92,6 +93,6 @@
         <Panel
             x:Name="Viewport"
             Grid.Column="2"
-            Background="Transparent" />
+            Background="#1a1a1a" />
     </Grid>
 </views:Base3DView>
