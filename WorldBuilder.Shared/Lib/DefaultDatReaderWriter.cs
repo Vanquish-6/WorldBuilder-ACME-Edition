@@ -51,6 +51,7 @@ namespace WorldBuilder.Shared.Lib {
                     Type _ when typeof(T) == typeof(ClothingTable) => Dats.Portal.TryGet(id, out file),
                     Type _ when typeof(T) == typeof(PalSet) => Dats.Portal.TryGet(id, out file),
                     Type _ when typeof(T) == typeof(LayoutDesc) => Dats.TryGet(id, out file),
+                    Type _ when typeof(T) == typeof(StringTable) => Dats.TryGet(id, out file),
                     _ => throw new NotImplementedException($"DefaultDatReaderWriter does not currently support {typeof(T)}"),
                 };
             }
@@ -79,6 +80,7 @@ namespace WorldBuilder.Shared.Lib {
                     Type _ when typeof(T) == typeof(VitalTable) => Dats.Portal.TryWriteFile(file, iteration),
                     Type _ when typeof(T) == typeof(CharGen) => Dats.Portal.TryWriteFile(file, iteration),
                     Type _ when typeof(T) == typeof(LayoutDesc) => Dats.TryWriteFile(file, iteration),
+                    Type _ when typeof(T) == typeof(StringTable) => Dats.TryWriteFile(file, iteration),
                     _ => throw new NotImplementedException($"DefaultDatReaderWriter does not currently support {typeof(T)}"),
                 };
             }

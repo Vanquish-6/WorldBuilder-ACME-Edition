@@ -116,7 +116,14 @@ namespace WorldBuilder.Editors.Layout {
                     SelectedDetail = new LayoutDetailViewModel(value.Id, working, _dats, _textureImport, _portalDoc);
                     _ = SelectedDetail.LoadPreviewTexturesAsync();
                     var src = fromProject ? "project override" : "client DAT";
-                    StatusText = $"Layout 0x{value.Id:X8} ({src}): {working.Width}x{working.Height}, {working.Elements.Count} elements";
+                    var stringTableCount = 0;
+                    try {
+                        stringTableCount = _dats.Dats.GetAllIdsOfType<StringTable>().Count();
+                    }
+                    catch (Exception ex) {
+                        Console.WriteLine($"[Layout] StringTable index: {ex.Message}");
+                    }
+                    StatusText = $"Layout 0x{value.Id:X8} ({src}): {working.Width}x{working.Height}, {working.Elements.Count} elements — {stringTableCount} StringTable(s) in local";
                 }
                 else {
                     SelectedDetail = null;
@@ -165,6 +172,7 @@ namespace WorldBuilder.Editors.Layout {
 
     public partial class LayoutDetailViewModel : ObservableObject {
         private readonly IDatReaderWriter? _dats;
+        private readonly DatCollection? _stringDats;
         private readonly TextureImportService? _textureImport;
         private readonly PortalDatDocument? _portalDoc;
 
@@ -202,6 +210,8 @@ namespace WorldBuilder.Editors.Layout {
 
         public LayoutDetailViewModel(uint id, LayoutDesc workingLayout, IDatReaderWriter? dats, TextureImportService? textureImport = null, PortalDatDocument? portalDoc = null) {
             _dats = dats;
+            _stringDats = dats?.Dats;
+            var stringTableIds = _stringDats?.GetAllIdsOfType<StringTable>().ToArray();
             _textureImport = textureImport;
             _portalDoc = portalDoc;
             WorkingLayout = workingLayout;
@@ -212,7 +222,7 @@ namespace WorldBuilder.Editors.Layout {
             _layoutHeightText = workingLayout.Height.ToString();
 
             foreach (var kvp in workingLayout.Elements.OrderBy(e => e.Value.ReadOrder)) {
-                RootElements.Add(new ElementTreeNode(kvp.Value));
+                RootElements.Add(new ElementTreeNode(kvp.Value, _stringDats, stringTableIds, id));
             }
         }
 
@@ -405,12 +415,40 @@ namespace WorldBuilder.Editors.Layout {
     }
 
     public partial class ElementTreeNode : ObservableObject {
+        private readonly DatCollection? _stringDats;
+        private readonly uint[]? _stringTableIds;
+        /// <summary>DID of the layout file open in the editor (for string resolution through <see cref="ElementDesc.BaseLayoutId"/>).</summary>
+        private readonly uint _containingLayoutFileId;
+
         public ElementDesc Source { get; }
 
         public uint ElementId => Source.ElementId;
         public string DisplayId => $"0x{Source.ElementId:X}";
         public uint Type => Source.Type;
         public string TypeHex => Source.Type != 0 ? $"0x{Source.Type:X8}" : "inherit";
+
+        /// <summary>Concrete type if <see cref="ElementDesc.Type"/> is non-zero; otherwise first non-zero type along base-layout chain, or <c>inherit</c>.</summary>
+        public string TypeLabel {
+            get {
+                if (Source.Type != 0)
+                    return TypeHex;
+                var eff = LayoutUiStringResolver.TryResolveEffectiveType(_stringDats, Source, _containingLayoutFileId);
+                return eff is uint t ? $"inherit→0x{t:X8}" : TypeHex;
+            }
+        }
+
+        /// <summary>Identity panel: explains raw vs resolved type for thin overrides.</summary>
+        public string EffectiveTypeHint {
+            get {
+                if (Source.Type != 0)
+                    return $"0x{Source.Type:X8} (defined on this element)";
+                var eff = LayoutUiStringResolver.TryResolveEffectiveType(_stringDats, Source, _containingLayoutFileId);
+                if (eff is uint t)
+                    return $"0x{t:X8} (resolved via BaseLayoutId → BaseElement chain)";
+                return "Not resolved — Type stays 0 with no usable base chain, or a cycle in bases.";
+            }
+        }
+
         public uint X => Source.X;
         public uint Y => Source.Y;
         public uint Width => Source.Width;
@@ -431,17 +469,54 @@ namespace WorldBuilder.Editors.Layout {
 
         public string Summary => $"#{DisplayId} {TypeHex} ({Source.Width}x{Source.Height})";
 
+        /// <summary>Resolved from the first <see cref="MediaDescMessage"/> on the element’s representative UI state (English string tables).</summary>
+        public string Caption { get; private set; }
+
+        /// <summary>Caption for the panel, or an explanation when nothing resolved (bound in Identity so empty is never a blank gap).</summary>
+        public string CaptionDisplay => string.IsNullOrWhiteSpace(Caption)
+            ? "No English UI string resolved. We try this element, then <BaseLayoutId>/<BaseElement> ancestors, using MediaDescMessage and StringInfo on each. If still empty, the control may be a plain container or ids are missing from StringTables."
+            : Caption;
+
+        /// <summary>Tree row: hex id, optional string-table caption, effective type, Z/read order, size.</summary>
+        public string TreeLine {
+            get {
+                var cap = string.IsNullOrWhiteSpace(Caption) ? "" : $" — {Caption}";
+                return $"{DisplayId}{cap}  {TypeLabel}  Z {ZLevel}  RO {ReadOrder}  ({Source.Width}×{Source.Height})";
+            }
+        }
+
+        /// <summary>Hover on hierarchy row: ids, stacking, bases, primary image surface, resolved caption.</summary>
+        public string HierarchyTooltip {
+            get {
+                var surf = LayoutMediaHelper.TryPrimarySurfaceForElement(Source);
+                var surfLine = surf is uint sid ? $"0x{sid:X8}" : "(none — no MediaDescImage in default/template/states)";
+                return
+                    $"Element ID: {DisplayId}\n" +
+                    $"Raw type: {TypeHex}\n" +
+                    $"Effective type: {TypeLabel}\n" +
+                    $"Primary surface: {surfLine}\n" +
+                    $"Size: {Source.Width}×{Source.Height}  Position: X={X} Y={Y}\n" +
+                    $"Z-order: {ZLevel}  Read order: {ReadOrder}\n" +
+                    $"Base: layout {BaseLayoutHex}  element {(BaseElement != 0 ? $"0x{BaseElement:X}" : "none")}\n" +
+                    $"UI text: {(string.IsNullOrWhiteSpace(Caption) ? "(none resolved)" : Caption)}";
+            }
+        }
+
         public ObservableCollection<LayoutStateRow> StateRows { get; } = new();
 
         public ObservableCollection<ElementTreeNode> Children { get; } = new();
 
-        public ElementTreeNode(ElementDesc element) {
+        public ElementTreeNode(ElementDesc element, DatCollection? stringDats, uint[]? stringTableIds, uint containingLayoutFileId) {
             Source = element;
-            LayoutMediaHelper.PopulateStateRows(element, StateRows);
+            _stringDats = stringDats;
+            _stringTableIds = stringTableIds;
+            _containingLayoutFileId = containingLayoutFileId;
+            Caption = LayoutUiStringResolver.TryGetElementCaption(stringDats, element, stringTableIds, containingLayoutFileId) ?? "";
+            LayoutMediaHelper.PopulateStateRows(element, StateRows, stringDats, stringTableIds);
 
             if (element.Children != null) {
                 foreach (var kvp in element.Children.OrderBy(c => c.Value.ReadOrder)) {
-                    Children.Add(new ElementTreeNode(kvp.Value));
+                    Children.Add(new ElementTreeNode(kvp.Value, stringDats, stringTableIds, containingLayoutFileId));
                 }
             }
         }
@@ -478,13 +553,25 @@ namespace WorldBuilder.Editors.Layout {
             OnPropertyChanged(nameof(BottomEdge));
             OnPropertyChanged(nameof(ReadOrder));
             OnPropertyChanged(nameof(Summary));
+            OnPropertyChanged(nameof(TreeLine));
+            OnPropertyChanged(nameof(TypeLabel));
+            OnPropertyChanged(nameof(EffectiveTypeHint));
+            OnPropertyChanged(nameof(HierarchyTooltip));
             OnPropertyChanged(nameof(StatesCount));
             OnPropertyChanged(nameof(ChildrenCount));
         }
 
         public void RefreshStateRows() {
             StateRows.Clear();
-            LayoutMediaHelper.PopulateStateRows(Source, StateRows);
+            LayoutMediaHelper.PopulateStateRows(Source, StateRows, _stringDats, _stringTableIds);
+            var newCap = LayoutUiStringResolver.TryGetElementCaption(_stringDats, Source, _stringTableIds, _containingLayoutFileId) ?? "";
+            if (newCap != Caption) {
+                Caption = newCap;
+                OnPropertyChanged(nameof(Caption));
+                OnPropertyChanged(nameof(CaptionDisplay));
+                OnPropertyChanged(nameof(TreeLine));
+            }
+            OnPropertyChanged(nameof(HierarchyTooltip));
             OnPropertyChanged(nameof(StatesCount));
         }
     }

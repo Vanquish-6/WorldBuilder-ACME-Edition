@@ -41,7 +41,7 @@
             </DockPanel>
         </Border>
 
-        <Grid ColumnDefinitions="220,1,280,1,*">
+        <Grid ColumnDefinitions="220,1,360,1,*">
 
             <!-- Column 0: Layout List -->
             <DockPanel Grid.Column="0" Background="#1a1030">
@@ -87,17 +87,13 @@
                               x:CompileBindings="False">
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,1">
-                                    <TextBlock Text="{Binding DisplayId}" FontFamily="Consolas"
-                                               Foreground="#6ec07a" FontSize="11" />
-                                    <TextBlock Text="{Binding TypeHex}" FontFamily="Consolas"
-                                               Foreground="#5a4a6e" FontSize="10" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding Width, StringFormat='{}{0}'}" FontSize="10"
-                                               Foreground="#8a7a9e" VerticalAlignment="Center" />
-                                    <TextBlock Text="x" FontSize="10" Foreground="#5a4a6e" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding Height, StringFormat='{}{0}'}" FontSize="10"
-                                               Foreground="#8a7a9e" VerticalAlignment="Center" />
-                                </StackPanel>
+                                <!-- ToolTip on a wrapper: inner TextBlock in ToolTip.Tip often loses tree item DataContext in Avalonia TreeView. -->
+                                <Border Background="Transparent" Margin="0,1" Padding="2,0"
+                                        ToolTip.Placement="Right" ToolTip.ShowDelay="200"
+                                        ToolTip.Tip="{Binding HierarchyTooltip}">
+                                    <TextBlock Text="{Binding TreeLine}" FontFamily="Consolas" FontSize="11"
+                                               Foreground="#b8c8e8" TextWrapping="Wrap" />
+                                </Border>
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>
@@ -153,6 +149,17 @@
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Classes="prop-label" Text="Type" />
                                     <TextBlock Classes="prop-value" Text="{Binding TypeHex}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical" Spacing="2" Margin="0,4,0,0">
+                                    <TextBlock Classes="prop-label" Text="Effective type" />
+                                    <TextBlock Classes="prop-value" Text="{Binding EffectiveTypeHint}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <!-- Do not use prop-label here: it sets Width=120 and clips long titles. -->
+                                <StackPanel Orientation="Vertical" Spacing="4" Margin="0,8,0,0">
+                                    <TextBlock Text="UI text (StringTable / MediaDescMessage)"
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#9a8aae" TextWrapping="Wrap" />
+                                    <TextBlock FontSize="11" Foreground="#d4c4ec" LineHeight="16"
+                                               Text="{Binding CaptionDisplay}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 </StackPanel>
 
@@ -240,7 +247,7 @@
                                     <TextBlock Classes="prop-label" Text="Default UIState" />
                                     <TextBlock Classes="prop-value" Text="{Binding DefaultStateHex}" />
                                 </StackPanel>
-                                <TextBlock Text="Template row + one row per state. “Image” surface is the first MediaDescImage in that state."
+                                <TextBlock Text="Template row + one row per state. Image surface = first MediaDescImage. Message copy = MediaDescMessage.Id resolved via StringTable (client_local_English); StringInfo properties on the same state hint which table DID to try first."
                                            FontSize="10" Foreground="#6a5a7e" TextWrapping="Wrap" Margin="0,0,0,6" />
                                 <ItemsControl ItemsSource="{Binding StateRows}">
                                     <ItemsControl.ItemTemplate>

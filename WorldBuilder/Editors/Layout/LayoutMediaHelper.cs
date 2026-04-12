@@ -1,6 +1,8 @@
+using DatReaderWriter;
 using DatReaderWriter.Enums;
 using DatReaderWriter.Types;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -51,22 +53,25 @@ namespace WorldBuilder.Editors.Layout {
             return null;
         }
 
-        public static void PopulateStateRows(ElementDesc el, ObservableCollection<LayoutStateRow> rows) {
+        public static void PopulateStateRows(ElementDesc el, ObservableCollection<LayoutStateRow> rows, DatCollection? stringDats = null,
+            IReadOnlyList<uint>? stringTableIdsInLocal = null) {
             rows.Clear();
-            rows.Add(MakeRow("Template", el.StateDesc));
+            rows.Add(MakeRow("Template", el.StateDesc, el, stringDats, stringTableIdsInLocal));
             if (el.States == null) return;
             foreach (var kv in el.States.OrderBy(k => (uint)k.Key)) {
-                rows.Add(MakeRow($"UIState 0x{(uint)kv.Key:X8}", kv.Value));
+                rows.Add(MakeRow($"UIState 0x{(uint)kv.Key:X8}", kv.Value, el, stringDats, stringTableIdsInLocal));
             }
         }
 
-        static LayoutStateRow MakeRow(string label, StateDesc sd) {
+        static LayoutStateRow MakeRow(string label, StateDesc sd, ElementDesc owner, DatCollection? stringDats,
+            IReadOnlyList<uint>? stringTableIdsInLocal) {
             var surf = TryFirstImageSurfaceId(sd);
-            string mediaSummary = "—";
-            if (sd.Media is { Count: > 0 }) {
-                mediaSummary = string.Join(", ",
-                    sd.Media.Select(m => m.GetType().Name.Replace("MediaDesc", "", StringComparison.Ordinal)));
-            }
+            string mediaSummary = stringDats != null
+                ? LayoutUiStringResolver.BuildMediaSummary(sd, stringDats, owner, stringTableIdsInLocal)
+                : sd.Media is { Count: > 0 }
+                    ? string.Join(", ",
+                        sd.Media.Select(m => m.GetType().Name.Replace("MediaDesc", "", StringComparison.Ordinal)))
+                    : "—";
 
             return new LayoutStateRow {
                 RowLabel = label,

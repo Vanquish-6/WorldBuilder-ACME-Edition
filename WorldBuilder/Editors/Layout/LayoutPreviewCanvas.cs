@@ -6,6 +6,7 @@ using Avalonia.Media.Imaging;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Linq;
 
 namespace WorldBuilder.Editors.Layout {
     public class LayoutPreviewCanvas : Control {
@@ -274,7 +275,8 @@ namespace WorldBuilder.Editors.Layout {
                 new Typeface("Consolas"), 9, DimTextBrush);
             context.DrawText(sizeText, new Point(offsetX, offsetY - sizeText.Height - 2));
 
-            foreach (var element in _elements) {
+            // Lower ReadOrder / ZLevel first, higher last so stacked siblings match client draw order.
+            foreach (var element in _elements.OrderBy(e => e.ReadOrder).ThenBy(e => e.ZLevel).ThenBy(e => e.ElementId)) {
                 DrawElement(context, element, offsetX, offsetY, scale, 0);
             }
 
@@ -308,21 +310,27 @@ namespace WorldBuilder.Editors.Layout {
             double w = node.Width * scale;
             double h = node.Height * scale;
 
-            foreach (var child in node.Children) {
+            // Paint this node *before* descendants so children (e.g. Cancel) are not covered by the parent's
+            // semi-opaque fill/border. Previously children were drawn first, which hid small controls under panels.
+            if (w >= 1 && h >= 1)
+                DrawElementVisuals(context, node, x, y, w, h);
+
+            foreach (var child in node.Children.OrderBy(c => c.ReadOrder).ThenBy(c => c.ZLevel).ThenBy(c => c.ElementId)) {
                 if (w < 1 || h < 1) {
                     DrawElement(context, child, node.X + baseX, node.Y + baseY, scale, depth + 1);
                     return;
                 }
+
+                if (node.Type != 0 && node.BaseLayoutId == 0 && child.Type == 0 && child.BaseLayoutId != 0) {
+                    DrawElement(context, child, node.X + baseX, node.Y + baseY, scale, depth + 1);
+                }
                 else {
-                    if (node.Type != 0 && node.BaseLayoutId == 0 && child.Type == 0 && child.BaseLayoutId != 0) {
-                        DrawElement(context, child, node.X + baseX, node.Y + baseY, scale, depth + 1);
-                    }
-                    else {
-                        DrawElement(context, child, x, y, scale, depth + 1);
-                    }
+                    DrawElement(context, child, x, y, scale, depth + 1);
                 }
             }
+        }
 
+        void DrawElementVisuals(DrawingContext context, ElementTreeNode node, double x, double y, double w, double h) {
             var rect = new Rect(x, y, w, h);
             bool isSelected = node == _selectedElement;
             if (isSelected) {
@@ -348,7 +356,14 @@ namespace WorldBuilder.Editors.Layout {
                 rect);
 
             if (w > 30 && h > 12) {
-                var label = new FormattedText(node.DisplayId,
+                var cap = node.Caption;
+                var capShort = string.IsNullOrWhiteSpace(cap)
+                    ? ""
+                    : (cap.Length > 36 ? cap[..35] + "…" : cap);
+                var line = string.IsNullOrEmpty(capShort)
+                    ? node.DisplayId
+                    : $"{node.DisplayId} · {capShort}";
+                var label = new FormattedText(line,
                     CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
                     new Typeface("Consolas"), System.Math.Min(9, h * 0.6),
                     isSelected ? TextBrush : DimTextBrush);
