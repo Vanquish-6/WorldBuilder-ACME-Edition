@@ -26,10 +26,22 @@ namespace WorldBuilder.Lib.Settings {
         private bool _logDatabaseQueries = false;
         public bool LogDatabaseQueries { get => _logDatabaseQueries; set => SetProperty(ref _logDatabaseQueries, value); }
 
+        [SettingDescription("Write application logs to a file (useful for sharing with developers when reporting issues)")]
+        [SettingOrder(3)]
+        private bool _enableFileLogging = true;
+        public bool EnableFileLogging { get => _enableFileLogging; set => SetProperty(ref _enableFileLogging, value); }
+
+        [SettingDescription("Maximum log file size in megabytes before rotating (one backup is kept)")]
+        [SettingRange(1, 50, 1, 5)]
+        [SettingFormat("{0:F0} MB")]
+        [SettingOrder(4)]
+        private int _maxLogFileSizeMb = 5;
+        public int MaxLogFileSizeMb { get => _maxLogFileSizeMb; set => SetProperty(ref _maxLogFileSizeMb, value); }
+
         [SettingDescription("Maximum number of history items to keep")]
         [SettingRange(5, 10000, 1, 100)]
         [SettingFormat("{0:F0}")]
-        [SettingOrder(3)]
+        [SettingOrder(5)]
         private int _historyLimit = 50;
         public int HistoryLimit { get => _historyLimit; set => SetProperty(ref _historyLimit, value); }
     }

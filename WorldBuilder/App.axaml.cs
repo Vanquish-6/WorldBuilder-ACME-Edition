@@ -55,6 +55,12 @@ public partial class App : Application {
         services.AddCommonServices();
 
         Services = services.BuildServiceProvider();
+
+        var settings = Services.GetRequiredService<Lib.Settings.WorldBuilderSettings>();
+        var fileLoggerProvider = Services.GetRequiredService<FileLoggerProvider>();
+        fileLoggerProvider.GetMinLevel = () => settings.App.LogLevel;
+        fileLoggerProvider.GetEnabled = () => settings.App.EnableFileLogging;
+
         // Auto-updater is desktop-only (file paths, installers); skip in browser to avoid startup failure.
         // Deferred to Background priority so it doesn't compete with initial UI rendering.
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime) {

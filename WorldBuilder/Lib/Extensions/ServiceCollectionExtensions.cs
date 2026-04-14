@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.IO;
+using System.Text.Json;
 using WorldBuilder.Editors.Dungeon;
 using WorldBuilder.Editors.Landscape;
 using WorldBuilder.Editors.Landscape.ViewModels;
@@ -28,7 +30,33 @@ using WorldBuilder.ViewModels;
 namespace WorldBuilder.Lib.Extensions {
     public static class ServiceCollectionExtensions {
         public static void AddCommonServices(this IServiceCollection collection) {
-            collection.AddLogging((c) => c.AddProvider(new ColorConsoleLoggerProvider()));
+            var appDataDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "ACME WorldBuilder");
+            var logDir = Path.Combine(appDataDir, "Logs");
+
+            long maxLogBytes = 5L * 1024 * 1024;
+            try {
+                var settingsPath = Path.Combine(appDataDir, "settings.json");
+                if (File.Exists(settingsPath)) {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(settingsPath));
+                    if (doc.RootElement.TryGetProperty("App", out var app)
+                        && app.TryGetProperty("MaxLogFileSizeMb", out var mb)
+                        && mb.TryGetInt32(out var sizeMb) && sizeMb >= 1) {
+                        maxLogBytes = sizeMb * 1024L * 1024;
+                    }
+                }
+            }
+            catch { }
+
+            var fileLoggerProvider = new FileLoggerProvider(logDir, maxLogBytes);
+
+            collection.AddLogging((c) => {
+                c.AddProvider(new ColorConsoleLoggerProvider());
+                c.AddProvider(fileLoggerProvider);
+            });
+
+            collection.AddSingleton(fileLoggerProvider);
 
             collection.AddSingleton<ProjectManager>();
             collection.AddSingleton<WorldBuilderSettings>();
@@ -52,7 +80,11 @@ namespace WorldBuilder.Lib.Extensions {
                 },
                 ServiceLifetime.Scoped);
 
-            collection.AddLogging((c) => c.AddProvider(new ColorConsoleLoggerProvider()));
+            var fileLoggerProvider = rootProvider.GetRequiredService<FileLoggerProvider>();
+            collection.AddLogging((c) => {
+                c.AddProvider(new ColorConsoleLoggerProvider());
+                c.AddProvider(fileLoggerProvider);
+            });
 
             collection.AddSingleton(rootProvider.GetRequiredService<WorldBuilderSettings>());
             collection.AddSingleton(rootProvider.GetRequiredService<ProjectManager>());

@@ -8,6 +8,9 @@ using CommunityToolkit.Mvvm.Messaging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using WorldBuilder.Editors.Dungeon;
 using WorldBuilder.Editors.Landscape.ViewModels;
@@ -260,6 +263,27 @@ public partial class MainViewModel : ViewModelBase {
     private void AnalyzeDungeonRooms() {
         var dungeonEditor = ProjectManager.Instance?.GetProjectService<DungeonEditorViewModel>();
         dungeonEditor?.AnalyzeRoomsCommand.Execute(null);
+    }
+
+    [RelayCommand]
+    private void OpenLogFolder() {
+        var logDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "ACME WorldBuilder", "Logs");
+
+        if (!Directory.Exists(logDir)) {
+            Directory.CreateDirectory(logDir);
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+            Process.Start(new ProcessStartInfo("explorer.exe", logDir));
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            Process.Start("open", logDir);
+        }
+        else {
+            Process.Start("xdg-open", logDir);
+        }
     }
 
     // Landscape editor menu (only relevant when landscape editor is active)

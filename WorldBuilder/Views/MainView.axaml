@@ -57,6 +57,7 @@
                     <Separator />
                     <MenuItem Command="{Binding OpenSettingsWindowCommand}" Header="Settings..." />
                     <MenuItem Command="{Binding OpenKeyboardShortcutsCommand}" Header="Keyboard Shortcuts..." />
+                    <MenuItem Command="{Binding OpenLogFolderCommand}" Header="Open Log Folder" />
                     <Separator />
                     <MenuItem Command="{Binding ExitCommand}" Header="Exit" InputGesture="{Binding ExitGesture}" />
                 </MenuItem>
