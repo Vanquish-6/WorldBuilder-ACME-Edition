@@ -5,9 +5,10 @@
     <description>Most recent changes with links to updates</description>
     <language>en</language>
     <item>
-      <title>WorldBuilder 0.1.0+285</title>
+      <title>WorldBuilder 0.1.0+286</title>
       <description>## Changes
 
+- fix: preserve placed objects and pad surface lists on dungeon export SanitizeEnvCellStaticsForExport previously returned true (delete) in the catch block, so any DatReaderWriter parse exception — including the ArgumentOutOfRangeException and duplicate-key errors seen against Setup IDs like 0x01004736 — silently removed the stab from the cell on every save. The fix changes the catch to return false (keep), logging at Debug instead of Warning. Only stabs whose DID is definitively absent from the DAT (TryGet returns false) are now removed; a separate Warning counts references that could not be verified so the issue remains observable. SanitizeEnvCellSurfacesForExport previously left 333 non-empty surface lists unchanged when their length did not match the required slot count derived from the Environment polygon PosSurface values. The AC client indexes Surfaces directly by PosSurface, so a list that is too short causes out-of-bounds lookups. The fix pads under-count lists by repeating the last existing surface entry, preserving all original texture assignments and only filling the missing tail with a safe value. Over-count lists are still left as-is (extra slots are harmless). ([1a516aa](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/1a516aaf26cdd01455e2dfd4c0f46084e80cf994))
 - add dat integrity guards, sky/fog rendering, particle alpha, weenie cache fixes ([8f34ef6](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/8f34ef632142f57b9397fec4b8b2b4fe5054bc65))
 - add logging, fix texture import/dat export ([15cb9ed](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/15cb9edaa548e2943f424c268752d0c1987d881e))
 - ui layout additions (some names from string) ([7d6ce84](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/7d6ce84ddfb531d2f15d175d046452aa952a151c))
@@ -56,13 +57,12 @@
 - more prefab stuff ([da88e74](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/da88e741a0e5c0555af1c1746dea64413db7472a))
 - Dungeon editor refactor, landscape shader fix, document save/settings bug fixes ([b8a09dd](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/b8a09dd989f0ad0abe75930c692683ae61a38b6d))
 - improve dungeon editor render loop ([d7d0205](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/d7d020520afc41908a2ba3beeaa38d9227c2a0d6))
-- more performance stuff ([8a478a8](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/8a478a8a97756d643dfebcfc5b716ab657d15a7b))
-- things go smoother ([989ae26](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/989ae2638f7b2ff7976b177111642474dc6af245))</description>
-      <pubDate>Tue, 12 May 2026 15:10:38 +00:00</pubDate>
-      <sparkle:version>0.1.0+285</sparkle:version>
+- more performance stuff ([8a478a8](https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/commit/8a478a8a97756d643dfebcfc5b716ab657d15a7b))</description>
+      <pubDate>Tue, 12 May 2026 16:00:33 +00:00</pubDate>
+      <sparkle:version>0.1.0+286</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:channel>edge</sparkle:channel>
-      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B285.exe" sparkle:version="0.1.0+285" sparkle:shortVersionString="0.1.0" length="23820899" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="utAdVVydKAzTIIQqyWCoN9ME/C3poquBSDm95rxOSdQKtCRyJ1Y61TP/qMPLQKP4XJd8t2wAIypRhcquKBuRCA==" />
+      <enclosure url="https://github.com/Vanquish-6/WorldBuilder-ACME-Edition/releases/download/latest/ACME-WorldBuilderInstall-0.1.0%2B286.exe" sparkle:version="0.1.0+286" sparkle:shortVersionString="0.1.0" length="23821142" sparkle:os="windows-x64" type="application/x-msdos-program" sparkle:criticalUpdate="false" sparkle:signature="IEah5GHD1IXLjnICyNjV1AKEN12IRnMguddmL9JtZBTFKeFWwtTUJCsoC7bRgYrbqphBzneV3u7xwdS6mfuCAg==" />
     </item>
   </channel>
 </rss>
