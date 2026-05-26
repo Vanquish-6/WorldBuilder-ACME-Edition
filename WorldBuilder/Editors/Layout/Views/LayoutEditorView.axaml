@@ -239,7 +239,7 @@
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Classes="prop-label" Text="Base Element" />
-                                    <TextBlock Classes="prop-value" Text="{Binding BaseElement}" />
+                                    <TextBlock Classes="prop-value" Text="{Binding BaseElementHex}" />
                                 </StackPanel>
 
                                 <TextBlock Classes="section-header" Text="UI states &amp; media" />

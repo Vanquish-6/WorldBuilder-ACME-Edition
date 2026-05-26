@@ -455,6 +455,7 @@ namespace WorldBuilder.Editors.Layout {
         public uint Height => Source.Height;
         public uint ZLevel => Source.ZLevel;
         public uint BaseElement => Source.BaseElement;
+        public string BaseElementHex => Source.BaseElement != 0 ? $"0x{Source.BaseElement:X8}" : "none";
         public uint BaseLayoutId => Source.BaseLayoutId;
         public string BaseLayoutHex => Source.BaseLayoutId != 0 ? $"0x{Source.BaseLayoutId:X8}" : "none";
         public uint LeftEdge => Source.LeftEdge;
@@ -497,7 +498,7 @@ namespace WorldBuilder.Editors.Layout {
                     $"Primary surface: {surfLine}\n" +
                     $"Size: {Source.Width}×{Source.Height}  Position: X={X} Y={Y}\n" +
                     $"Z-order: {ZLevel}  Read order: {ReadOrder}\n" +
-                    $"Base: layout {BaseLayoutHex}  element {(BaseElement != 0 ? $"0x{BaseElement:X}" : "none")}\n" +
+                    $"Base: layout {BaseLayoutHex}  element {BaseElementHex}\n" +
                     $"UI text: {(string.IsNullOrWhiteSpace(Caption) ? "(none resolved)" : Caption)}";
             }
         }
